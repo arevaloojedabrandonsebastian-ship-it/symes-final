@@ -1,0 +1,3064 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SYMES — Sistema de Engrasaderos</title>
+<link rel="icon" type="image/png" href="favicon.png.png">
+<link rel="apple-touch-icon" href="favicon.png.png">
+<meta name="description" content="SYMES — Sistema profesional de liquidaciones para engrasaderos.">
+<meta name="author" content="Brandon Sebastian Arevalo Ojeda">
+<meta name="theme-color" content="#1f3c88">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="SYMES-FINAL/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SYMES">
+<meta name="application-name" content="SYMES">
+<style>
+:root{
+  --azul:#1f3c88;--azul-oscuro:#13295f;--verde:#1f8a4c;--verde-oscuro:#166b3b;
+  --rojo:#c0392b;--rojo-suave:#fff1f1;--gris:#64748b;--borde:#dce3f0;
+  --texto:#243044;--sombra:0 18px 45px rgba(15,23,42,.12);
+  --sombra-suave:0 8px 24px rgba(15,23,42,.08);
+  --amarillo:#f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  min-height:100vh;font-family:Arial,sans-serif;color:var(--texto);
+  background:radial-gradient(circle at 8% 0%,rgba(31,60,136,.18),transparent 32%),
+             radial-gradient(circle at 92% 12%,rgba(31,138,76,.12),transparent 28%),
+             linear-gradient(135deg,#eef2f7 0%,#f8fbff 100%);
+}
+.contenedor{max-width:1200px;margin:20px auto;padding:22px;background:rgba(255,255,255,.97);border-radius:26px;border:1px solid rgba(220,227,240,.9);box-shadow:var(--sombra);animation:aparecer .32s ease;}
+@keyframes aparecer{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* BARRA SUPERIOR */
+.barra-superior{position:sticky;top:8px;z-index:200;display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:22px;padding:10px 14px;margin-bottom:20px;box-shadow:0 8px 24px rgba(15,23,42,.08);}
+.marca{background:linear-gradient(135deg,var(--azul),var(--verde));padding:11px 18px;border-radius:18px;box-shadow:0 6px 18px rgba(31,60,136,.22);user-select:none;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.marca:hover{transform:scale(1.04);box-shadow:0 10px 26px rgba(31,60,136,.32);}
+.marca:active{transform:scale(.97);}
+.marca h1{color:#fff;margin:0;font-size:30px;letter-spacing:1px;line-height:1;}
+.marca p{color:#e0eeff;font-size:11px;margin-top:3px;}
+
+/* MENÚ */
+.menu-derecha{position:relative;display:none;}
+.boton-menu{width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(31,60,136,.26);transition:.15s;}
+.boton-menu:hover{transform:scale(1.06);}
+.contenido-menu{display:none;position:fixed;right:20px;top:62px;min-width:260px;padding:12px;z-index:9999;background:#fff;border:1px solid rgba(220,227,240,.98);border-radius:22px;box-shadow:0 18px 48px rgba(15,23,42,.2);max-height:80vh;overflow-y:auto;}
+.contenido-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;margin:4px 0;border-radius:13px;background:#f8faff;color:var(--texto);border:1px solid #e2e8f0;font-size:14px;font-weight:700;text-align:left;cursor:pointer;transition:.14s;}
+.contenido-menu button:hover{background:linear-gradient(135deg,rgba(31,60,136,.09),rgba(31,138,76,.09));color:var(--azul);border-color:rgba(31,60,136,.26);transform:translateX(3px);}
+.contenido-menu button.rojo-menu{background:var(--rojo-suave);color:var(--rojo);border-color:rgba(192,57,43,.2);}
+.contenido-menu button.rojo-menu:hover{background:var(--rojo);color:#fff;}
+.divisor-menu{height:1px;background:var(--borde);margin:6px 0;}
+
+/* NAV INFERIOR */
+.nav-inferior{display:none!important;}
+.nav-item{display:none!important;}
+
+/* TOAST */
+.toast-container{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;min-width:280px;max-width:360px;}
+.toast{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;font-weight:700;font-size:14px;box-shadow:0 12px 30px rgba(0,0,0,.18);animation:toastIn .28s ease,toastOut .28s ease 2.8s forwards;pointer-events:auto;}
+.toast.ok{background:linear-gradient(135deg,var(--verde),#25a05a);color:#fff;}
+.toast.error{background:linear-gradient(135deg,var(--rojo),#e74c3c);color:#fff;}
+.toast.info{background:linear-gradient(135deg,var(--azul),#2550b8);color:#fff;}
+.toast.aviso{background:linear-gradient(135deg,#e67e22,#f39c12);color:#fff;}
+@keyframes toastIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(-12px)}}
+
+/* MODALES */
+.modal-overlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.abierto{display:flex;}
+.modal{background:#fff;border-radius:24px;padding:28px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(15,23,42,.22);animation:aparecer .25s ease;}
+.modal h2{margin-bottom:14px;color:var(--azul);}
+.modal-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+
+/* SECCIONES */
+.seccion{background:rgba(248,250,255,.95);padding:20px;margin:16px 0;border-radius:20px;border:1px solid rgba(220,227,240,.95);box-shadow:var(--sombra-suave);overflow:visible;}
+.seccion h2{margin-top:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:var(--azul);}
+.hero{position:relative;overflow:visible;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:22px;padding:26px;margin-bottom:18px;box-shadow:0 12px 30px rgba(31,60,136,.22);}
+.hero h2{color:#fff;margin:0 0 6px;font-size:24px;}
+.hero p{color:rgba(255,255,255,.9);line-height:1.5;margin:0;}
+.hero::after{content:"";position:absolute;width:160px;height:160px;right:-60px;top:-60px;background:rgba(255,255,255,.12);border-radius:50%;}
+.tarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+.tarjeta{position:relative;overflow:hidden;background:#fff;border:1px solid rgba(220,227,240,.9);border-radius:20px;padding:22px 20px;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;box-shadow:0 2px 10px rgba(15,23,42,.05);}
+.tarjeta::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(31,60,136,.06),rgba(31,138,76,.04));opacity:0;transition:opacity .2s ease;border-radius:20px;}
+.tarjeta:hover{transform:translateY(-3px) scale(1.015);box-shadow:0 12px 32px rgba(31,60,136,.14);border-color:transparent;}
+.tarjeta:hover::after{opacity:1;}
+.tarjeta:active{transform:translateY(0) scale(.99);}
+.tarjeta h3{display:flex;align-items:center;gap:9px;margin:0;color:var(--azul);font-size:15px;font-weight:700;position:relative;z-index:1;text-transform:capitalize;}
+.tarjeta p{color:#5f6f85;font-size:13px;line-height:1.4;margin:6px 0 0;position:relative;z-index:1;}
+
+/* BADGES / PLAN */
+.badge-plan{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+.badge-gratis{background:#fff3cd;color:#856404;border:1px solid #ffe08a;}
+.badge-pro{background:linear-gradient(135deg,#ffd700,#ffb300);color:#5a3a00;border:1px solid #ffc107;}
+.banner-plan{background:linear-gradient(135deg,rgba(31,60,136,.07),rgba(31,138,76,.07));border:1px solid rgba(31,60,136,.18);border-radius:16px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+
+/* INPUTS / BOTONES */
+label{font-weight:700;display:block;margin-top:12px;color:#334155;font-size:14px;}
+input,select,textarea{width:100%;padding:11px 13px;margin-top:6px;border:1px solid #cbd5e1;border-radius:13px;font-size:14px;background:#fff;transition:.15s;font-family:Arial,sans-serif;}
+input:focus,select:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(31,60,136,.13);}
+button{background:var(--azul);color:#fff;border:none;padding:11px 16px;border-radius:13px;cursor:pointer;margin:6px 4px 6px 0;font-size:14px;font-weight:700;transition:.14s;box-shadow:0 4px 10px rgba(31,60,136,.18);font-family:Arial,sans-serif;}
+button:hover{background:var(--azul-oscuro);transform:translateY(-1px);box-shadow:0 8px 18px rgba(31,60,136,.18);}
+button:active{transform:scale(.98);}
+.btn-verde{background:var(--verde);box-shadow:0 4px 10px rgba(31,138,76,.2);}
+.btn-verde:hover{background:var(--verde-oscuro);}
+.btn-rojo{background:var(--rojo);box-shadow:0 4px 10px rgba(192,57,43,.2);}
+.btn-rojo:hover{background:#a93226;}
+.btn-gris{background:var(--gris);}
+.btn-gris:hover{background:#4b5568;}
+.btn-outline{background:transparent;color:var(--azul);border:2px solid var(--azul);box-shadow:none;}
+.btn-outline:hover{background:var(--azul);color:#fff;}
+.btn-amarillo{background:var(--amarillo);color:#fff;box-shadow:0 4px 10px rgba(245,158,11,.2);}
+.btn-amarillo:hover{background:#d97706;}
+.btn-sm{padding:7px 12px;font-size:12px;margin:2px;}
+.btn-icon{padding:8px 10px;font-size:16px;line-height:1;}
+
+/* ITEMS */
+.item h3{text-transform:capitalize;}
+.item{border:1px solid rgba(203,213,225,.7);padding:16px 18px;border-radius:18px;margin:10px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s,box-shadow .15s;}
+.item:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(15,23,42,.1);}
+.item-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.item-avatar{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;}
+.item-nombre{font-size:16px;font-weight:700;color:var(--azul);margin:0;text-transform:capitalize;}
+.item-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.item-stat{background:#f8faff;border-radius:12px;padding:8px 10px;text-align:center;}
+.item-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
+.item-stat strong{font-size:14px;font-weight:700;color:#243044;}
+.item-stat.neto strong{color:var(--verde);}
+.item-acciones{display:flex;gap:8px;}
+.resumen-pago{background:#e8f1ff;padding:11px;border-radius:12px;line-height:1.7;border-left:4px solid var(--azul);}
+.cierre-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+.cierre-estado-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:30px;font-weight:700;font-size:14px;}
+.cierre-estado-badge.pagado{background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#15803d;border:1px solid #86efac;}
+.cierre-estado-badge.pendiente{background:linear-gradient(135deg,#fef9c3,#fef08a);color:#854d0e;border:1px solid #fde047;}
+.cierre-card{background:#fff;border:1px solid rgba(203,213,225,.7);border-radius:18px;padding:16px 18px;margin:10px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);}
+.cierre-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.cierre-card-avatar{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;flex-shrink:0;}
+.cierre-card-nombre{font-size:15px;font-weight:700;color:var(--azul);text-transform:capitalize;}
+.cierre-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.cierre-stat{background:#f8faff;border-radius:11px;padding:8px 10px;text-align:center;}
+.cierre-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
+.cierre-stat strong{font-size:14px;font-weight:700;color:#243044;}
+.cierre-stat.neto strong{color:var(--verde);}
+.cierre-acciones{display:flex;gap:8px;flex-wrap:wrap;}
+.cierre-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:18px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 6px 20px rgba(31,60,136,.2);}
+.cierre-total-bar span{font-size:13px;opacity:.88;}
+.cierre-total-bar strong{font-size:22px;font-weight:800;}
+.alerta{background:#fff7df;border:1px solid #ffe08a;color:#6b4e00;padding:11px;border-radius:12px;margin-top:8px;line-height:1.45;font-size:13px;}
+.alerta-verde{background:#eef8f1;border-color:#b7e0c2;color:#166b3b;}
+.alerta-rojo{background:#fff1f1;border-color:#fca5a5;color:#7f1d1d;}
+.resultado{background:#eef8f1;border:1px solid #b7e0c2;padding:18px;border-radius:16px;margin-top:12px;}
+.total-final{background:linear-gradient(135deg,var(--verde),#25a05a);color:#fff;padding:16px;border-radius:16px;text-align:center;font-size:20px;margin-top:14px;line-height:1.6;box-shadow:0 7px 20px rgba(31,138,76,.23);}
+.oculto{display:none!important;}
+.fila{display:flex;gap:10px;align-items:flex-end;}
+.fila>*{flex:1;}
+.centro{text-align:center;}
+.config-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+.creditos{text-align:center;color:var(--gris);font-size:12px;font-weight:600;margin-top:20px;border-top:1px solid var(--borde);padding-top:14px;}
+
+/* TOOLTIP */
+.info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;min-width:20px;margin-left:5px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--verde));cursor:help;border:2px solid rgba(255,255,255,.8);box-shadow:0 4px 10px rgba(31,60,136,.22);vertical-align:middle;overflow:visible;}
+.info::before{content:"i";color:#fff;font-size:11px;font-style:italic;font-weight:900;}
+.info::after{content:attr(data-tip);position:absolute;bottom:130%;left:50%;transform:translateX(-50%) translateY(5px);background:#1e293b;color:#fff;font-size:12px;font-weight:500;padding:9px 13px;border-radius:11px;min-width:190px;max-width:260px;line-height:1.4;text-align:left;pointer-events:none;opacity:0;visibility:hidden;z-index:9999;transition:.16s;box-shadow:0 7px 22px rgba(0,0,0,.22);}
+.info:hover::after,.info:active::after{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
+
+/* AUTOCOMPLETE */
+.ac-wrap{position:relative;}
+.ac-lista{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:9000;background:#fff;border:1.5px solid rgba(31,60,136,.2);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.16);max-height:220px;overflow-y:auto;margin-top:0;display:none;animation:acFadeIn .12s ease;}
+@keyframes acFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.ac-item{padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;transition:background .1s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.ac-activo{background:#f0f6ff;color:var(--azul);font-weight:600;}
+
+/* ── TABLA EXCEL MEJORADA ── */
+.planilla-wrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:2px solid #c7d4ef;}
+.tabla-excel{width:100%;border-collapse:collapse;font-size:13px;min-width:780px;}
+.tabla-excel thead tr{background:linear-gradient(90deg,#1f3c88,#1a6aad);}
+.tabla-excel thead th{color:#fff;padding:9px 8px;text-align:left;font-weight:700;position:sticky;top:0;white-space:nowrap;border-right:1px solid rgba(255,255,255,.18);font-size:12px;letter-spacing:.3px;}
+.tabla-excel thead th:last-child{border-right:none;}
+.tabla-excel tbody tr{transition:.1s;}
+.tabla-excel tbody tr:nth-child(odd){background:#fff;}
+.tabla-excel tbody tr:nth-child(even){background:#f0f5ff;}
+.tabla-excel tbody tr:hover{background:#dbeafe!important;}
+.tabla-excel td{padding:3px 4px;border-bottom:1px solid #d1d9ef;border-right:1px solid #e8eef8;vertical-align:middle;}
+.tabla-excel td:last-child{border-right:none;}
+.tabla-excel td input,.tabla-excel td select{padding:6px 7px;font-size:12px;border-radius:6px;margin:0;border:1px solid transparent;background:transparent;min-height:unset;width:100%;}
+.tabla-excel td input:hover,.tabla-excel td select:hover{border-color:#9ec5fe;background:#fff;}
+.tabla-excel td input:focus,.tabla-excel td select:focus{background:#fff;border-color:var(--azul);box-shadow:0 0 0 2px rgba(31,60,136,.14);}
+.num-fila{color:#94a3b8;font-size:11px;text-align:center;width:26px;font-weight:700;background:#f8faff!important;}
+.planilla-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-weight:700;font-size:16px;}
+.pago-card{background:#fff;border:1px solid rgba(203,213,225,.7);border-radius:18px;padding:16px 18px;margin:10px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s,box-shadow .15s;}
+.pago-card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,23,42,.1);}
+.pago-card-header{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
+.pago-card-avatar{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;}
+.pago-card-nombre{font-size:15px;font-weight:700;color:var(--azul);text-transform:capitalize;}
+.pago-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pago-stat{background:#f8faff;border-radius:11px;padding:8px 10px;text-align:center;}
+.pago-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
+.pago-stat strong{font-size:14px;font-weight:700;color:#243044;}
+.pago-stat.neto strong{color:var(--verde);font-size:16px;}
+.pagos-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:18px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 6px 20px rgba(31,60,136,.2);}
+.pagos-total-bar span{font-size:13px;opacity:.88;}
+.pagos-total-bar strong{font-size:22px;font-weight:800;}
+.col-placa{min-width:85px;}
+.col-tipo{min-width:100px;}
+.col-desc{min-width:120px;}
+.col-engrase{min-width:68px;}
+.col-valor{min-width:80px;}
+.col-engrasador{min-width:105px;}
+.col-obs{min-width:100px;}
+.col-del{width:32px;text-align:center;}
+
+/* ESTADOS PLANILLA */
+.planilla-card{background:#fff;border:2px solid var(--borde);border-radius:18px;padding:16px;margin:10px 0;transition:.16s;box-shadow:0 4px 12px rgba(15,23,42,.06);}
+.planilla-card:hover{border-color:var(--azul);box-shadow:0 8px 22px rgba(31,60,136,.12);}
+.planilla-card.liquidada{border-color:#16a34a;background:linear-gradient(135deg,#f0fdf4,#dcfce7);}
+.planilla-card.liquidada .planilla-nombre{color:#15803d;}
+.badge-liquidada{display:inline-flex;align-items:center;gap:4px;background:#16a34a;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-pendiente{display:inline-flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.planilla-card-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;}
+.planilla-nombre{font-size:15px;font-weight:700;color:var(--azul);}
+.planilla-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gris);margin-top:5px;}
+.planilla-acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+
+/* PESTAÑAS */
+.tabs-planillas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.tab-planilla{padding:8px 16px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--borde);background:#f8faff;color:var(--gris);transition:.14s;display:flex;align-items:center;gap:6px;}
+.tab-planilla.activa{border-color:var(--azul);background:var(--azul);color:#fff;}
+.cerrar-tab{font-size:16px;line-height:1;margin-left:4px;opacity:.7;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;}
+.cerrar-tab:hover{opacity:1;background:rgba(255,255,255,.3);}
+
+/* GRASA SECCIÓN EN PLANILLA */
+.seccion-grasa-planilla{background:#f0f6ff;border:1px solid rgba(31,60,136,.15);border-radius:12px;padding:12px;margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.seccion-grasa-planilla label{margin-top:0;font-size:12px;}
+.seccion-grasa-planilla input{margin-top:3px;padding:8px 10px;font-size:13px;}
+
+/* PLANES */
+.planes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-top:14px;}
+.plan-card{border-radius:22px;padding:24px;text-align:center;border:2px solid var(--borde);background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.07);transition:.18s;}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(15,23,42,.12);}
+.plan-card.pro{border-color:#ffd700;background:linear-gradient(160deg,#fffbea,#fff8d0);}
+.plan-precio{font-size:30px;font-weight:900;color:var(--azul);margin:10px 0;}
+.plan-precio span{font-size:14px;font-weight:600;color:var(--gris);}
+.plan-features{list-style:none;margin:14px 0;text-align:left;line-height:1.8;font-size:13px;}
+.plan-features li::before{content:"";}
+.plan-features li.no::before{content:"";}
+.nequi-box{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border-radius:18px;padding:20px;text-align:center;margin-top:16px;}
+.nequi-numero{font-size:28px;font-weight:900;letter-spacing:2px;margin:8px 0;}
+
+/* ADMIN */
+.admin-card{background:#fff;border:2px solid var(--borde);border-radius:16px;padding:14px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 3px 10px rgba(15,23,42,.06);}
+.admin-estado{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+.est-pendiente{background:#fff3cd;color:#856404;border:1px solid #ffe08a;}
+.est-activo{background:#dcfce7;color:#15803d;border:1px solid #86efac;}
+.est-rechazado{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;}
+
+/* TÉRMINOS */
+.terminos-content{max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:#475569;}
+.terminos-content h3{color:var(--azul);margin:16px 0 6px;font-size:15px;}
+
+/* SOLICITUD PAGO */
+.pasos-solicitud{counter-reset:paso;}
+.paso-item{display:flex;gap:12px;margin:10px 0;align-items:flex-start;}
+.paso-num{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex-shrink:0;margin-top:2px;}
+
+/* PASSWORD TOGGLE */
+.pass-wrap{position:relative;}
+.pass-wrap input{padding-right:44px;}
+.pass-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;box-shadow:none;padding:4px 6px;color:var(--gris);cursor:pointer;font-size:18px;margin:0;}
+.pass-toggle:hover{color:var(--azul);transform:translateY(-50%) scale(1.1);}
+
+/* RECORDAR SESION */
+.check-wrap{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;}
+.check-wrap input[type=checkbox]{width:auto;cursor:pointer;accent-color:var(--azul);width:16px;height:16px;margin:0;}
+.check-wrap span{font-size:13px;color:var(--gris);font-weight:600;}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .contenedor{margin:0;border-radius:0;min-height:100vh;padding:14px;padding-bottom:16px;}
+  .menu-derecha{display:block!important;}
+  .barra-superior{top:0;border-radius:0 0 16px 16px;margin:-14px -14px 16px;}
+  body{font-size:16px;}
+  h2{font-size:22px;}h3{font-size:18px;}
+  button{width:100%;margin:5px 0;}
+  .fila{flex-direction:column;}
+  .modal{padding:20px;}
+  .tabla-excel{font-size:11px;}
+  .tabla-excel td input,.tabla-excel td select{font-size:11px;padding:5px 5px;}
+}
+@media(max-width:420px){
+  .contenedor{padding:10px;padding-bottom:14px;}
+  .marca h1{font-size:24px;}
+  .marca p{display:none;}
+}
+
+/* ADMIN PANEL MODERNO */
+.admin-login-box{
+  max-width:420px;
+  margin:20px auto;
+  background:#fff;
+  border-radius:20px;
+  padding:24px;
+  border:1px solid #dce3f0;
+  box-shadow:0 10px 30px rgba(0,0,0,.08);
+}
+.admin-layout{
+  display:grid;
+  grid-template-columns:320px 1fr;
+  gap:20px;
+}
+.admin-sidebar{
+  background:#13295f;
+  color:#fff;
+  border-radius:20px;
+  padding:20px;
+}
+.admin-sidebar h3{
+  margin-bottom:16px;
+}
+.admin-main{
+  background:#fff;
+  border-radius:20px;
+  padding:20px;
+  border:1px solid #dce3f0;
+}
+.admin-stat{
+  background:#f8fbff;
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:10px;
+  border:1px solid #dce3f0;
+}
+.planilla-window{
+  background:#fff;
+  border-radius:20px;
+  padding:18px;
+  border:1px solid #dce3f0;
+  box-shadow:0 10px 24px rgba(0,0,0,.06);
+}
+.tabla-excel{
+  border-radius:14px;
+  overflow:hidden;
+}
+.ac-lista{
+  border-radius:16px;
+}
+
+
+.estado-cuenta-card{
+  background:#fff;
+  border:1px solid #dce3f0;
+  padding:14px;
+  border-radius:16px;
+  margin-bottom:14px;
+}
+.estado-titulo{
+  font-weight:700;
+  margin-bottom:6px;
+}
+.estado-valor{
+  font-size:15px;
+}
+.plan-activo{
+  color:#0a8f45;
+  font-weight:700;
+}
+.plan-inactivo{
+  color:#c0392b;
+  font-weight:700;
+}
+.planilla-full{
+  background:#fff;
+  border-radius:18px;
+  padding:18px;
+  border:1px solid #dce3f0;
+  overflow:auto;
+}
+.planilla-full table{
+  min-width:1000px;
+}
+
+
+/* ══ MODO OSCURO ══ */
+body.oscuro {
+  background: radial-gradient(circle at 8% 0%,rgba(31,60,136,.25),transparent 32%),
+              radial-gradient(circle at 92% 12%,rgba(31,138,76,.15),transparent 28%),
+              linear-gradient(135deg,#0d1117 0%,#111827 100%);
+}
+body.oscuro .contenedor { background:rgba(17,24,39,.97); border-color:rgba(55,65,81,.9); }
+body.oscuro .barra-superior { background:rgba(17,24,39,.95); border-color:#1f2937; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+body.oscuro .contenido-menu { background:#1f2937; border-color:#374151; }
+body.oscuro .contenido-menu button { background:#111827; color:#e2e8f0; border-color:#374151; }
+body.oscuro .contenido-menu button:hover { background:linear-gradient(135deg,rgba(31,60,136,.3),rgba(31,138,76,.3)); color:#93c5fd; border-color:#3b82f6; }
+body.oscuro .contenido-menu button.rojo-menu { background:rgba(192,57,43,.15); color:#fca5a5; border-color:rgba(192,57,43,.3); }
+body.oscuro .contenido-menu button.rojo-menu:hover { background:var(--rojo); color:#fff; }
+body.oscuro .nav-inferior { background:rgba(17,24,39,.97); border-top-color:#1f2937; }
+body.oscuro .nav-item { color:#6b7280; }
+body.oscuro .nav-item.activo { color:#60a5fa; }
+.seccion-pw { background:#f0f6ff; border-color:rgba(31,60,136,.18); }
+.seccion-pw h2 { color:var(--azul); }
+body.oscuro .seccion { background:rgba(31,41,55,.95); border-color:rgba(55,65,81,.95); }
+body.oscuro .seccion h2, body.oscuro .seccion h3 { color:#60a5fa; }
+body.oscuro .seccion-pw { background:rgba(30,58,138,.15); border-color:rgba(59,130,246,.25); }
+body.oscuro .seccion-pw h2 { color:#93c5fd; }
+body.oscuro .hero { background:linear-gradient(135deg,#1e3a8a,#14532d); }
+body.oscuro .tarjeta { background:#1e2a3a; border-color:#2d3f55; }
+body.oscuro .tarjeta::after { background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(34,197,94,.06)); }
+body.oscuro .tarjeta:hover { box-shadow:0 12px 32px rgba(0,0,0,.35); border-color:transparent; }
+body.oscuro .tarjeta h3 { color:#7dd3fc; }
+body.oscuro .tarjeta p { color:#94a3b8; }
+body.oscuro .item { background:#1e2a3a; border-color:#2d3f55; }
+body.oscuro .item-nombre { color:#7dd3fc; }
+body.oscuro .item h3 { color:#e2e8f0; }
+body.oscuro .item p { color:#9ca3af; }
+body.oscuro .item-stat { background:rgba(255,255,255,.04); }
+body.oscuro .item-stat span { color:#6b7280; }
+body.oscuro .item-stat strong { color:#e2e8f0; }
+body.oscuro .item-stat.neto strong { color:#4ade80; }
+body.oscuro input, body.oscuro select, body.oscuro textarea { background:#111827; color:#e2e8f0; border-color:#374151; }
+body.oscuro input:focus, body.oscuro select:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.2); }
+body.oscuro label { color:#9ca3af; }
+body.oscuro .resumen-pago { background:#1e3a8a33; border-left-color:#3b82f6; color:#d1d5db; }
+body.oscuro .cierre-card { background:#1e2a3a; border-color:#2d3f55; }
+body.oscuro .cierre-card-nombre { color:#7dd3fc; }
+body.oscuro .cierre-stat { background:rgba(255,255,255,.04); }
+body.oscuro .cierre-stat span { color:#6b7280; }
+body.oscuro .cierre-stat strong { color:#e2e8f0; }
+body.oscuro .cierre-stat.neto strong { color:#4ade80; }
+body.oscuro .cierre-estado-badge.pagado { background:rgba(22,163,74,.15); color:#4ade80; border-color:rgba(74,222,128,.3); }
+body.oscuro .cierre-estado-badge.pendiente { background:rgba(202,138,4,.12); color:#fbbf24; border-color:rgba(251,191,36,.3); }
+body.oscuro .alerta { background:#292524; border-color:#57534e; color:#d6d3d1; }
+body.oscuro .alerta-verde { background:#14532d22; border-color:#16a34a; color:#86efac; }
+body.oscuro .alerta-rojo { background:#7f1d1d22; border-color:#dc2626; color:#fca5a5; }
+body.oscuro .resultado { background:#14532d22; border-color:#16a34a44; }
+body.oscuro .banner-plan { background:linear-gradient(135deg,rgba(31,60,136,.2),rgba(31,138,76,.2)); border-color:rgba(59,130,246,.3); }
+body.oscuro .planilla-card { background:#1f2937; border-color:#374151; }
+body.oscuro .planilla-card:hover { border-color:#3b82f6; }
+body.oscuro .planilla-card.liquidada { background:linear-gradient(135deg,#14532d22,#166534aa); border-color:#16a34a; }
+body.oscuro .planilla-nombre { color:#60a5fa; }
+body.oscuro .planilla-meta { color:#6b7280; }
+body.oscuro .tab-planilla { background:#1f2937; border-color:#374151; color:#9ca3af; }
+body.oscuro .tab-planilla.activa { background:#1e3a8a; border-color:#3b82f6; color:#fff; }
+body.oscuro .planilla-wrap { border-color:#374151; }
+body.oscuro .tabla-excel thead tr { background:linear-gradient(90deg,#1e3a8a,#1e4d7b); }
+body.oscuro .tabla-excel tbody tr:nth-child(odd) { background:#1f2937; }
+body.oscuro .tabla-excel tbody tr:nth-child(even) { background:#111827; }
+body.oscuro .tabla-excel tbody tr:hover { background:#1e3a8a44!important; }
+body.oscuro .tabla-excel td { border-bottom-color:#374151; border-right-color:#1f2937; color:#e2e8f0; }
+body.oscuro .tabla-excel td input, body.oscuro .tabla-excel td select { color:#e2e8f0; }
+body.oscuro .tabla-excel td input:hover, body.oscuro .tabla-excel td select:hover { background:#111827; border-color:#374151; }
+body.oscuro .tabla-excel td input:focus, body.oscuro .tabla-excel td select:focus { background:#0d1117; }
+body.oscuro .num-fila { background:#111827!important; color:#6b7280; }
+body.oscuro .admin-card { background:#1f2937; border-color:#374151; }
+body.oscuro .admin-login-box { background:#1f2937; border-color:#374151; }
+body.oscuro .admin-sidebar { background:#0d1117; }
+body.oscuro .admin-main { background:#1f2937; border-color:#374151; }
+body.oscuro .admin-stat { background:#111827; border-color:#374151; }
+body.oscuro .planilla-window { background:#1f2937; border-color:#374151; }
+body.oscuro .estado-cuenta-card { background:#1f2937; border-color:#374151; }
+body.oscuro .estado-titulo { color:#9ca3af; }
+body.oscuro .modal { background:#1f2937; }
+body.oscuro .modal h2 { color:#60a5fa; }
+body.oscuro .modal-overlay { background:rgba(0,0,0,.65); }
+body.oscuro .ac-lista { background:#1f2937; border-color:#3b82f6; }
+body.oscuro .ac-item { border-bottom-color:#374151; color:#e2e8f0; }
+body.oscuro .ac-item:hover, body.oscuro .ac-item.ac-activo { background:#1e3a8a33; color:#60a5fa; }
+body.oscuro .plan-card { background:#1f2937; border-color:#374151; }
+body.oscuro .plan-card.pro { background:linear-gradient(160deg,#292524,#1c1917); border-color:#b45309; }
+body.oscuro .plan-precio { color:#60a5fa; }
+body.oscuro .seccion-grasa-planilla { background:#1e3a8a22; border-color:#1e3a8a55; }
+body.oscuro .planilla-total-bar { background:linear-gradient(135deg,#1e3a8a,#14532d); }
+body.oscuro .pago-card { background:#1e2a3a;border-color:#2d3f55; }
+body.oscuro .pago-card-nombre { color:#7dd3fc; }
+body.oscuro .pago-stat { background:rgba(255,255,255,.04); }
+body.oscuro .pago-stat span { color:#6b7280; }
+body.oscuro .pago-stat strong { color:#e2e8f0; }
+body.oscuro .pago-stat.neto strong { color:#4ade80; }
+body.oscuro .info::after { background:#0d1117; }
+body.oscuro .terminos-content { color:#9ca3af; }
+body.oscuro .terminos-content h3 { color:#60a5fa; }
+body.oscuro .creditos { color:#6b7280; border-top-color:#374151; }
+body.oscuro .divisor-menu { background:#374151; }
+body.oscuro .pass-toggle { color:#6b7280; }
+body.oscuro .pass-toggle:hover { color:#60a5fa; }
+body.oscuro :root { --texto:#e2e8f0; --borde:#374151; --gris:#9ca3af; }
+
+/* ══ TOGGLE MODO OSCURO — botón ícono ══ */
+.modo-toggle {
+  margin-left: auto;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+}
+.toggle-track {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.85);
+  border: 1.5px solid rgba(220,227,240,.9);
+  box-shadow: 0 3px 10px rgba(15,23,42,.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .25s, box-shadow .25s, transform .15s;
+  user-select: none;
+}
+.toggle-track:hover {
+  transform: scale(1.07);
+  box-shadow: 0 6px 18px rgba(31,60,136,.18);
+}
+.toggle-track:active { transform: scale(.96); }
+.modo-ico {
+  font-size: 20px;
+  line-height: 1;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+body.oscuro .toggle-track {
+  background: rgba(30,58,138,.5);
+  border-color: rgba(59,130,246,.35);
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+}
+/* ocultar el thumb antiguo que ya no existe */
+.toggle-thumb { display: none; }
+
+/* ══ WHATSAPP BUTTON ══ */
+.btn-whatsapp {
+  background: linear-gradient(135deg,#25D366,#128C7E);
+  color:#fff;
+  box-shadow: 0 4px 14px rgba(37,211,102,.35);
+}
+.btn-whatsapp:hover { background: linear-gradient(135deg,#128C7E,#075E54); transform:translateY(-1px); }
+
+/* ══ LANDING MEJORADA ══ */
+.landing-hero {
+  background: linear-gradient(135deg, var(--azul) 0%, #1a4a9a 50%, var(--verde) 100%);
+  border-radius: 26px;
+  padding: 36px 28px;
+  color: #fff;
+  margin: 0 auto 24px;
+  max-width: 700px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(31,60,136,.3);
+}
+.landing-hero::before {
+  content:"";position:absolute;width:220px;height:220px;
+  right:-70px;top:-70px;background:rgba(255,255,255,.08);border-radius:50%;
+}
+.landing-hero::after {
+  content:"";position:absolute;width:140px;height:140px;
+  left:-40px;bottom:-40px;background:rgba(255,255,255,.06);border-radius:50%;
+}
+.landing-hero h2 { font-size:30px;margin:0 0 10px;font-weight:900;letter-spacing:-.3px; }
+.landing-hero p  { opacity:.9;font-size:15px;line-height:1.6;margin:0 0 22px; }
+.landing-btns { display:flex;gap:10px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1; }
+.landing-features {
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;max-width:700px;margin:0 auto 20px;
+}
+.feat-card {
+  background:#fff;border-radius:16px;padding:16px;text-align:center;
+  border:1px solid rgba(220,227,240,.95);box-shadow:0 4px 14px rgba(15,23,42,.06);
+}
+.feat-card .feat-ico { font-size:28px;margin-bottom:6px; }
+.feat-card h4 { margin:0 0 4px;font-size:13px;color:var(--azul);font-weight:700; }
+.feat-card p  { margin:0;font-size:11px;color:var(--gris);line-height:1.4; }
+
+/* ══ USER CARDS ADMIN ══ */
+.user-card {
+  background:#fff;border:1.5px solid var(--borde);border-radius:14px;
+  padding:14px 18px;margin:8px 0;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:10px;box-shadow:0 2px 8px rgba(15,23,42,.05);
+  transition:.14s;
+}
+.user-card:hover { border-color:var(--azul);transform:translateY(-1px);box-shadow:0 6px 18px rgba(15,23,42,.1); }
+.user-info { flex:1;min-width:160px; }
+.user-name { font-weight:700;color:var(--texto);font-size:14px;margin-bottom:2px; }
+.user-detail { font-size:12px;color:var(--gris); }
+.badge-activo { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;border:1px solid #86efac; }
+.badge-admin-user { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#ffd700,#ffb300);color:#5a3a00;border:1px solid #ffc107; }
+
+/* ══ PERÍODO PAGOS ══ */
+.periodo-tabs { display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px; }
+.periodo-tab { padding:10px 8px;border-radius:14px;border:1.5px solid rgba(203,213,225,.8);background:#fff;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;text-align:center; }
+.periodo-tab:hover { border-color:var(--azul);color:var(--azul);background:#eef4ff; }
+.periodo-tab.activo { border-color:var(--azul);background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;box-shadow:0 4px 12px rgba(31,60,136,.25); }
+
+/* ══ MODAL ADVERTENCIA ══ */
+.modal-warning { background:linear-gradient(135deg,#fff7df,#fef9ec);border:1.5px solid #f59e0b;border-radius:16px;padding:16px;margin:10px 0; }
+.modal-warning p { color:#78350f;font-size:13px;margin:0; }
+
+/* ══ STATS ADMIN ══ */
+.stats-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px; }
+.stat-box { background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:14px;padding:16px;text-align:center; }
+.stat-num { font-size:28px;font-weight:900;margin:0; }
+.stat-label { font-size:11px;opacity:.85;margin:2px 0 0; }
+
+/* ══ DARK MODE — nuevos elementos ══ */
+body.oscuro .user-card { background:#1f2937;border-color:#374151; }
+body.oscuro .user-card:hover { border-color:#3b82f6; }
+body.oscuro .user-name { color:#e2e8f0; }
+body.oscuro .user-detail { color:#6b7280; }
+body.oscuro .periodo-tab { background:#1e2a3a;border-color:#2d3f55;color:#9ca3af; }
+body.oscuro .periodo-tab:hover { background:#1e3a8a33;border-color:#3b82f6;color:#7dd3fc; }
+body.oscuro .periodo-tab.activo { background:linear-gradient(135deg,#1e3a8a,#14532d);border-color:#3b82f6;color:#fff; }
+body.oscuro .feat-card { background:#1f2937;border-color:#374151; }
+body.oscuro .feat-card h4 { color:#60a5fa; }
+body.oscuro .feat-card p { color:#9ca3af; }
+body.oscuro .modal-warning { background:#292112;border-color:#b45309; }
+body.oscuro .modal-warning p { color:#fcd34d; }
+body.oscuro .stat-box { opacity:.9; }
+
+.chart-container{background:#fff;border:1px solid var(--borde);border-radius:18px;padding:18px;margin-top:14px;box-shadow:var(--sombra-suave);}
+.chart-container h3{margin:0 0 12px;color:var(--azul);font-size:15px;font-weight:700;}
+.stat-box-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:6px;}
+.stat-box-mini{background:linear-gradient(135deg,var(--azul),#2a4fa8);border-radius:16px;padding:16px 14px;color:#fff;text-align:center;}
+.stat-box-mini.verde{background:linear-gradient(135deg,var(--verde),#1aab5e);}
+.stat-box-mini.ambar{background:linear-gradient(135deg,#f59e0b,#d97706);}
+.stat-box-mini.purpura{background:linear-gradient(135deg,#8b5cf6,#7c3aed);}
+.stat-box-mini .stat-num2{font-size:22px;font-weight:800;margin:0 0 4px;}
+.stat-box-mini .stat-label2{font-size:12px;opacity:.85;margin:0;}
+.no-data-msg{text-align:center;color:var(--gris);padding:40px 20px;font-size:15px;}
+</style>
+</head>
+<body>
+<div class="contenedor">
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- BARRA SUPERIOR -->
+<div class="barra-superior">
+  <div class="marca" onclick="irAlInicio()" title="Ir al inicio"><h1>SYMES</h1><p id="subtituloMarca">Sistema de Engrasaderos</p></div>
+  <div class="modo-toggle">
+    <div class="toggle-track" id="modoToggleTrack" onclick="toggleModoOscuro()" role="switch" aria-label="Modo oscuro" aria-checked="false" title="Cambiar a modo oscuro">
+      <span class="modo-ico">🌙</span>
+    </div>
+  </div>
+  <div id="menuDerecha" class="menu-derecha">
+    <button class="boton-menu" onclick="toggleMenu()">☰</button>
+    <div id="contenidoMenu" class="contenido-menu"></div>
+  </div>
+</div>
+
+<!-- NAV INFERIOR MÓVIL -->
+<div class="nav-inferior" id="navInferior"></div>
+
+<!-- ══ MENÚ INICIAL ══ -->
+<div id="menuInicial">
+  <div class="landing-hero">
+    <h2>⚙️ Bienvenido a SYMES</h2>
+    <p>Sistema profesional para administración de engrasaderos.<br>Liquida, controla y gestiona tu negocio desde cualquier dispositivo.</p>
+    <div class="landing-btns">
+      <button onclick="mostrarLogin()" style="background:rgba(255,255,255,.25);border:2px solid rgba(255,255,255,.7);width:auto;padding:13px 32px;font-size:16px;font-weight:700;box-shadow:none;">🔐 Ingresar al sistema</button>
+    </div>
+  </div>
+
+  <div class="landing-features">
+    <div class="feat-card"><div class="feat-ico">📋</div><h4>Planillas digitales</h4><p>Registra servicios y liquida automáticamente</p></div>
+    <div class="feat-card"><div class="feat-ico">💵</div><h4>Pagos diarios</h4><p>Control de pagos por día, quincena o mes</p></div>
+    <div class="feat-card"><div class="feat-ico">👷</div><h4>Engrasadores</h4><p>Gestiona tu equipo y sus adelantos</p></div>
+    <div class="feat-card"><div class="feat-ico">📂</div><h4>Historial completo</h4><p>Consulta liquidaciones por mes</p></div>
+  </div>
+
+  <div class="centro" style="margin-bottom:10px;">
+    <a href="https://wa.me/573227167031?text=Hola%2C%20quiero%20m%C3%A1s%20informaci%C3%B3n%20sobre%20SYMES" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-block;">
+      <button class="btn-whatsapp" style="width:auto;padding:13px 28px;font-size:15px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">💬</span> Quiero más información
+      </button>
+    </a>
+    <p style="color:var(--gris);font-size:12px;margin-top:8px;">Contáctanos directamente por WhatsApp</p>
+  </div>
+
+  <div class="centro">
+    <button id="btnInstalar" class="btn-outline oculto" style="width:auto;">📲 Instalar SYMES</button>
+    <div id="instrIOS" class="alerta oculto" style="max-width:500px;margin:10px auto;">En iPhone: Safari → Compartir → "Agregar a pantalla de inicio".</div>
+  </div>
+</div>
+
+<!-- ══ REGISTRO ══ -->
+<div id="vistaRegistro" class="oculto" style="display:none!important;">
+  <div class="seccion" style="max-width:500px;margin:0 auto;">
+    <h2>Registrar negocio</h2>
+    <label>Nombre del negocio:</label>
+    <div class="ac-wrap"><input type="text" id="regNombre" placeholder="Ej: Engrasadero El Parche" autocomplete="off"></div>
+    <label>PIN de 6 dígitos:</label>
+    <div class="pass-wrap">
+      <input type="password" id="regPin" inputmode="numeric" maxlength="6" placeholder="123456">
+      
+    </div>
+    <div class="alerta" style="margin-top:12px;">🎁 <strong>30 días gratis</strong> del plan PRO. Solo un período gratuito por dispositivo.</div>
+    <div style="margin-top:14px;">
+      <button class="btn-verde" onclick="registrarCuenta()">Registrar</button>
+      <button class="btn-gris" onclick="volverMenu()">← Volver</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div id="vistaLogin" class="oculto">
+  <div class="seccion" style="max-width:500px;margin:0 auto;">
+    <h2>🔐 Iniciar sesión</h2>
+    <label>Nombre del negocio / correo:</label>
+    <div class="ac-wrap"><input type="text" id="loginNombre" placeholder="Nombre registrado" autocomplete="off"></div>
+    <label>Contraseña / PIN:</label>
+    <div class="pass-wrap">
+      <input type="password" id="loginPin" placeholder="Tu contraseña o PIN">
+    </div>
+    <label class="check-wrap" style="margin-top:12px;">
+      <input type="checkbox" id="recordarSesion">
+      <span>Recordar en este dispositivo</span>
+    </label>
+    <div style="margin-top:14px;">
+      <button class="btn-verde" onclick="iniciarSesion()">Ingresar</button>
+      <button class="btn-gris" onclick="volverMenu()">← Volver</button>
+    </div>
+    <div id="sesionRecordadaBadge" class="alerta alerta-verde oculto" style="margin-top:8px;"></div>
+    <div style="margin-top:12px;text-align:center;">
+      <button class="btn-outline" onclick="mostrarResetLogin()" style="width:auto;font-size:12px;padding:7px 14px;">🔑 Olvidé mi contraseña</button>
+    </div>
+    <!-- Panel reset login -->
+    <div id="panelResetLogin" class="oculto" style="margin-top:12px;">
+      <div class="modal-warning">
+        <p>⚠️ <strong>Atención:</strong> Al solicitar el restablecimiento, tu contraseña será reseteada a <strong>123456</strong> por el administrador. Deberás cambiarla después de ingresar.</p>
+      </div>
+      <label>Nombre del negocio para confirmar:</label>
+      <input type="text" id="resetLoginNombre" placeholder="Nombre exacto de tu negocio">
+      <div style="margin-top:10px;">
+        <button class="btn-amarillo" onclick="solicitarResetLogin()">Solicitar restablecimiento</button>
+        <button class="btn-gris btn-sm" onclick="document.getElementById('panelResetLogin').classList.add('oculto')">Cancelar</button>
+      </div>
+      <div id="resetLoginMsg" style="margin-top:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SISTEMA ══ -->
+<div id="sistema" class="oculto">
+
+  <!-- INICIO -->
+  <div id="paginaInicio" class="pagina">
+    <div class="hero"><h2 id="tituloCuenta">Mi Engrasadero</h2><p id="descInicio">Bienvenido.</p></div>
+    <div class="tarjetas" id="tarjetasInicio"></div>
+  </div>
+
+  <!-- PLANILLAS -->
+  <div id="paginaPlanillas" class="pagina oculto">
+    <div class="seccion">
+      <h2>Planillas</h2>
+      <div class="tabs-planillas" id="tabsPlanillas"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn-verde" onclick="nuevaPlanilla()">＋ Nueva planilla</button>
+        <button class="btn-amarillo" onclick="liquidarQuincenal()">⚡⚡ Liquidar todas (quincenal)</button>
+        <button class="btn-gris btn-sm" onclick="mostrarPagina('paginaInicio')">← Inicio</button>
+      </div>
+    </div>
+    <div id="contenidoPlanillaActiva"></div>
+    <div class="seccion" id="seccionListaPlanillas">
+      <h2 style="font-size:16px;margin-bottom:10px;">Planillas guardadas</h2>
+      <div id="listaPlanillas"></div></div></div>
+  </div>
+
+  <!-- LIQUIDACIÓN -->
+  <div id="paginaLiquidacion" class="pagina oculto">
+    <div class="seccion">
+      <h2>Liquidación manual</h2>
+      <div class="alerta" style="margin-bottom:12px;">💡 También puede <button class="btn-verde btn-sm" onclick="mostrarPagina('paginaPlanillas')" style="display:inline;width:auto;padding:5px 10px;margin-left:6px;">liquidar desde planilla</button></div>
+      <label>Tipo de turno:</label>
+      <select id="tipoTurno" onchange="mostrarTrabajadores()">
+        <option value="">Seleccione</option>
+        <option value="1">1 trabajador</option>
+        <option value="2">2 trabajadores</option>
+        <option value="3">3 trabajadores</option>
+        <option value="4">4 trabajadores</option>
+      </select>
+      <div id="zonaTrab1" class="oculto"><label>Trabajador 1:</label><select id="selTrab1"></select></div>
+      <div id="zonaTrab2" class="oculto"><label>Trabajador 2:</label><select id="selTrab2"></select></div>
+      <div id="zonaTrab3" class="oculto"><label>Trabajador 3:</label><select id="selTrab3"></select></div>
+      <div id="zonaTrab4" class="oculto"><label>Trabajador 4:</label><select id="selTrab4"></select></div>
+    </div>
+    <div class="seccion">
+      <h2>🛢️ Grasa</h2>
+      <div class="config-grid">
+        <div><label>Grasa antes (g):</label><input type="number" id="grasaAntes"></div>
+        <div><label>Grasa que quedó (g):</label><input type="number" id="grasaQuedo"></div>
+      </div>
+    </div>
+    <div class="seccion">
+      <h2>Engrases mixtos</h2>
+      <div class="fila">
+        <div><label>Valor (ej: 45 = $45.000):</label><input type="number" id="valMixto" onkeydown="if(event.key==='Enter'){agregarMixto();}"></div>
+        <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarMixto()">Agregar</button></div>
+      </div>
+      <div id="listaMixtos"></div>
+    </div>
+    <div class="seccion">
+      <h2>Engrases azules</h2>
+      <div class="fila">
+        <div><label>Valor (ej: 40 = $40.000):</label><input type="number" id="valAzul" onkeydown="if(event.key==='Enter'){agregarAzul();}"></div>
+        <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarAzul()">Agregar</button></div>
+      </div>
+      <div id="listaAzules"></div>
+    </div>
+    <div class="seccion">
+      <button onclick="calcular()">⚡ Calcular</button>
+      <button class="btn-gris" onclick="reiniciarCalculo()">🔄 Reiniciar</button>
+    </div>
+    <div class="seccion">
+      <h2>Resultado</h2>
+      <div id="resultado"></div>
+      <button id="btnGuardarLiq" class="btn-verde oculto" onclick="guardarLiquidacion()">💾 Guardar liquidación</button>
+    </div>
+  </div>
+
+  <!-- PAGOS -->
+  <div id="paginaPagos" class="pagina oculto">
+    <div class="seccion">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+        <h2 style="margin:0;">💵 Pagos</h2>
+        <input type="month" id="mesTrabajo" onchange="cambiarMesPagos()" style="width:auto;">
+      </div>
+      <div class="periodo-tabs" id="periodoTabs">
+        <button class="periodo-tab activo" onclick="setPeriodoPago('hoy',this)">📅 Hoy</button>
+        <button class="periodo-tab" onclick="setPeriodoPago('q1',this)">1ª Quincena</button>
+        <button class="periodo-tab" onclick="setPeriodoPago('q2',this)">2ª Quincena</button>
+        <button class="periodo-tab" onclick="setPeriodoPago('mes',this)">Mes completo</button>
+      </div>
+      <div id="panelPagos"></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn-rojo btn-sm" onclick="reiniciarPagosMes()">🗑️ Reiniciar mes</button>
+        <span style="font-size:11px;color:var(--gris);">Borra pagos y adelantos del mes, NO el historial.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CIERRE DE MES -->
+  <div id="paginaCierreMes" class="pagina oculto">
+    <div class="seccion">
+      <div class="cierre-header">
+        <h2 style="margin:0;">📅 Cierre de mes</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="month" id="mesCierre" onchange="cambiarMesCierre()" style="width:auto;">
+        </div>
+      </div>
+      <div id="resumenCierre"></div>
+      <div class="cierre-acciones" style="margin-top:16px;">
+        <button class="btn-verde" onclick="marcarMesPagado()">✅ Marcar como pagado</button>
+        <button class="btn-gris" onclick="marcarMesPendiente()">⏳ Pendiente</button>
+        <button onclick="imprimirResumen()">🖨️ Imprimir</button>
+      </div>
+      <p style="color:var(--gris);font-size:12px;margin-top:8px;">Marcar como pagado no borra datos, solo guarda el estado.</p>
+    </div>
+  </div>
+
+  <!-- ENGRASADORES -->
+  <div id="paginaTrabajadores" class="pagina oculto">
+    <div class="seccion">
+      <h2>👷 Engrasadores</h2>
+      <div class="fila" style="align-items:flex-end;gap:10px;">
+        <div style="flex:1;">
+          <label>Nombre del engrasador</label>
+          <div class="ac-wrap"><input type="text" id="nombreTrabajador" placeholder="Ej: Carlos Pérez" autocomplete="off" onkeydown="if(event.key==='Enter'){agregarTrabajador();}"></div>
+        </div>
+        <button class="btn-verde" onclick="agregarTrabajador()" style="padding:11px 20px;white-space:nowrap;">➕ Agregar</button>
+      </div>
+      <div id="listaTrabajadores" style="margin-top:18px;"></div>
+    </div>
+  </div>
+
+  <!-- ADELANTOS -->
+  <div id="paginaAdelantos" class="pagina oculto">
+    <div class="seccion">
+      <h2>Adelantos y descuentos</h2>
+      <label>Engrasador:</label>
+      <select id="selAdelanto"></select>
+      <label>Valor:</label>
+      <input type="number" id="valAdelanto">
+      <label>Nota:</label>
+      <div class="ac-wrap"><input type="text" id="notaAdelanto" placeholder="Ej: Adelanto quincena" autocomplete="off"></div>
+      <button class="btn-verde" onclick="registrarAdelanto()">Registrar adelanto</button>
+      <h3 style="margin-top:16px;">Adelantos registrados</h3>
+      <div id="listaAdelantos"></div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div id="paginaHistorial" class="pagina oculto">
+    <div class="seccion">
+      <h2>Historial</h2>
+      <label>Mes:</label>
+      <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()">
+      <button class="btn-rojo btn-sm" style="margin-top:10px;" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
+      <div id="historialContenido" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- CONFIGURACIÓN -->
+
+  <div id="paginaConfiguracion" class="pagina oculto">
+    <div class="seccion">
+      <h2>⚙️ Configuración</h2>
+      <div class="config-grid">
+        <div>
+          <label>Precio de la grasa ($/kg): <span class="info" data-tip="Valor en pesos por kilogramo de grasa. Por defecto 11500.">!</span></label>
+          <input type="number" id="cfgPrecioGrasa">
+        </div>
+        <div>
+          <label>Porcentaje mixtos (%): <span class="info" data-tip="% que ganan los engrasadores de los mixtos. Por defecto 25%.">!</span></label>
+          <input type="number" id="cfgPctMixtos">
+        </div>
+        <div>
+          <label>Porcentaje azules (%): <span class="info" data-tip="% que ganan los engrasadores de los azules menos grasa. Por defecto 35%.">!</span></label>
+          <input type="number" id="cfgPctAzules">
+        </div>
+      </div>
+      <button class="btn-verde" onclick="guardarConfig()">💾 Guardar configuración</button>
+    </div>
+    <div class="seccion">
+      <h2>Reglas de rebaja para mixtos <span class="info" data-tip="Ejemplo: cuando cobran 45.000, solo cuenta 40.000.">!</span></h2>
+      <div class="fila">
+        <div><label>Valor cobrado:</label><input type="number" id="reglaOrig" placeholder="45000"></div>
+        <div><label>Valor que cuenta:</label><input type="number" id="reglaReb" placeholder="40000"></div>
+        <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarRegla()">Agregar</button></div>
+      </div>
+      <div id="listaReglas" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- CAMBIAR CONTRASEÑA -->
+    <div class="seccion seccion-pw">
+      <h2>🔑 Cambiar contraseña</h2>
+      <label>Contraseña actual:</label>
+      <div class="pass-wrap">
+        <input type="password" id="pwActual" placeholder="Tu contraseña actual">
+      </div>
+      <label>Nueva contraseña:</label>
+      <div class="pass-wrap">
+        <input type="password" id="pwNueva" placeholder="Mínimo 6 caracteres">
+      </div>
+      <label>Confirmar nueva contraseña:</label>
+      <div class="pass-wrap">
+        <input type="password" id="pwConfirmar" placeholder="Repite la nueva contraseña">
+      </div>
+      <button class="btn-verde" onclick="cambiarPasswordPropio()" style="margin-top:10px;">🔒 Actualizar contraseña</button>
+      <div id="msgCambiarPw" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- PLANES -->
+  <div id="paginaPlanes" class="pagina oculto">
+    <div class="seccion">
+      <h2>Planes SYMES</h2>
+      <p>Elige el plan que más te conviene.</p>
+      <div class="planes-grid">
+        <div class="plan-card">
+          <div style="font-size:36px;">🆓</div>
+          <h3>Plan Gratuito</h3>
+          <div class="plan-precio">$0<span>/mes</span></div>
+          <ul class="plan-features">
+            <li>Liquidaciones básicas</li>
+            <li>Hasta 3 engrasadores</li>
+            <li>Historial 1 mes</li>
+            <li class="no">Planillas ilimitadas</li>
+            <li class="no">Liquidación quincenal</li>
+            <li class="no">Exportar PDF</li>
+            <li class="no">Sincronización en la nube</li>
+          </ul>
+          <div id="estadoPlanGratuito"></div>
+        </div>
+        <div class="plan-card pro">
+          <div style="font-size:36px;">⭐</div>
+          <h3>Plan PRO</h3>
+          <div class="plan-precio">$19.900<span>/mes</span></div>
+          <ul class="plan-features">
+            <li>Todo del plan gratuito</li>
+            <li>Engrasadores ilimitados</li>
+            <li>Planillas ilimitadas</li>
+            <li>Liquidación quincenal</li>
+            <li>Historial completo</li>
+            <li>Exportar e imprimir PDF</li>
+            <li>Sincronización en la nube</li>
+          </ul>
+          <button class="btn-verde" style="width:100%;" onclick="mostrarSolicitudPago()">Solicitar activación PRO</button>
+        </div>
+      </div>
+
+      <!-- SOLICITUD DE PAGO -->
+      <div id="panelSolicitudPago" class="oculto" style="margin-top:20px;">
+        <div class="seccion" style="background:#fff;">
+          <h2>Solicitar activación PRO</h2>
+          <div class="pasos-solicitud">
+            <div class="paso-item"><div class="paso-num">1</div><div>Realiza tu pago por Nequi al número <strong>322-716-7031</strong> (Brandon Sebastian Arevalo Ojeda).</div></div>
+            <div class="paso-item"><div class="paso-num">2</div><div>Regresa aquí y llena el formulario con tu información.</div></div>
+            <div class="paso-item"><div class="paso-num">3</div><div>Tu solicitud quedará <strong>pendiente</strong> hasta que el administrador la apruebe.</div></div>
+          </div>
+          <div class="nequi-box" style="margin:16px 0;">
+            <p style="font-size:13px;opacity:.9;margin:0 0 6px;">Número Nequi:</p>
+            <div class="nequi-numero">322-716-7031</div>
+            <button onclick="copiarNequi()" style="background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5);margin-top:6px;width:auto;">Copiar número</button>
+          </div>
+          <label>Tu nombre o correo:</label>
+          <input type="text" id="solNombre" placeholder="Para identificar tu solicitud">
+          <label>Comprobante / referencia (opcional):</label>
+          <input type="text" id="solComprobante" placeholder="Número de referencia del pago">
+          <label>Método de pago:</label>
+          <select id="solMetodo">
+            <option value="nequi">Nequi</option>
+            <option value="pse">PSE</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="otro">Otro</option>
+          </select>
+          <div style="margin-top:14px;">
+            <button class="btn-verde" onclick="enviarSolicitudPago()">Ya pagué — Enviar solicitud</button>
+            <button class="btn-gris" onclick="document.getElementById('panelSolicitudPago').classList.add('oculto')">Cancelar</button>
+          </div>
+          <div id="estadoSolicitud" style="margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <div id="panelNequi" class="oculto" style="margin-top:16px;">
+        <a href="https://wa.me/573227167031?text=Hola%20Brandon%2C%20quiero%20activar%20mi%20plan%20PRO%20de%20SYMES." target="_blank">
+          <button style="background:#25D366;margin-top:8px;">Contactar por WhatsApp</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL SUPERADMIN -->
+  <div id="paginaAdmin" class="pagina oculto">
+    <div class="seccion">
+      <h2>👑 Panel Superadministrador</h2>
+      <div class="alerta alerta-verde" style="margin-bottom:14px;">Solo visible para el administrador del sistema (brandon).</div>
+
+      <!-- STATS -->
+      <div class="stats-grid" id="adminStats">
+        <div class="stat-box"><p class="stat-num" id="statTotal">—</p><p class="stat-label">Usuarios registrados</p></div>
+        <div class="stat-box" style="background:linear-gradient(135deg,var(--verde),#25a05a);"><p class="stat-num" id="statActivos">—</p><p class="stat-label">Usuarios activos</p></div>
+      </div>
+
+      <!-- AGREGAR USUARIO -->
+      <div class="seccion" style="background:#f0f6ff;border-color:rgba(31,60,136,.15);margin-top:0;">
+        <h3 style="color:var(--azul);margin-bottom:12px;">➕ Agregar nuevo usuario</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+          <div>
+            <label>Nombre del negocio:</label>
+            <input type="text" id="adminAddNegocio" placeholder="Ej: Engrasadero El Parque">
+          </div>
+          <div>
+            <label>Correo / usuario:</label>
+            <input type="text" id="adminAddCorreo" placeholder="correo@ejemplo.com">
+          </div>
+        </div>
+        <div class="modal-warning" style="margin:10px 0;">
+          <p>ℹ️ La contraseña predeterminada será <strong>123456</strong>. El usuario deberá cambiarla al ingresar.</p>
+        </div>
+        <button class="btn-verde" onclick="adminAgregarUsuario()">➕ Crear usuario</button>
+        <div id="adminAddMsg" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- LISTA USUARIOS -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <h3 style="color:var(--azul);margin:0;">👥 Usuarios registrados</h3>
+        <button class="btn-outline btn-sm" onclick="cargarSolicitudesAdmin()">🔄 Actualizar</button>
+      </div>
+      <div id="listaSolicitudesAdmin"></div>
+    </div>
+
+  <!-- TÉRMINOS -->
+  <div id="paginaTerminos" class="pagina oculto">
+    <div class="seccion">
+      <h2>Términos y Condiciones</h2>
+      <div class="terminos-content">
+        <h3>1. Aceptación de los Términos</h3>
+        <p>Al registrarse y utilizar SYMES, usted acepta los presentes Términos y Condiciones de uso. Si no está de acuerdo, no deberá utilizar la aplicación.</p>
+        <h3>2. Descripción del Servicio</h3>
+        <p>SYMES es un sistema de software para la gestión de liquidaciones, planillas y pagos de trabajadores en centros de lubricación y engrasaderos, prestado en modalidad SaaS (Software como Servicio).</p>
+        <h3>3. Planes y Pagos</h3>
+        <p>SYMES ofrece un plan gratuito con funcionalidades básicas y un plan PRO con acceso completo por $19.900 COP/mes. Los pagos se realizan mediante Nequi al número 322-716-7031 (Brandon Sebastian Arevalo Ojeda). El plan PRO se activa manualmente tras verificar el comprobante de pago.</p>
+        <h3>4. Período de Prueba</h3>
+        <p>Cada dispositivo tiene derecho a un único período de prueba gratuita de 30 días del plan PRO. No se permite la creación de múltiples cuentas para evadir este límite.</p>
+        <h3>5. Uso Aceptable</h3>
+        <p>El usuario se compromete a: (a) usar la aplicación solo para fines lícitos; (b) no compartir credenciales de acceso; (c) no intentar vulnerar la seguridad del sistema; (d) proporcionar información veraz durante el registro.</p>
+        <h3>6. Privacidad y Datos</h3>
+        <p>Los datos ingresados en SYMES son propiedad del negocio registrado. SYMES almacena esta información en servidores seguros únicamente para prestar el servicio, de conformidad con la Ley 1581 de 2012 (Habeas Data - Colombia). No se comparte información con terceros sin consentimiento expreso.</p>
+        <h3>7. Propiedad Intelectual</h3>
+        <p>SYMES, su código fuente, diseño y marca son propiedad exclusiva de Brandon Sebastian Arevalo Ojeda. Queda prohibida su reproducción o distribución sin autorización escrita.</p>
+        <h3>8. Limitación de Responsabilidad</h3>
+        <p>SYMES no se responsabiliza por pérdidas de datos ocasionadas por fallos en el dispositivo del usuario, pérdidas de credenciales de acceso, o uso indebido de la aplicación.</p>
+        <h3>9. Legislación Aplicable</h3>
+        <p>Los presentes términos se rigen por las leyes de la República de Colombia, incluyendo la Ley 1581 de 2012 (Protección de Datos) y la Ley 1341 de 2009 (Sociedad de la Información).</p>
+        <h3>10. Contacto</h3>
+        <p>Para dudas, soporte o reclamaciones: WhatsApp 322-716-7031.</p>
+        <p style="margin-top:16px;color:var(--gris);font-size:12px;">Última actualización: Mayo 2025. Desarrollado por Brandon Sebastian Arevalo Ojeda.</p>
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- /sistema -->
+
+<div class="creditos" id="creditosFooter">SYMES V2.2 — Desarrollado por Brandon Sebastian Arevalo Ojeda</div>
+
+<!-- MODAL CONFIRMACIÓN -->
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal" style="max-width:400px;">
+    <h2 id="modalConfirmTitulo">¿Confirmar?</h2>
+    <p id="modalConfirmMsg" style="margin:10px 0;color:var(--gris);"></p>
+    <div class="modal-acciones">
+      <button class="btn-rojo" id="modalConfirmOk">Confirmar</button>
+      <button class="btn-gris" onclick="cerrarModal('modalConfirm')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIQUIDACIÓN QUINCENAL -->
+<div class="modal-overlay" id="modalQuincenal">
+  <div class="modal" style="max-width:560px;">
+    <h2>⚡ Resultado Liquidación Quincenal</h2>
+    <div id="contenidoModalQuincenal"></div>
+    <div class="modal-acciones">
+      <button class="btn-verde" id="btnGuardarQuincenal">💾 Guardar todas</button>
+      <button class="btn-gris" onclick="cerrarModal('modalQuincenal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  MANEJADOR GLOBAL DE ERRORES
+// ══════════════════════════════════════════════════════════
+window.addEventListener("error", e => {
+  console.error("Error global JS:", e.message, e.filename, e.lineno);
+});
+window.addEventListener("unhandledrejection", e => {
+  console.error("Promise sin manejar:", e.reason);
+});
+
+// ══════════════════════════════════════════════════════════
+//  MODO OSCURO
+// ══════════════════════════════════════════════════════════
+function aplicarModoOscuro(oscuro) {
+  document.body.classList.toggle("oscuro", oscuro);
+  const btn = document.getElementById("modoToggleTrack");
+  if (btn) {
+    btn.setAttribute("aria-checked", oscuro ? "true" : "false");
+    btn.title = oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+    const ico = btn.querySelector(".modo-ico");
+    if (ico) ico.textContent = oscuro ? "☀️" : "🌙";
+  }
+  try { localStorage.setItem("symes_modo_oscuro", oscuro ? "1" : "0"); } catch(e) {}
+}
+
+function toggleModoOscuro() {
+  const estaOscuro = document.body.classList.contains("oscuro");
+  aplicarModoOscuro(!estaOscuro);
+}
+
+// Aplicar modo guardado al cargar
+(function() {
+  const guardado = localStorage.getItem("symes_modo_oscuro");
+  // Si tiene preferencia guardada, usarla; si no, respetar preferencia del sistema
+  if (guardado === "1") {
+    aplicarModoOscuro(true);
+  } else if (guardado === null && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    aplicarModoOscuro(true);
+  }
+})();
+
+// ══════════════════════════════════════════════════════════
+//  CONSTANTES
+// ══════════════════════════════════════════════════════════
+const API_URL    = "https://square-glade-7ba9.arevaloojedabrandonsebastian.workers.dev";
+// SEGURIDAD: El PIN admin ya NO está en el frontend.
+// La validación de admin se realiza 100% en el backend (Worker).
+// negocio.esAdmin se determina por la respuesta del servidor en login.
+const ADMIN_NAME = "brandon";
+
+const CONFIG_DEFECTO = {
+  precioGrasa:11500, divisorGrasa:1000,
+  porcentajeMixtos:25, porcentajeAzules:35,
+  reglasMixtos:[
+    {original:40000,rebajado:40000},{original:45000,rebajado:40000},
+    {original:50000,rebajado:45000},{original:55000,rebajado:45000},
+    {original:60000,rebajado:50000},{original:70000,rebajado:56000}
+  ]
+};
+
+let cuentas   = JSON.parse(localStorage.getItem("symes_cuentas")) || {};
+let cuentaAct = localStorage.getItem("symes_cuenta_actual") || null;
+let negocio   = cuentaAct ? cuentas[cuentaAct] : null;
+let ultimoCalc = null;
+let mixtosAct  = [];
+let azulesAct  = [];
+let pestaniasAbiertas = [];
+let pestaniaActiva    = null;
+let resultadosQuincenales = []; // para guardar después
+
+// ══════════════════════════════════════════════════════════
+//  MEMORIA AUTOCOMPLETE GLOBAL
+// ══════════════════════════════════════════════════════════
+// ══ MEMORIA CON FRECUENCIA ══
+// Formato nuevo: objeto {valor: conteo}
+// Retrocompatible con arrays anteriores
+function _memKey(clave){ return "symes_mem_"+(cuentaAct||"_global")+"_"+clave; }
+function getMemoria(clave) {
+  try {
+    const data = localStorage.getItem(_memKey(clave));
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed)) {
+      // migrar formato viejo → frecuencia (el primero tiene más peso)
+      const freq = {};
+      parsed.forEach((v, i) => { freq[v] = parsed.length - i; });
+      localStorage.setItem(_memKey(clave), JSON.stringify(freq));
+      return parsed;
+    }
+    // Ordenar por frecuencia descendente
+    return Object.entries(parsed)
+      .sort((a, b) => b[1] - a[1])
+      .map(([v]) => v);
+  } catch(e) { return []; }
+}
+function agregarMemoria(clave, valor) {
+  if (!valor || !valor.trim() || valor.trim().length < 2) return;
+  try {
+    const data = localStorage.getItem(_memKey(clave));
+    let freq = {};
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((v, i) => { freq[v] = parsed.length - i; });
+      } else {
+        freq = parsed;
+      }
+    }
+    const key = valor.trim();
+    freq[key] = (freq[key] || 0) + 1;
+    // Mantener máx 50 entradas (eliminar las menos usadas)
+    const entries = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,50);
+    localStorage.setItem(_memKey(clave), JSON.stringify(Object.fromEntries(entries)));
+  } catch(e) {}
+}
+
+const TIPOS_VEHICULO   = ["Carro","Camioneta","Camión","Moto","Volqueta","Bus","Buseta","Tractomula","Furgón","Otro"];
+const DESCRIPCIONES    = ["Engrase general","Engrase completo","Cambio de aceite","Lavado","Engrase parcial","Revisión","Cambio filtro","Servicio A","Servicio B"];
+const NOTAS_ADELANTO   = ["Adelanto quincena","Préstamo","Descuento uniforme","Descuento herramientas"];
+
+// ══════════════════════════════════════════════════════════
+//  AUTOCOMPLETE MEJORADO CON FLECHAS
+// ══════════════════════════════════════════════════════════
+function setupAC(input, _fuente, onSelect, claveMem) {
+  if (!input.parentElement.classList.contains('ac-wrap')) {
+    const w=document.createElement('div'); w.className='ac-wrap';
+    input.parentNode.insertBefore(w,input); w.appendChild(input);
+  }
+  const wrap=input.parentElement;
+  let lista=wrap.querySelector('.ac-lista');
+  if(!lista){lista=document.createElement('div');lista.className='ac-lista';wrap.appendChild(lista);}
+  let sel=-1;
+
+  const getSugs=()=>{
+    try{
+      const raw=localStorage.getItem(_memKey(claveMem));
+      if(!raw) return [];
+      const p=JSON.parse(raw);
+      if(Array.isArray(p)) return p;
+      return Object.entries(p).sort((a,b)=>b[1]-a[1]).map(([v])=>v);
+    }catch(e){return [];}
+  };
+
+  const cerrar=()=>{lista.style.display='none';sel=-1;};
+
+  const mostrar=()=>{
+    const val=input.value.trim();
+    const sugs=getSugs();
+    if(!sugs.length){cerrar();return;}
+    let res;
+    if(!val){
+      res=sugs.slice(0,6);
+    } else {
+      const low=val.toLowerCase();
+      const pre=sugs.filter(s=>s.toLowerCase().startsWith(low));
+      const con=val.length>=2?sugs.filter(s=>!s.toLowerCase().startsWith(low)&&s.toLowerCase().includes(low)):[];
+      res=[...pre,...con].slice(0,6);
+    }
+    if(!res.length){cerrar();return;}
+    sel=-1;
+    lista.innerHTML=res.map(t=>
+      '<div class="ac-item" data-val="'+t.replace(/"/g,'&quot;')+'">'+t+'</div>'
+    ).join('');
+    lista.style.display='block';
+    lista.querySelectorAll('.ac-item').forEach(item=>{
+      item.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        const v=item.dataset.val; input.value=v; cerrar();
+        if(claveMem) agregarMemoria(claveMem,v);
+        if(onSelect) onSelect(v);
+      });
+    });
+  };
+
+  const elegir=()=>{
+    const items=lista.querySelectorAll('.ac-item');
+    if(sel>=0&&items[sel]){
+      const v=items[sel].dataset.val; input.value=v; cerrar();
+      if(claveMem) agregarMemoria(claveMem,v);
+      if(onSelect) onSelect(v);
+      return true;
+    }
+    return false;
+  };
+
+  input.addEventListener('input',mostrar);
+  input.addEventListener('focus',mostrar);
+  input.addEventListener('blur',()=>setTimeout(cerrar,180));
+  input.addEventListener('keydown',e=>{
+    const items=lista.querySelectorAll('.ac-item');
+    const abierto=lista.style.display!=='none'&&items.length;
+    if(e.key==='ArrowDown'&&abierto){
+      e.preventDefault(); sel=(sel+1)%items.length;
+      items.forEach((it,i)=>it.classList.toggle('ac-activo',i===sel));
+      items[sel]?.scrollIntoView({block:'nearest'});
+    } else if(e.key==='ArrowUp'&&abierto){
+      e.preventDefault(); sel=(sel-1+items.length)%items.length;
+      items.forEach((it,i)=>it.classList.toggle('ac-activo',i===sel));
+      items[sel]?.scrollIntoView({block:'nearest'});
+    } else if(e.key==='Enter'){
+      if(abierto&&sel>=0){ e.preventDefault(); elegir(); }
+    } else if(e.key==='Tab'&&abierto&&sel>=0){
+      e.preventDefault(); elegir();
+    } else if(e.key==='Escape'&&abierto){
+      e.preventDefault(); cerrar();
+    }
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  MODAL CONFIRMACIÓN
+// ══════════════════════════════════════════════════════════
+function confirmar(titulo, msg, cb) {
+  document.getElementById("modalConfirmTitulo").innerText = titulo;
+  document.getElementById("modalConfirmMsg").innerText    = msg;
+  document.getElementById("modalConfirmOk").onclick = () => { cerrarModal("modalConfirm"); cb(); };
+  document.getElementById("modalConfirm").classList.add("abierto");
+}
+function cerrarModal(id) { document.getElementById(id).classList.remove("abierto"); }
+
+// ══════════════════════════════════════════════════════════
+//  PERSISTENCIA
+// ══════════════════════════════════════════════════════════
+function guardar() {
+  try {
+    localStorage.setItem("symes_cuentas", JSON.stringify(cuentas));
+    if (cuentaAct) localStorage.setItem("symes_cuenta_actual", cuentaAct);
+  } catch(e) {
+    console.error("Error guardando en localStorage:", e);
+    toast("Advertencia: no se pudo guardar localmente. Espacio insuficiente.","aviso");
+  }
+}
+function validarPin(p) { return /^[0-9]{6}$/.test(p); }
+function mesActual() { const f=new Date(); return f.getFullYear()+"-"+String(f.getMonth()+1).padStart(2,"0"); }
+function generarId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,5); }
+// Sanitiza texto de usuario para uso seguro en DOM (nunca usar en innerHTML)
+function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
+function sanitizarTexto(str) {
+  if (typeof str !== "string") return "";
+  return str.replace(/[<>"'&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
+}
+// Valida que un valor numérico sea positivo y razonable
+function validarNumero(v, max=9999999) {
+  const n = Number(v);
+  return !isNaN(n) && n >= 0 && n <= max;
+}
+
+// ══════════════════════════════════════════════════════════
+//  TRIAL POR DISPOSITIVO
+// ══════════════════════════════════════════════════════════
+function getDeviceKey() {
+  let k=localStorage.getItem("symes_device_key");
+  if(!k){k="dev_"+generarId();localStorage.setItem("symes_device_key",k);}
+  return k;
+}
+function periodoGratisUsado() { return localStorage.getItem("symes_trial_used")==="1"; }
+function marcarPeriodoGratisUsado() { localStorage.setItem("symes_trial_used","1"); }
+
+// ══════════════════════════════════════════════════════════
+//  NUBE
+// ══════════════════════════════════════════════════════════
+async function nubePost(ep, body) {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 12000); // 12s timeout
+    const r = await fetch(`${API_URL}/${ep}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctrl.signal});
+    clearTimeout(tid);
+    const d = await r.json(); return {ok:r.ok,data:d};
+  } catch(e) {
+    if(e.name==="AbortError") return {ok:false,error:"Tiempo de espera agotado. Verifica tu conexión."};
+    return {ok:false,error:e.message};
+  }
+}
+async function nubeGet(ep) {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 12000);
+    const r = await fetch(`${API_URL}/${ep}`,{signal:ctrl.signal}); clearTimeout(tid); const d = await r.json(); return {ok:r.ok,data:d};
+  } catch(e) { return {ok:false,error:e.message}; }
+}
+async function guardarEvento(ev, total=1, ganTrab=0) {
+  if (!negocio?.id) return {ok:false};
+  return nubePost("liquidaciones",{usuario_id:negocio.id,trabajador_id:null,descripcion:JSON.stringify(ev),total:Number(total)||1,ganancia_trabajador:Number(ganTrab)||0,ganancia_negocio:0});
+}
+
+// ══════════════════════════════════════════════════════════
+//  REGISTRO / LOGIN / SESIÓN RECORDADA
+// ══════════════════════════════════════════════════════════
+// Autocomplete en los campos de nombre del negocio
+function iniciarACLogin() {
+  const nom = document.getElementById("loginNombre");
+  const reg = document.getElementById("regNombre");
+  const nombres = Object.keys(cuentas);
+  if (nom) setupAC(nom, nombres, null, "neg_nombres");
+  if (reg) setupAC(reg, nombres, null, "neg_nombres");
+}
+
+function mostrarRegistro() {
+  ocultarVistas();
+  document.getElementById("vistaRegistro").classList.remove("oculto");
+  setTimeout(iniciarACLogin, 50);
+}
+function mostrarLogin() {
+  ocultarVistas();
+  // Ocultar menú de cuenta (no relevante fuera del sistema)
+  const md=document.getElementById("menuDerecha");
+  if(md) md.style.display="none";
+  document.getElementById("vistaLogin").classList.remove("oculto");
+  cargarSesionRecordada();
+  setTimeout(iniciarACLogin, 50);
+}
+function ocultarVistas() {
+  ["menuInicial","vistaRegistro","vistaLogin","sistema"].forEach(id => {
+    const el=document.getElementById(id);
+    if(el) el.classList.add("oculto");
+  });
+}
+function volverMenu() {
+  ["vistaRegistro","vistaLogin","sistema"].forEach(id => document.getElementById(id).classList.add("oculto"));
+  document.getElementById("menuInicial").classList.remove("oculto");
+  document.getElementById("menuDerecha").style.display = "none";
+}
+function irAlInicio() {
+  const enSistema = !document.getElementById("sistema").classList.contains("oculto");
+  if (enSistema) {
+    mostrarPagina("paginaInicio");
+    cerrarMenu();
+  } else {
+    volverMenu();
+  }
+}
+
+function cargarSesionRecordada() {
+  const guardada = localStorage.getItem("symes_sesion_recordada");
+  if (!guardada) return;
+  try {
+    const s = JSON.parse(guardada);
+    const ni = document.getElementById("loginNombre");
+    const badge = document.getElementById("sesionRecordadaBadge");
+    if (ni && s.nombre) ni.value = s.nombre;
+    if (badge) { badge.classList.remove("oculto"); badge.textContent = `Sesión recordada para ${s.nombre} — ingresa tu PIN`; }
+  } catch(e) {}
+}
+
+async function registrarCuenta() {
+  const nombre = document.getElementById("regNombre").value.trim();
+  const pin    = document.getElementById("regPin").value.trim();
+
+  if (!nombre || !pin) {
+    toast("Completa todos los campos","error");
+    return;
+  }
+
+  if (!validarPin(pin)) {
+    toast("El PIN debe tener exactamente 6 dígitos","error");
+    return;
+  }
+
+  if (periodoGratisUsado()) {
+    toast("Este dispositivo ya usó el período de prueba gratuito.","aviso");
+    return;
+  }
+
+  const r = await nubePost("register", {
+    negocio: nombre,
+    usuario: nombre,
+    password: pin
+  });
+
+  if (!r.ok) {
+    toast(r.data?.error || "No se pudo registrar","error");
+    return;
+  }
+
+  await fetch(API_URL + "/solicitudes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      negocio: nombre,
+      propietario: nombre,
+      telefono: "No registrado"
+    })
+  });
+
+  marcarPeriodoGratisUsado();
+
+  agregarMemoria("neg_nombres", nombre);
+
+  toast("Cuenta registrada. Ahora inicia sesión.","ok");
+
+  document.getElementById("regNombre").value = "";
+  document.getElementById("regPin").value = "";
+
+  mostrarLogin();
+}
+
+function normalizarCuenta(nombre, dataU, pin) {
+  const g = cuentas[nombre] || {};
+  // esAdmin viene del backend (campo is_admin en el Worker), no se determina por PIN
+  const esAdmin = !!(dataU.esAdmin || dataU.is_admin || nombre.toLowerCase() === ADMIN_NAME);
+  cuentas[nombre] = {
+    id:dataU.id, nombreNegocio:dataU.negocio, negocio:dataU.negocio,
+    usuario:dataU.usuario, pin,
+    esAdmin,
+    trabajadores:g.trabajadores||[], historial:g.historial||[], planillas:g.planillas||[],
+    configuracion:g.configuracion||JSON.parse(JSON.stringify(CONFIG_DEFECTO)),
+    cierresMes:g.cierresMes||{},
+    plan:g.plan||"pro_trial", trialInicio:g.trialInicio||new Date().toISOString()
+  };
+}
+
+async function iniciarSesion() {
+  const nombre = document.getElementById("loginNombre").value.trim();
+  const pin    = document.getElementById("loginPin").value.trim();
+  const recordar = document.getElementById("recordarSesion")?.checked;
+  if (!nombre||!pin) { toast("Completa todos los campos","error"); return; }
+  const r = await nubePost("login",{usuario:nombre,password:pin});
+  if (!r.ok) { toast(r.data?.error||"Usuario o PIN incorrecto","error"); return; }
+  normalizarCuenta(nombre, r.data.usuario, pin);
+  cuentaAct = nombre; negocio = cuentas[nombre];
+  if (recordar) {
+    // Solo guardamos el nombre, nunca el PIN en texto plano
+    localStorage.setItem("symes_sesion_recordada", JSON.stringify({nombre}));
+  } else {
+    localStorage.removeItem("symes_sesion_recordada");
+  }
+  agregarMemoria("neg_nombres", nombre);
+  await cargarTrabajadores();
+  await cargarLiquidaciones();
+  guardar();
+  document.getElementById("loginNombre").value = "";
+  document.getElementById("loginPin").value    = "";
+  entrarSistema();
+}
+
+// ══════════════════════════════════════════════════════════
+//  SISTEMA
+// ══════════════════════════════════════════════════════════
+function prepararDatos() {
+  if (!negocio.trabajadores)  negocio.trabajadores  = [];
+  if (!negocio.historial)     negocio.historial     = [];
+  if (!negocio.planillas)     negocio.planillas     = [];
+  if (!negocio.configuracion) negocio.configuracion = JSON.parse(JSON.stringify(CONFIG_DEFECTO));
+  if (!negocio.cierresMes)    negocio.cierresMes    = {};
+  negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
+  guardar();
+}
+
+function entrarSistema() {
+  prepararDatos();
+  ["menuInicial","vistaRegistro","vistaLogin"].forEach(id => document.getElementById(id).classList.add("oculto"));
+  document.getElementById("sistema").classList.remove("oculto");
+  document.getElementById("menuDerecha").style.display = "block";
+  document.getElementById("tituloCuenta").innerText = cap(negocio.nombreNegocio||"");
+  document.getElementById("descInicio").innerText   = "Sistema de liquidaciones — Panel principal";
+
+  const esAdmin = negocio.esAdmin;
+
+  // Panel admin automático para administradores
+  if(negocio.esAdmin){
+    const adminBtn = {
+      id:"paginaAdmin",
+      icono:"Admin",
+      titulo:"Panel Administrador",
+      desc:"Gestiona solicitudes del plan PRO."
+    };
+  }
+
+  const tarjetas = [
+    {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
+    {id:"paginaLiquidacion",  icono:"🧾", titulo:"Liquidación",      desc:"Calcula grasa, mixtos, azules y pagos."},
+    {id:"paginaPagos",        icono:"💵", titulo:"Pagos",            desc:"Pagos por día, quincena o mes completo."},
+    {id:"paginaCierreMes",    icono:"📅", titulo:"Cierre de mes",    desc:"Revisa el total mensual y marca el estado."},
+    {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
+    {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
+    {id:"paginaHistorial",    icono:"📂", titulo:"Historial",        desc:"Liquidaciones guardadas por mes."},
+    {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
+    ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
+  ];
+  document.getElementById("tarjetasInicio").innerHTML = tarjetas.map(t =>
+    `<div class="tarjeta" onclick="mostrarPagina('${t.id}')"><h3>${t.icono} ${t.titulo}</h3></div>`
+  ).join("");
+
+  const menuItems = [
+    {icono:"🏠",label:"Inicio",        pagina:"paginaInicio"},
+    {icono:"📋",label:"Planillas",     pagina:"paginaPlanillas"},
+    {icono:"🧾",label:"Liquidación",   pagina:"paginaLiquidacion"},
+    {icono:"💵",label:"Pagos",         pagina:"paginaPagos"},
+    {icono:"📅",label:"Cierre de mes", pagina:"paginaCierreMes"},
+    {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
+    {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
+    {icono:"📂",label:"Historial",     pagina:"paginaHistorial"},
+    {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
+    ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
+  ];
+  document.getElementById("contenidoMenu").innerHTML =
+    menuItems.map(m=>`<button onclick="mostrarPagina('${m.pagina}')">${m.icono} ${m.label}</button>`).join("") +
+    `<div class="divisor-menu"></div><button class="rojo-menu" onclick="cerrarSesion()">🚪 Cerrar sesión</button>`;
+
+  const navItems = [
+    {icono:"🏠",label:"Inicio",   pagina:"paginaInicio"},
+    {icono:"📋",label:"Planillas",pagina:"paginaPlanillas"},
+    {icono:"🧾",label:"Liquidar", pagina:"paginaLiquidacion"},
+    {icono:"💵",label:"Pagos",    pagina:"paginaPagos"},
+    {icono:"☰", label:"Menú",    accion:"menu"},
+  ];
+  document.getElementById("navInferior").innerHTML = navItems.map(n=>
+    `<button class="nav-item" onclick="${n.accion?'toggleMenu()':`mostrarPagina('${n.pagina}')`}" data-pagina="${n.pagina||''}"><span class="nav-icono">${n.icono}</span><span>${n.label}</span></button>`
+  ).join("");
+  document.getElementById("navInferior").style.display = "flex";
+
+  actualizarBannerPlan();
+  const m = mesActual();
+  ["mesTrabajo","mesHistorial","mesCierre"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=m; });
+  cargarConfigEnPantalla();
+  // Limpiar historial de navegación previo y poner inicio como base
+  const urlBase = window.location.href.split("?")[0];
+  history.replaceState({ pagina: "paginaInicio" }, "", urlBase + "?p=paginaInicio");
+  mostrarPagina("paginaInicio", true);
+  setTimeout(iniciarNotificaciones, 3000);
+
+  // AC en adelantos
+  setTimeout(() => {
+    const notaEl = document.getElementById("notaAdelanto");
+    if (notaEl) setupAC(notaEl, NOTAS_ADELANTO, null, "notas_adelanto");
+    const nomTEl = document.getElementById("nombreTrabajador");
+    if (nomTEl) setupAC(nomTEl, getSugerenciasEngrasadores(), null, "nombres_engrasadores");
+  }, 200);
+}
+
+function actualizarBannerPlan() {
+  // Planes eliminados — función desactivada
+}
+
+function cerrarSesion() {
+  // 1. Reset variables de negocio
+  cuentaAct=null; negocio=null; ultimoCalc=null;
+  mixtosAct=[]; azulesAct=[]; pestaniasAbiertas=[]; pestaniaActiva=null;
+
+  // 2. Limpiar sesion persistida
+  localStorage.removeItem("symes_cuenta_actual");
+  localStorage.removeItem("symes_sesion_recordada");
+
+  // 3. Vaciar contenido renderizado del sistema
+  ["contenidoPlanillaActiva","tabsPlanillas","listaEngrasadores",
+   "listaPagos","historialContenido","contenidoMenu","resultado",
+   "panelAdminContenido","cierreContenido"].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML="";
+  });
+
+  // 4. Ocultar todas las vistas y paginas internas
+  ["menuInicial","vistaRegistro","vistaLogin","sistema"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.classList.add("oculto"); el.removeAttribute("style"); }
+  });
+  document.querySelectorAll(".pagina").forEach(p=>p.classList.add("oculto"));
+
+  // 5. Ocultar menu de cuenta
+  const md=document.getElementById("menuDerecha");
+  if(md) md.style.display="none";
+
+  // 6. Limpiar historial del navegador
+  history.replaceState(null,"",window.location.href.split("?")[0]);
+
+  // 7. Mostrar solo login
+  mostrarLogin();
+}
+
+function toggleMenu() {
+  const m=document.getElementById("contenidoMenu");
+  m.style.display=m.style.display==="block"?"none":"block";
+}
+// Variable para evitar loop en popstate
+let _navegandoAtras = false;
+
+function mostrarPagina(id, sinHistorial=false) {
+  // Route guard: si no hay sesión activa, redirigir al login
+  if (!negocio) { mostrarLogin(); return; }
+  document.querySelectorAll(".pagina").forEach(p=>p.classList.add("oculto"));
+  const el=document.getElementById(id); if(el) el.classList.remove("oculto");
+  document.getElementById("contenidoMenu").style.display="none";
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
+  if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
+  if (id==="paginaHistorial") sincronizarMeses();
+  if (id==="paginaConfiguracion") cargarConfigEnPantalla();
+  if (id==="paginaPlanes") actualizarEstadoPlanes();
+  if (id==="paginaAdmin" && negocio?.esAdmin) cargarSolicitudesAdmin();
+  actualizarTodo();
+  // Empujar al historial del navegador para que "atrás" funcione
+  if (!sinHistorial && !_navegandoAtras) {
+    const estado = { pagina: id };
+    const urlActual = window.location.href.split("?")[0];
+    history.pushState(estado, "", urlActual + "?p=" + id);
+  }
+}
+
+// Escuchar el botón "atrás" del navegador / celular
+window.addEventListener("popstate", function(e) {
+  // Solo actuar si el sistema está visible (usuario logueado)
+  const sistemaDom = document.getElementById("sistema");
+  if (!sistemaDom || sistemaDom.classList.contains("oculto")) return;
+  _navegandoAtras = true;
+  if (e.state && e.state.pagina) {
+    mostrarPagina(e.state.pagina, true);
+  } else {
+    // Si no hay estado previo, ir a inicio (no salir de la app)
+    mostrarPagina("paginaInicio", true);
+    // Evitar que retroceda fuera de la app: poner un state vacío
+    history.replaceState({ pagina: "paginaInicio" }, "", window.location.href.split("?")[0] + "?p=paginaInicio");
+  }
+  _navegandoAtras = false;
+});
+function actualizarTodo() {
+  if(!negocio) return;
+  actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes();
+}
+
+// ══ MESES ══
+function sincronizarMeses() {
+  const ids=["mesTrabajo","mesHistorial","mesCierre"];
+  const vals=ids.map(id=>document.getElementById(id)?.value).filter(Boolean);
+  const base=vals[0]||mesActual();
+  ids.forEach(id=>{ const el=document.getElementById(id); if(el&&!el.value) el.value=base; });
+}
+function getMes() { sincronizarMeses(); return document.getElementById("mesTrabajo")?.value||mesActual(); }
+function cambiarMesPagos()    { const m=document.getElementById("mesTrabajo").value; if(m){["mesHistorial","mesCierre"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
+function cambiarMesCierre()   { const m=document.getElementById("mesCierre").value;  if(m){["mesTrabajo","mesHistorial"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
+function cambiarMesHistorial(){ const m=document.getElementById("mesHistorial").value; if(m){["mesTrabajo","mesCierre"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
+
+// ══ NUBE CARGA ══
+async function cargarTrabajadores() {
+  if (!negocio?.id) return;
+  const r=await nubeGet(`trabajadores?usuario_id=${negocio.id}`);
+  if(!r.ok){toast("No se pudieron cargar engrasadores","error");return;}
+  const loc=negocio.trabajadores||[];
+  negocio.trabajadores=r.data.map(t=>{
+    const l=loc.find(tl=>tl.id===t.id||tl.nombre===t.nombre);
+    return {id:t.id,nombre:t.nombre,porcentaje:t.porcentaje||50,pagos:l?.pagos||{},adelantos:l?.adelantos||{}};
+  });
+  guardar();
+}
+async function cargarLiquidaciones() {
+  if(!negocio?.id) return;
+  const r=await nubeGet(`liquidaciones?usuario_id=${negocio.id}`);
+  if(!r.ok){toast("No se pudieron cargar liquidaciones","error");return;}
+  limpiarPagosLocales();
+  r.data.slice().reverse().forEach(item=>{
+    try { procesarEvento(JSON.parse(item.descripcion)); } catch(e){console.error("Evento inválido:",e);}
+  });
+  guardar();
+}
+function limpiarPagosLocales() {
+  negocio.trabajadores?.forEach(t=>{t.pagos={};t.adelantos={};});
+  negocio.historial=[];
+}
+function procesarEvento(ev) {
+  try {
+    if (!ev || typeof ev !== "object") return;
+    if (ev.tipoRegistro==="liquidacion"){ aplicarLiquidacion(ev.calculo,true); return; }
+    if (!ev.tipoRegistro&&ev.mes&&ev.totalFinal!==undefined){ aplicarLiquidacion(ev,true); return; }
+    if (ev.tipoRegistro==="adelanto"){
+      if(!ev.trabajadorNombre||!ev.mes) return;
+      const t=getTrabPorNombre(ev.trabajadorNombre);
+      if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||""});}
+      return;
+    }
+    if (ev.tipoRegistro==="configuracion"){
+      if(!ev.configuracion) return;
+      negocio.configuracion=Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFECTO)),ev.configuracion||{});
+      return;
+    }
+    if (ev.tipoRegistro==="cierreMes"){ if(!ev.mes) return; if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[ev.mes]=ev.estado||"Pendiente"; return; }
+    if (ev.tipoRegistro==="reinicioMes"){ if(!ev.mes) return; negocio.trabajadores?.forEach(t=>{if(!t.pagos)t.pagos={};if(!t.adelantos)t.adelantos={};t.pagos[ev.mes]=0;t.adelantos[ev.mes]=[]; }); return; }
+    if (ev.tipoRegistro==="borrarHistorialMes"){ if(!ev.mes) return; negocio.historial=(negocio.historial||[]).filter(c=>c.mes!==ev.mes); return; }
+    if (ev.tipoRegistro==="planilla"){
+      if(!ev.planilla?.id) return;
+      if(!negocio.planillas)negocio.planillas=[];
+      const idx=negocio.planillas.findIndex(p=>p.id===ev.planilla.id);
+      if(idx>=0)negocio.planillas[idx]=ev.planilla; else negocio.planillas.unshift(ev.planilla);
+      return;
+    }
+    if (ev.tipoRegistro==="eliminarPlanilla"){
+      if(!ev.planillaId) return;
+      negocio.planillas=(negocio.planillas||[]).filter(p=>p.id!==ev.planillaId);
+      return;
+    }
+    if (ev.tipoRegistro==="eliminarLiquidacion"){
+      negocio.historial=(negocio.historial||[]).filter(c=>!(c.planillaId===ev.planillaId&&c.fecha===ev.fecha));
+      return;
+    }
+    if (ev.tipoRegistro==="eliminarTrabajador"){
+      if(!ev.nombre) return;
+      const nl=ev.nombre.toLowerCase();
+      negocio.trabajadores=(negocio.trabajadores||[]).filter(t=>t.nombre.toLowerCase()!==nl);
+      return;
+    }
+  } catch(e) { console.error("Error procesando evento:", e, ev); }
+}
+
+// ══ ENGRASADORES ══
+function getTrabPorNombre(n){ if(!n)return null; const nl=n.toLowerCase(); return negocio.trabajadores.find(t=>t.nombre.toLowerCase()===nl); }
+function sumarPago(n,mes,v){ const t=getTrabPorNombre(n); if(!t)return; if(!t.pagos)t.pagos={}; if(!t.pagos[mes])t.pagos[mes]=0; t.pagos[mes]+=Number(v||0); }
+function aplicarLiquidacion(c, hist=true) {
+  if(!c||!negocio) return;
+  const mes=c.mes||getMes();
+  sumarPago(c.trabajadorNombre1,mes,c.pagoTrabajador1);
+  if(c.trabajadorNombre2) sumarPago(c.trabajadorNombre2,mes,c.pagoTrabajador2);
+  if(c.trabajadorNombre3) sumarPago(c.trabajadorNombre3,mes,c.pagoTrabajador3);
+  if(c.trabajadorNombre4) sumarPago(c.trabajadorNombre4,mes,c.pagoTrabajador4);
+  if(hist){ if(!negocio.historial)negocio.historial=[]; negocio.historial.push(c); }
+}
+function getPago(t,mes){ return t.pagos?.[mes]||0; }
+function getAdelantos(t,mes){ return (t.adelantos?.[mes]||[]).reduce((s,a)=>s+Number(a.valor),0); }
+function getSugerenciasEngrasadores(){ return negocio?.trabajadores?.map(t=>t.nombre)||[]; }
+
+async function agregarTrabajador() {
+  const nombre=document.getElementById("nombreTrabajador").value.trim();
+  if(!nombre){toast("Escribe el nombre","error");return;}
+  if(nombre.length > 60){toast("El nombre es demasiado largo (máx 60 caracteres)","error");return;}
+  if(!negocio?.id){toast("Inicia sesión primero","error");return;}
+  if(negocio.trabajadores.some(t=>t.nombre.toLowerCase()===nombre.toLowerCase())){toast("Ese engrasador ya existe","error");return;}
+  const r=await nubePost("trabajadores",{usuario_id:negocio.id,nombre,porcentaje:50});
+  if(!r.ok){toast(r.data?.error||"No se pudo guardar","error");return;}
+  negocio.trabajadores.push({nombre,pagos:{},adelantos:{}});
+  agregarMemoria("nombres_engrasadores", nombre);
+  document.getElementById("nombreTrabajador").value="";
+  guardar(); actualizarTodo(); toast("Engrasador guardado ","ok");
+}
+function actualizarEngrasadores() {
+  const mes=getMes();
+  const lista=document.getElementById("listaTrabajadores"); if(!lista) return;
+  const s1=document.getElementById("selTrab1"), s2=document.getElementById("selTrab2"), s3=document.getElementById("selTrab3"), s4=document.getElementById("selTrab4"), sA=document.getElementById("selAdelanto");
+  lista.innerHTML="";
+  if(s1) s1.innerHTML=`<option value="">Seleccione</option>`;
+  if(s2) s2.innerHTML=`<option value="">Seleccione</option>`;
+  if(s3) s3.innerHTML=`<option value="">Seleccione</option>`;
+  if(s4) s4.innerHTML=`<option value="">Seleccione</option>`;
+  if(sA) sA.innerHTML=`<option value="">Seleccione</option>`;
+  if(!negocio.trabajadores.length){lista.innerHTML="<p>No hay engrasadores.</p>";return;}
+  negocio.trabajadores.forEach((t,i)=>{
+    const b=getPago(t,mes), a=getAdelantos(t,mes), n=b-a;
+    const nomSafe=sanitizarTexto(t.nombre);
+    const inicial = nomSafe.charAt(0).toUpperCase();
+    lista.innerHTML+=`<div class="item">
+      <div class="item-header">
+        <div class="item-avatar">${inicial}</div>
+        <div>
+          <div class="item-nombre">${nomSafe}</div>
+        </div>
+      </div>
+      <div class="item-stats">
+        <div class="item-stat"><span>Ganado</span><strong>$${b.toLocaleString()}</strong></div>
+        <div class="item-stat"><span>Adelantos</span><strong>$${a.toLocaleString()}</strong></div>
+        <div class="item-stat neto"><span>A pagar</span><strong>$${n.toLocaleString()}</strong></div>
+      </div>
+      <div class="item-acciones">
+        <button onclick="editarEngrasador(${i})">✏️ Editar</button>
+        <button class="btn-rojo" onclick="eliminarEngrasador(${i})">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+    if(s1) s1.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
+    if(s2) s2.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
+    if(s3) s3.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
+    if(s4) s4.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
+    if(sA) sA.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
+  });
+}
+function editarEngrasador(i){
+  const t=negocio.trabajadores[i], n=prompt("Nuevo nombre:",t.nombre);
+  if(!n) return;
+  const nn=n.trim();
+  if(!nn){toast("El nombre no puede estar vacío","error");return;}
+  if(negocio.trabajadores.some((tt,ii)=>ii!==i&&tt.nombre.toLowerCase()===nn.toLowerCase())){toast("Ya existe con ese nombre","error");return;}
+  t.nombre=nn; guardar(); actualizarTodo(); toast("Nombre actualizado","ok");
+}
+function eliminarEngrasador(i){
+  const nombreE=negocio.trabajadores[i].nombre;
+  confirmar("Eliminar engrasador",`¿Eliminar a ${nombreE}?`,async()=>{negocio.trabajadores.splice(i,1);guardar();actualizarTodo();toast("Eliminado","ok");await guardarEvento({tipoRegistro:"eliminarTrabajador",nombre:nombreE});});
+}
+
+// ══════════════════════════════════════════════════════════
+//  MÓDULO PLANILLAS
+// ══════════════════════════════════════════════════════════
+function nuevaPlanilla() {
+  const id=generarId();
+  const ahora=new Date();
+  const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const mes=mesActual();
+  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"mixto",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
+  if(!negocio.planillas) negocio.planillas=[];
+  negocio.planillas.unshift(planilla);
+  guardar();
+  abrirPestania(id);
+  renderTabsPlanillas();
+  mostrarListaPlanillas();
+}
+function abrirPestania(id) {
+  const ya=pestaniasAbiertas.find(p=>p.id===id);
+  if(!ya){ const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return; pestaniasAbiertas.push({id,nombre:pl.nombre||pl.fecha}); }
+  pestaniaActiva=id; renderTabsPlanillas(); renderPlanillaActiva();
+}
+function cerrarPestania(id,e) {
+  if(e) e.stopPropagation();
+  pestaniasAbiertas=pestaniasAbiertas.filter(p=>p.id!==id);
+  if(pestaniaActiva===id) pestaniaActiva=pestaniasAbiertas.length?pestaniasAbiertas[pestaniasAbiertas.length-1].id:null;
+  renderTabsPlanillas();
+  if(pestaniaActiva) renderPlanillaActiva();
+  else document.getElementById("contenidoPlanillaActiva").innerHTML="";
+}
+function renderTabsPlanillas() {
+  const tabs=document.getElementById("tabsPlanillas"); if(!tabs) return;
+  if(!pestaniasAbiertas.length){tabs.innerHTML="<span style='color:var(--gris);font-size:13px;'>Sin planillas abiertas</span>";return;}
+  tabs.innerHTML=pestaniasAbiertas.map(p=>{
+    const activa=p.id===pestaniaActiva;
+    const pl=negocio.planillas.find(pl=>pl.id===p.id);
+    const lbl=pl?(pl.nombre||pl.fecha):p.nombre;
+    return `<div class="tab-planilla ${activa?'activa':''}" onclick="cambiarPestania('${p.id}')">${lbl}<span class="cerrar-tab" onclick="cerrarPestania('${p.id}',event)">×</span></div>`;
+  }).join("");
+}
+function cambiarPestania(id){ pestaniaActiva=id; renderTabsPlanillas(); renderPlanillaActiva(); }
+
+function renderPlanillaActiva() {
+  if(!pestaniaActiva){ document.getElementById("contenidoPlanillaActiva").innerHTML=""; return; }
+  const pl=negocio.planillas.find(p=>p.id===pestaniaActiva); if(!pl) return;
+  const nombresE=getSugerenciasEngrasadores();
+  const optsE=`<option value="">— Ninguno —</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
+  const liqBadge=pl.liquidada?`<span class="badge-liquidada">LIQUIDADA</span>`:` <span class="badge-pendiente">⏳ Pendiente</span>`;
+  const liqBlockMsg=pl.liquidada?`<div class="alerta alerta-verde" style="margin:10px 0;">Esta planilla ya fue liquidada. No se puede liquidar de nuevo.</div>`:"";
+  const c=document.getElementById("contenidoPlanillaActiva");
+  c.innerHTML=`
+  <div class="seccion">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+      <input type="text" id="planNombre_${pl.id}" value="${pl.nombre||''}" placeholder="Nombre de la planilla"
+        oninput="actualizarNombrePlanilla('${pl.id}',this.value)"
+        style="max-width:300px;font-weight:700;font-size:15px;">
+      ${liqBadge}
+      <span style="color:var(--gris);font-size:12px;margin-left:auto;">Fecha: ${pl.fecha} — Mes: ${pl.mes}</span>
+    </div>
+    ${liqBlockMsg}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:10px;">
+      <div><label>Engrasador 1:</label>
+        <select id="planE1_${pl.id}" onchange="actualizarDatoPlanilla('${pl.id}','engrasador1',this.value);actualizarNombrePlanilla('${pl.id}',null)">${optsE}</select>
+      </div>
+      <div><label>Engrasador 2 (opcional):</label>
+        <select id="planE2_${pl.id}" onchange="actualizarDatoPlanilla('${pl.id}','engrasador2',this.value);actualizarNombrePlanilla('${pl.id}',null)">${optsE}</select>
+      </div>
+      <div><label>Engrasador 3 (opcional):</label>
+        <select id="planE3_${pl.id}" onchange="actualizarDatoPlanilla('${pl.id}','engrasador3',this.value);actualizarNombrePlanilla('${pl.id}',null)">${optsE}</select>
+      </div>
+      <div><label>Engrasador 4 (opcional):</label>
+        <select id="planE4_${pl.id}" onchange="actualizarDatoPlanilla('${pl.id}','engrasador4',this.value);actualizarNombrePlanilla('${pl.id}',null)">${optsE}</select>
+      </div>
+    </div>
+    <div class="seccion-grasa-planilla">
+      <div><label>🛢️ Grasa antes (g):</label><input type="number" id="planGA_${pl.id}" value="${pl.grasaAntes||''}" oninput="actualizarDatoPlanilla('${pl.id}','grasaAntes',+this.value)" placeholder="5000"></div>
+      <div><label>🛢️ Grasa que quedó (g):</label><input type="number" id="planGQ_${pl.id}" value="${pl.grasaQuedo||''}" oninput="actualizarDatoPlanilla('${pl.id}','grasaQuedo',+this.value)" placeholder="2000"></div>
+      <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <button class="btn-verde btn-sm" onclick="agregarFilaPlanilla('${pl.id}')">＋ Fila</button>
+      <span style="color:var(--gris);font-size:11px;">Enter = nueva fila · Tab = siguiente columna</span>
+    </div>
+    <div class="planilla-wrap" id="wrapTabla_${pl.id}">
+      <table class="tabla-excel planilla-full" id="tabla_${pl.id}">
+        <thead><tr>
+          <th style="width:26px;">#</th>
+          <th class="col-placa">Placa</th>
+          <th class="col-tipo">Tipo vehículo</th>
+          <th class="col-desc">Descripción</th>
+          <th class="col-engrase">Tipo <span class="info" data-tip="Mixto o Azul — define el % de liquidación">!</span></th>
+          <th class="col-valor">Valor <span class="info" data-tip="Escribe 40 → $40.000 · 45 → $45.000">!</span></th>
+          <th class="col-engrasador">Engrasador</th>
+          <th class="col-obs">Observación</th>
+          <th class="col-del"></th>
+        </tr></thead>
+        <tbody id="tbody_${pl.id}"></tbody>
+      </table>
+    </div>
+    <div class="planilla-total-bar" id="totalBar_${pl.id}">
+      <span>Total planilla:</span><span id="totalNum_${pl.id}">$0</span>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn-verde" onclick="guardarPlanilla('${pl.id}')">💾 Guardar</button>
+      ${!pl.liquidada ? `<button onclick="liquidarDesdePlanilla('${pl.id}')">⚡ Liquidar</button>` : `<button class="btn-gris" disabled style="opacity:.5;cursor:not-allowed;">Ya liquidada</button>`}
+      <button onclick="imprimirPlanilla('${pl.id}')">PDF</button>
+      <button class="btn-rojo" onclick="eliminarPlanilla('${pl.id}')">🗑️ Eliminar</button>
+    </div>
+  </div>`;
+  const se1=document.getElementById(`planE1_${pl.id}`), se2=document.getElementById(`planE2_${pl.id}`);
+  const se3=document.getElementById(`planE3_${pl.id}`), se4=document.getElementById(`planE4_${pl.id}`);
+  if(se1&&pl.engrasador1) se1.value=pl.engrasador1;
+  if(se2&&pl.engrasador2) se2.value=pl.engrasador2;
+  if(se3&&pl.engrasador3) se3.value=pl.engrasador3;
+  if(se4&&pl.engrasador4) se4.value=pl.engrasador4;
+  renderFilasPlanilla(pl.id);
+}
+
+function actualizarNombrePlanilla(id, nuevo) {
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  if(nuevo!==null){ pl.nombre=nuevo; }
+  else {
+    const e1=pl.engrasador1||"", e2=pl.engrasador2||"", e3=pl.engrasador3||"", e4=pl.engrasador4||"";
+    const partes=[e1,e2,e3,e4].filter(Boolean);
+    pl.nombre=(partes.length?partes.join(" & "):pl.fecha)+" — "+pl.fecha;
+    const inp=document.getElementById(`planNombre_${id}`); if(inp) inp.value=pl.nombre;
+  }
+  const tab=pestaniasAbiertas.find(p=>p.id===id); if(tab) tab.nombre=pl.nombre;
+  renderTabsPlanillas();
+}
+function actualizarDatoPlanilla(id, campo, valor) {
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  pl[campo]=valor;
+  if(campo==="grasaAntes"||campo==="grasaQuedo"){
+    const gg=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
+    const el=document.getElementById(`planGG_${id}`); if(el) el.innerText=gg.toLocaleString()+" g";
+  }
+}
+
+function renderFilasPlanilla(id) {
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const tbody=document.getElementById(`tbody_${id}`); if(!tbody) return;
+  const nombresE=getSugerenciasEngrasadores();
+  const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
+  const disabled=pl.liquidada?"disabled":""
+  tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>`<tr>
+    <td class="num-fila">${i+1}</td>
+    <td><input type="text" value="${v.placa||''}" ${disabled} oninput="actualizarFila('${id}',${i},'placa',this.value)" id="pl_${id}_${i}" placeholder="AAA-000" style="width:100%;"></td>
+    <td><input type="text" value="${v.tipoVehiculo||''}" ${disabled} oninput="actualizarFila('${id}',${i},'tipoVehiculo',this.value)" id="tv_${id}_${i}" placeholder="Carro..." style="width:100%;"></td>
+    <td><input type="text" value="${v.descripcion||''}" ${disabled} oninput="actualizarFila('${id}',${i},'descripcion',this.value)" id="de_${id}_${i}" placeholder="Engrase general" style="width:100%;"></td>
+    <td><select ${disabled} onchange="actualizarFila('${id}',${i},'tipoEngrase',this.value);recalcularTotal('${id}')">
+      <option value="mixto" ${(!v.tipoEngrase||v.tipoEngrase==='mixto')?'selected':''}>Mixto</option>
+      <option value="azul" ${v.tipoEngrase==='azul'?'selected':''}>Azul</option>
+    </select></td>
+    <td><input type="number" value="${v.valorRaw||v.valor||''}" ${disabled}
+      oninput="actualizarValorFila('${id}',${i},this.value)"
+      onkeydown="if(event.key==='Tab'){}" 
+      placeholder="40" style="width:100%;" title="Escribe 40 → $40.000"></td>
+    <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
+      ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
+    </select></td>
+    <td><input type="text" value="${v.observaciones||''}" ${disabled} oninput="actualizarFila('${id}',${i},'observaciones',this.value)" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
+    <td class="col-del">${!pl.liquidada?`<button class="btn-rojo btn-icon" onclick="eliminarFilaPlanilla('${id}',${i})">✕</button>`:""}</td>
+  </tr>`).join("");
+
+  // Autocomplete en 4 campos de texto (solo planillas activas)
+  if (!pl.liquidada) {
+    (pl.vehiculos||[]).forEach((v,i)=>{
+      const plEl=document.getElementById(`pl_${id}_${i}`);
+      const tvEl=document.getElementById(`tv_${id}_${i}`);
+      const deEl=document.getElementById(`de_${id}_${i}`);
+      const obEl=document.getElementById(`ob_${id}_${i}`);
+      if(plEl) setupAC(plEl,[], val=>{ actualizarFila(id,i,'placa',val); agregarMemoria('placas',val); }, 'placas');
+      if(tvEl) setupAC(tvEl,[], val=>{ actualizarFila(id,i,'tipoVehiculo',val); agregarMemoria('tipos_vehiculo',val); }, 'tipos_vehiculo');
+      if(deEl) setupAC(deEl,[], val=>{ actualizarFila(id,i,'descripcion',val); agregarMemoria('descripciones',val); }, 'descripciones');
+      if(obEl) setupAC(obEl,[], val=>{ actualizarFila(id,i,'observaciones',val); agregarMemoria('observaciones',val); }, 'observaciones');
+    });
+  }
+  recalcularTotal(id);
+}
+
+function actualizarFila(id,i,campo,valor){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  pl.vehiculos[i][campo]=valor;
+  const _clavesMem={placa:"placas",tipoVehiculo:"tipos_vehiculo",descripcion:"descripciones",observaciones:"observaciones"};
+  if(_clavesMem[campo]&&valor.trim()) agregarMemoria(_clavesMem[campo], valor.trim());
+}
+function actualizarValorFila(id,i,raw){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
+  pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
+}
+function recalcularTotal(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const total=(pl.vehiculos||[]).reduce((s,v)=>s+Number(v.valor||0),0);
+  pl.total=total;
+  const el=document.getElementById(`totalNum_${id}`); if(el) el.innerText="$"+total.toLocaleString();
+}
+function agregarFilaPlanilla(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||pl.liquidada) return;
+  if(!pl.vehiculos) pl.vehiculos=[];
+  pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"mixto",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  renderFilasPlanilla(id);
+  setTimeout(()=>{ const tbody=document.getElementById(`tbody_${id}`); if(tbody?.lastElementChild){ const inp=tbody.lastElementChild.querySelector("input"); if(inp) inp.focus(); } },50);
+}
+function eliminarFilaPlanilla(id,i){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  pl.vehiculos.splice(i,1); renderFilasPlanilla(id);
+}
+async function guardarPlanilla(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  recalcularTotal(id); guardar();
+  const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+  toast(r.ok?"Planilla guardada ":"Guardada localmente (fallo nube)",r.ok?"ok":"aviso");
+  renderTabsPlanillas(); mostrarListaPlanillas();
+}
+function eliminarPlanilla(id){
+  confirmar("Eliminar planilla","¿Eliminar esta planilla?",async()=>{
+    negocio.planillas=negocio.planillas.filter(p=>p.id!==id);
+    cerrarPestania(id,null); guardar(); mostrarListaPlanillas(); toast("Planilla eliminada","ok");
+    await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
+  });
+}
+
+// LISTA DE PLANILLAS GUARDADAS
+function mostrarListaPlanillas(){
+  const lista=document.getElementById("listaPlanillas"); if(!lista) return;
+  const planillas=negocio?.planillas||[];
+  if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas guardadas.</p>";return;}
+  lista.innerHTML=planillas.map(p=>{
+    const total=(p.vehiculos||[]).reduce((s,v)=>s+Number(v.valor||0),0);
+    const nVeh=(p.vehiculos||[]).length;
+    const engrs=[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].filter(Boolean).join(" & ")||"Sin engrasadores";
+    const liqBadge=p.liquidada?`<span class="badge-liquidada">LIQUIDADA</span>`:`<span class="badge-pendiente">⏳ Pendiente</span>`;
+    const nomSafe=sanitizarTexto(p.nombre||p.fecha), fechaSafe=sanitizarTexto(p.fecha), engrsSafe=sanitizarTexto(engrs);
+    return `<div class="planilla-card ${p.liquidada?'liquidada':''}">
+      <div class="planilla-card-header">
+        <div>
+          <div class="planilla-nombre">${nomSafe} ${liqBadge}</div>
+          <div class="planilla-meta">
+            <span>${fechaSafe}</span><span>${engrsSafe}</span>
+            <span>🚗 ${nVeh} servicio(s)</span>
+            <span style="font-weight:700;color:var(--verde);">$${total.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+      <div class="planilla-acciones">
+        <button class="btn-sm" onclick="abrirPestania('${p.id}')">✏️ Abrir</button>
+        ${!p.liquidada?`<button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>`:`<button class="btn-gris btn-sm" disabled style="opacity:.5;">Liquidada</button>`}
+        <button class="btn-sm" onclick="imprimirPlanilla('${p.id}')">🖨️ PDF</button>
+        <button class="btn-rojo btn-sm" onclick="eliminarPlanilla('${p.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════════════════════════
+//  LIQUIDAR DESDE PLANILLA (una sola)
+// ══════════════════════════════════════════════════════════
+function calcularResultadoPlanilla(pl) {
+  const vehiculos=pl.vehiculos||[];
+  const config=negocio.configuracion;
+  const mixtos=vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==="mixto");
+  const azules=vehiculos.filter(v=>v.tipoEngrase==="azul");
+  const totalMixtosReb=mixtos.reduce((s,v)=>s+rebajarMixto(convertirValor(v.valorRaw!=null?v.valorRaw:v.valor)),0);
+  const pctMixtos=totalMixtosReb*(Number(config.porcentajeMixtos)/100);
+  const totalAzules=azules.reduce((s,v)=>s+convertirValor(v.valorRaw!=null?v.valorRaw:v.valor),0);
+  const grasaGastada=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
+  const valorGrasa=(grasaGastada*Number(config.precioGrasa))/1000;
+  const azulesMenos=totalAzules-valorGrasa;
+  const pctAzules=azulesMenos*(Number(config.porcentajeAzules)/100);
+  const totalFinal=pctMixtos+pctAzules;
+  const e1=pl.engrasador1||"", e2=pl.engrasador2||"", e3=pl.engrasador3||"", e4=pl.engrasador4||"";
+  const engrs=[e1,e2,e3,e4].filter(Boolean);
+  const numT=engrs.length||1;
+  const pagoPorT=totalFinal/numT;
+  const mes=pl.mes||mesActual();
+  const findIdx=n=>n?negocio.trabajadores.findIndex(t=>t.nombre.toLowerCase()===n.toLowerCase()):-1;
+  const findNom=(n,idx)=>idx>=0?negocio.trabajadores[idx].nombre:(n||"Engrasador");
+  const idx1=findIdx(e1), idx2=findIdx(e2), idx3=findIdx(e3), idx4=findIdx(e4);
+  return {
+    fecha:new Date().toLocaleString(), mes, planillaId:pl.id,
+    tipoTurno:String(numT),
+    trabajadorIndex1:idx1, trabajadorNombre1:findNom(e1,idx1),
+    trabajadorIndex2:e2?idx2:null, trabajadorNombre2:e2?findNom(e2,idx2):null,
+    trabajadorIndex3:e3?idx3:null, trabajadorNombre3:e3?findNom(e3,idx3):null,
+    trabajadorIndex4:e4?idx4:null, trabajadorNombre4:e4?findNom(e4,idx4):null,
+    grasaAntes:pl.grasaAntes||0, grasaQuedo:pl.grasaQuedo||0,
+    grasaGastada, valorGrasaGastada:valorGrasa,
+    totalMixtosRebajados:totalMixtosReb, porcentajeMixtos:pctMixtos,
+    totalAzules, azulesMenosGrasa:azulesMenos, porcentajeAzules:pctAzules,
+    totalFinal, pagoTrabajador1:e1?pagoPorT:0, pagoTrabajador2:e2?pagoPorT:0,
+    pagoTrabajador3:e3?pagoPorT:0, pagoTrabajador4:e4?pagoPorT:0,
+    e1, e2, e3, e4, tieneE2:!!e2
+  };
+}
+
+function liquidarDesdePlanilla(id) {
+  const pl=negocio.planillas.find(p=>p.id===id);
+  if(!pl){toast("Planilla no encontrada","error");return;}
+  if(pl.liquidada){toast("Esta planilla ya fue liquidada","aviso");return;}
+  const vehiculos=pl.vehiculos||[];
+  if(!vehiculos.length){toast("La planilla está vacía","aviso");return;}
+  const res=calcularResultadoPlanilla(pl);
+  const textoPago=[[res.e1,res.pagoTrabajador1],[res.e2,res.pagoTrabajador2],[res.e3,res.pagoTrabajador3],[res.e4,res.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${n}: $${Number(p||0).toLocaleString()}`).join("<br>")||`${res.e1||"Engrasador"}: $${res.pagoTrabajador1.toLocaleString()}`;
+  mostrarPagina("paginaLiquidacion");
+  document.getElementById("resultado").innerHTML=`
+    <div class="resultado">
+      <h3>⚡ Liquidación — ${pl.nombre||pl.fecha}</h3>
+      <p style="color:var(--gris);font-size:12px;">${vehiculos.length} servicio(s)</p><hr style="margin:8px 0;">
+      <strong>🛢️ Grasa</strong><br>
+      Antes: ${(pl.grasaAntes||0).toLocaleString()} g | Quedó: ${(pl.grasaQuedo||0).toLocaleString()} g | Gastada: ${res.grasaGastada.toLocaleString()} g → $${res.valorGrasaGastada.toLocaleString()}<hr style="margin:8px 0;">
+      <strong>Mixtos (${vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==='mixto').length})</strong><br>
+      Total rebajados: $${res.totalMixtosRebajados.toLocaleString()} — ${negocio.configuracion.porcentajeMixtos}% = $${res.porcentajeMixtos.toLocaleString()}<hr style="margin:8px 0;">
+      <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length})</strong><br>
+      Total: $${res.totalAzules.toLocaleString()} — Menos grasa: $${res.azulesMenosGrasa.toLocaleString()} — ${negocio.configuracion.porcentajeAzules}% = $${res.porcentajeAzules.toLocaleString()}
+      <div class="total-final">Total: $${res.totalFinal.toLocaleString()}<br>${textoPago}</div>
+    </div>`;
+  ultimoCalc=res;
+  document.getElementById("btnGuardarLiq").classList.remove("oculto");
+  // Al guardar, marcar como liquidada
+  document.getElementById("btnGuardarLiq").onclick=()=>guardarLiquidacionYMarcarPlanilla(id);
+}
+
+async function guardarLiquidacionYMarcarPlanilla(planillaId) {
+  if(!ultimoCalc){toast("Primero realiza una liquidación","error");return;}
+  const liq=Object.assign({},ultimoCalc);
+  aplicarLiquidacion(liq,true);
+  // Marcar planilla como liquidada
+  const pl=negocio.planillas.find(p=>p.id===planillaId);
+  if(pl){ pl.liquidada=true; await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0); }
+  guardar();
+  document.getElementById("btnGuardarLiq").classList.add("oculto");
+  document.getElementById("btnGuardarLiq").onclick=guardarLiquidacion; // restaurar
+  ultimoCalc=null; actualizarTodo(); mostrarListaPlanillas();
+  const r=await guardarEvento({tipoRegistro:"liquidacion",calculo:liq},liq.totalFinal,(liq.pagoTrabajador1||0)+(liq.pagoTrabajador2||0)+(liq.pagoTrabajador3||0)+(liq.pagoTrabajador4||0));
+  toast(r.ok?"Liquidación guardada — Planilla marcada":"Guardada localmente",r.ok?"ok":"aviso");
+}
+
+// ══════════════════════════════════════════════════════════
+//  LIQUIDACIÓN QUINCENAL (TODAS A LA VEZ)
+// ══════════════════════════════════════════════════════════
+function liquidarQuincenal() {
+  const pendientes=(negocio.planillas||[]).filter(p=>!p.liquidada&&(p.vehiculos||[]).length>0);
+  if(!pendientes.length){toast("No hay planillas pendientes de liquidar","aviso");return;}
+  resultadosQuincenales=pendientes.map(pl=>({planilla:pl, resultado:calcularResultadoPlanilla(pl)}));
+  // Agrupar por engrasadores
+  const resumenEngrasadores={};
+  resultadosQuincenales.forEach(({resultado:r})=>{
+    const sumar=(nom,val)=>{ if(!nom) return; if(!resumenEngrasadores[nom]) resumenEngrasadores[nom]=0; resumenEngrasadores[nom]+=val; };
+    sumar(r.trabajadorNombre1, r.pagoTrabajador1);
+    if(r.trabajadorNombre2) sumar(r.trabajadorNombre2, r.pagoTrabajador2);
+    if(r.trabajadorNombre3) sumar(r.trabajadorNombre3, r.pagoTrabajador3);
+    if(r.trabajadorNombre4) sumar(r.trabajadorNombre4, r.pagoTrabajador4);
+  });
+  const totalGen=Object.values(resumenEngrasadores).reduce((s,v)=>s+v,0);
+  const filasPlanillas=resultadosQuincenales.map(({planilla:pl,resultado:r})=>`
+    <div class="item" style="padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+        <strong>${pl.nombre||pl.fecha}</strong>
+        <span style="font-weight:700;color:var(--verde);">$${r.totalFinal.toLocaleString()}</span>
+      </div>
+      <div style="font-size:12px;color:var(--gris);margin-top:3px;">
+        ${[r.e1,r.e2,r.e3,r.e4].filter(Boolean).join(" & ")||"—"} · ${(pl.vehiculos||[]).length} servicios
+      </div>
+    </div>`).join("");
+  const filasResumen=Object.entries(resumenEngrasadores).map(([nom,val])=>`
+    <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
+      <span><strong>${cap(nom)}</strong></span>
+      <span style="font-weight:700;color:var(--verde);">$${val.toLocaleString()}</span>
+    </div>`).join("");
+  document.getElementById("contenidoModalQuincenal").innerHTML=`
+    <p style="color:var(--gris);font-size:13px;margin-bottom:10px;">${pendientes.length} planilla(s) pendientes — se liquidarán todas.</p>
+    <h3 style="font-size:14px;margin-bottom:6px;">Planillas incluidas:</h3>
+    ${filasPlanillas}
+    <h3 style="font-size:14px;margin:12px 0 6px;">Resumen por engrasador:</h3>
+    <div style="border:1px solid var(--borde);border-radius:12px;overflow:hidden;">
+      ${filasResumen}
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-weight:700;">
+        <span>TOTAL QUINCENAL</span><span>$${totalGen.toLocaleString()}</span>
+      </div>
+    </div>`;
+  document.getElementById("btnGuardarQuincenal").onclick=guardarLiquidacionQuincenal;
+  document.getElementById("modalQuincenal").classList.add("abierto");
+}
+
+async function guardarLiquidacionQuincenal() {
+  let guardadas=0;
+  for(const {planilla:pl, resultado:r} of resultadosQuincenales) {
+    aplicarLiquidacion(r, true);
+    pl.liquidada=true;
+    await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+    const rv=await guardarEvento({tipoRegistro:"liquidacion",calculo:r},r.totalFinal,(r.pagoTrabajador1||0)+(r.pagoTrabajador2||0)+(r.pagoTrabajador3||0)+(r.pagoTrabajador4||0));
+    if(rv.ok) guardadas++;
+  }
+  guardar(); actualizarTodo(); mostrarListaPlanillas();
+  cerrarModal("modalQuincenal");
+  resultadosQuincenales=[];
+  toast(`Liquidación quincenal guardada — ${guardadas} planilla(s) `,"ok");
+}
+
+// ══════════════════════════════════════════════════════════
+//  IMPRIMIR PLANILLA
+// ══════════════════════════════════════════════════════════
+function imprimirPlanilla(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const vehiculos=pl.vehiculos||[];
+  const total=vehiculos.reduce((s,v)=>s+Number(v.valor||0),0);
+  const gG=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
+  const filas=vehiculos.map((v,i)=>`<tr><td>${i+1}</td><td>${v.placa||""}</td><td>${v.tipoVehiculo||""}</td><td>${v.descripcion||""}</td>
+    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':'#856404'}">${v.tipoEngrase||"mixto"}</span></td>
+    <td>$${Number(v.valor||0).toLocaleString()}</td><td>${v.engrasador||""}</td><td>${v.observaciones||""}</td></tr>`).join("");
+  const ven=window.open("","_blank");
+  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Planilla SYMES</title>
+  <style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}.hdr p{margin:0;opacity:.88;font-size:13px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}th{background:#1f3c88;color:#fff;padding:8px;text-align:left;}td{padding:7px 8px;border-bottom:1px solid #e2e8f0;}tr:nth-child(even) td{background:#f8faff;}
+  .grasa{background:#f0f6ff;border:1px solid rgba(31,60,136,.15);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;}
+  .total{margin-top:16px;background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px 16px;border-radius:12px;font-weight:700;font-size:16px;display:flex;justify-content:space-between;}
+  .liq-badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;${pl.liquidada?'background:#dcfce7;color:#15803d;':'background:#fff3cd;color:#856404;'}}
+  .firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}
+  .cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
+</style>
+  </head><body>
+  <div class="hdr"><h1>SYMES</h1><p>Planilla de servicios — ${negocio.nombreNegocio}</p></div>
+  <p><strong>Planilla:</strong> ${pl.nombre||pl.fecha} <span class="liq-badge">${pl.liquidada?"LIQUIDADA":"⏳ Pendiente"}</span> &nbsp; <strong>Fecha:</strong> ${pl.fecha} &nbsp; <strong>Mes:</strong> ${pl.mes}</p>
+  <p><strong>Engrasador(es):</strong> ${[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(Boolean).join(" & ")||"—"}</p>
+  <div class="grasa">🛢️ <strong>Grasa antes:</strong> ${(pl.grasaAntes||0).toLocaleString()} g &nbsp;|&nbsp; <strong>Grasa quedó:</strong> ${(pl.grasaQuedo||0).toLocaleString()} g &nbsp;|&nbsp; <strong>Gastada:</strong> ${gG.toLocaleString()} g</div>
+  <table><thead><tr><th>#</th><th>Placa</th><th>Tipo</th><th>Descripción</th><th>Engrase</th><th>Valor</th><th>Engrasador</th><th>Obs.</th></tr></thead><tbody>${filas}</tbody></table>
+  <div class="total"><span>Total planilla:</span><span>$${total.toLocaleString()}</span></div>
+  <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador</div></div>
+  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>
+  <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`);
+  ven.document.close();
+}
+
+// ══════════════════════════════════════════════════════════
+//  LIQUIDACIÓN MANUAL
+// ══════════════════════════════════════════════════════════
+function convertirValor(v){ v=Number(v); if(isNaN(v)) return 0; return(v>0&&v<1000)?v*1000:v; }
+function rebajarMixto(v){ const r=negocio?.configuracion?.reglasMixtos||[]; for(const rr of r){if(Number(rr.original)===Number(v))return Number(rr.rebajado);} return v; }
+function mostrarTrabajadores(){
+  const tipo=document.getElementById("tipoTurno").value;
+  document.getElementById("zonaTrab1").classList.toggle("oculto",!tipo);
+  document.getElementById("zonaTrab2").classList.toggle("oculto",Number(tipo)<2);
+  document.getElementById("zonaTrab3").classList.toggle("oculto",Number(tipo)<3);
+  document.getElementById("zonaTrab4").classList.toggle("oculto",Number(tipo)<4);
+}
+function agregarMixto(){ const v=convertirValor(document.getElementById("valMixto").value); if(v<=0){toast("Ingresa un valor válido","error");return;} mixtosAct.push({original:v,rebajado:rebajarMixto(v)}); document.getElementById("valMixto").value=""; document.getElementById("valMixto").focus(); mostrarListaMixtos(); }
+function mostrarListaMixtos(){ const el=document.getElementById("listaMixtos"); if(!el) return; el.innerHTML=!mixtosAct.length?"<p style='color:var(--gris);'>Sin mixtos.</p>":mixtosAct.map((m,i)=>`<div class="item">Mixto: $${m.original.toLocaleString()} → $${m.rebajado.toLocaleString()} <button class="btn-rojo btn-sm" onclick="mixtosAct.splice(${i},1);mostrarListaMixtos()">✕</button></div>`).join(""); }
+function agregarAzul(){ const v=convertirValor(document.getElementById("valAzul").value); if(v<=0){toast("Ingresa un valor válido","error");return;} azulesAct.push(v); document.getElementById("valAzul").value=""; document.getElementById("valAzul").focus(); mostrarListaAzules(); }
+function mostrarListaAzules(){ const el=document.getElementById("listaAzules"); if(!el) return; el.innerHTML=!azulesAct.length?"<p style='color:var(--gris);'>Sin azules.</p>":azulesAct.map((a,i)=>`<div class="item">Azul: $${a.toLocaleString()} <button class="btn-rojo btn-sm" onclick="azulesAct.splice(${i},1);mostrarListaAzules()">✕</button></div>`).join(""); }
+function calcular(){
+  const mes=getMes(), tipo=document.getElementById("tipoTurno").value;
+  const numT=Number(tipo)||1;
+  const idx1=document.getElementById("selTrab1").value;
+  const idx2=numT>=2?document.getElementById("selTrab2").value:"";
+  const idx3=numT>=3?document.getElementById("selTrab3").value:"";
+  const idx4=numT>=4?document.getElementById("selTrab4").value:"";
+  const gA=Number(document.getElementById("grasaAntes").value), gQ=Number(document.getElementById("grasaQuedo").value);
+  const config=negocio.configuracion;
+  if(!tipo){toast("Selecciona el tipo de turno","error");return;}
+  if(idx1===""){toast("Selecciona el trabajador 1","error");return;}
+  if(numT>=2&&idx2===""){toast("Selecciona el trabajador 2","error");return;}
+  if(numT>=3&&idx3===""){toast("Selecciona el trabajador 3","error");return;}
+  if(numT>=4&&idx4===""){toast("Selecciona el trabajador 4","error");return;}
+  const selArr=[idx1,numT>=2?idx2:null,numT>=3?idx3:null,numT>=4?idx4:null].filter(x=>x!==null);
+  if(new Set(selArr).size<selArr.length){toast("No puedes seleccionar el mismo trabajador dos veces","error");return;}
+  if(isNaN(gA)||isNaN(gQ)){toast("Ingresa los datos de grasa","error");return;}
+  if(gA<0||gQ<0){toast("Los valores de grasa no pueden ser negativos","error");return;}
+  if(gA>500000){toast("El valor de grasa antes parece muy alto, verifica","aviso");}
+  if(gQ>gA){toast("La grasa que quedó no puede ser mayor","error");return;}
+  const gG=gA-gQ, vG=(gG*Number(config.precioGrasa))/1000;
+  const tM=mixtosAct.reduce((s,m)=>s+m.rebajado,0), pM=tM*(Number(config.porcentajeMixtos)/100);
+  const tA=azulesAct.reduce((s,a)=>s+a,0), aM=tA-vG, pA=aM*(Number(config.porcentajeAzules)/100);
+  const tF=pM+pA;
+  const t1=negocio.trabajadores[idx1];
+  const t2=numT>=2?negocio.trabajadores[idx2]:null;
+  const t3=numT>=3?negocio.trabajadores[idx3]:null;
+  const t4=numT>=4?negocio.trabajadores[idx4]:null;
+  const pPorT=tF/numT;
+  const p1=pPorT, p2=numT>=2?pPorT:0, p3=numT>=3?pPorT:0, p4=numT>=4?pPorT:0;
+  const textP=[[t1,p1],[t2,p2],[t3,p3],[t4,p4]].filter(([t])=>t).map(([t,p])=>`${t.nombre}: $${p.toLocaleString()}`).join("<br>");
+  document.getElementById("resultado").innerHTML=`<div class="resultado"><h3>Resultado</h3>
+    <strong>🛢️ Grasa</strong><br>Antes: ${gA.toLocaleString()} g | Quedó: ${gQ.toLocaleString()} g | Gastada: ${gG.toLocaleString()} g<br>Valor grasa: $${vG.toLocaleString()}<hr style="margin:8px 0;">
+    <strong>Mixtos</strong> — Rebajados: $${tM.toLocaleString()} — ${config.porcentajeMixtos}%: $${pM.toLocaleString()}<hr style="margin:8px 0;">
+    <strong>Azules</strong> — Total: $${tA.toLocaleString()} — Menos grasa: $${aM.toLocaleString()} — ${config.porcentajeAzules}%: $${pA.toLocaleString()}
+    <div class="total-final">Total: $${tF.toLocaleString()}<br>${textP}</div></div>`;
+  ultimoCalc={fecha:new Date().toLocaleString(),mes,tipoTurno:tipo,
+    trabajadorIndex1:Number(idx1),trabajadorNombre1:t1.nombre,
+    trabajadorIndex2:numT>=2?Number(idx2):null,trabajadorNombre2:numT>=2?t2.nombre:null,
+    trabajadorIndex3:numT>=3?Number(idx3):null,trabajadorNombre3:numT>=3?t3.nombre:null,
+    trabajadorIndex4:numT>=4?Number(idx4):null,trabajadorNombre4:numT>=4?t4.nombre:null,
+    grasaAntes:gA,grasaQuedo:gQ,grasaGastada:gG,valorGrasaGastada:vG,
+    totalMixtosRebajados:tM,porcentajeMixtos:pM,totalAzules:tA,azulesMenosGrasa:aM,porcentajeAzules:pA,
+    totalFinal:tF,pagoTrabajador1:p1,pagoTrabajador2:p2,pagoTrabajador3:p3,pagoTrabajador4:p4};
+  document.getElementById("btnGuardarLiq").classList.remove("oculto");
+  document.getElementById("btnGuardarLiq").onclick=guardarLiquidacion;
+}
+async function guardarLiquidacion(){
+  if(!ultimoCalc){toast("Primero realiza una liquidación","error");return;}
+  const liq=Object.assign({},ultimoCalc);
+  aplicarLiquidacion(liq,true); guardar();
+  document.getElementById("btnGuardarLiq").classList.add("oculto");
+  ultimoCalc=null; actualizarTodo();
+  const r=await guardarEvento({tipoRegistro:"liquidacion",calculo:liq},liq.totalFinal,(liq.pagoTrabajador1||0)+(liq.pagoTrabajador2||0));
+  toast(r.ok?"Liquidación guardada ":"Guardada localmente",r.ok?"ok":"aviso");
+}
+function reiniciarCalculo(){
+  ["tipoTurno","selTrab1","selTrab2","selTrab3","selTrab4","grasaAntes","grasaQuedo","valMixto","valAzul"].forEach(id=>{const el=document.getElementById(id);if(el)el.value="";});
+  ["zonaTrab1","zonaTrab2","zonaTrab3","zonaTrab4"].forEach(id=>document.getElementById(id)?.classList.add("oculto"));
+  mixtosAct=[]; azulesAct=[]; mostrarListaMixtos(); mostrarListaAzules();
+  document.getElementById("resultado").innerHTML="";
+  document.getElementById("btnGuardarLiq").classList.add("oculto");
+  ultimoCalc=null;
+}
+
+// ══ ADELANTOS ══
+async function registrarAdelanto(){
+  const mes=getMes(), idx=document.getElementById("selAdelanto").value;
+  const valor=Number(document.getElementById("valAdelanto").value);
+  const nota=document.getElementById("notaAdelanto").value.trim();
+  if(idx===""){toast("Selecciona un engrasador","error");return;}
+  if(!valor||valor<=0){toast("Ingresa un valor válido mayor a cero","error");return;}
+  if(valor>10000000){toast("El valor parece muy alto, verifica","error");return;}
+  if(nota.length>200){toast("La nota es muy larga (máx 200 caracteres)","error");return;}
+  const t=negocio.trabajadores[idx];
+  if(!t.adelantos) t.adelantos={};
+  if(!t.adelantos[mes]) t.adelantos[mes]=[];
+  const adelanto={valor,nota,fecha:new Date().toLocaleString()};
+  t.adelantos[mes].push(adelanto);
+  agregarMemoria("notas_adelanto", nota);
+  ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("selAdelanto").value="";
+  guardar(); actualizarTodo();
+  const r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha},valor,0);
+  toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
+}
+function mostrarAdelantos(){
+  const el=document.getElementById("listaAdelantos"); if(!el) return;
+  const mes=getMes(); el.innerHTML=""; let hay=false;
+  negocio.trabajadores.forEach((t,i)=>{
+    if(t.adelantos?.[mes]) t.adelantos[mes].forEach((a,j)=>{
+      hay=true;
+      const div=document.createElement("div"); div.className="item";
+      const h3=document.createElement("h3"); h3.textContent=cap(t.nombre);
+      const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
+      const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "; p2.firstChild.nextSibling||p2.appendChild(document.createTextNode((a.nota||"Sin nota")));
+      p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
+      const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
+      const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
+      btn.addEventListener("click",()=>eliminarAdelanto(i,j));
+      div.append(h3,p1,p2,p3,btn); el.appendChild(div);
+    });
+  });
+  if(!hay) el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>";
+}
+function eliminarAdelanto(iT,iA){
+  confirmar("Eliminar adelanto","¿Seguro?",()=>{
+    const mes=getMes(); negocio.trabajadores[iT].adelantos[mes].splice(iA,1); guardar(); actualizarTodo(); toast("Adelanto eliminado","ok");
+  });
+}
+
+// ══ PAGOS ══
+function mostrarPanelPagos(){
+  const el=document.getElementById("panelPagos"); if(!el) return;
+  const mes=getMes();
+  const etiq = document.getElementById("periodoEtiqueta");
+  if(etiq) etiq.textContent = getLabelPeriodo ? getLabelPeriodo() : "";
+  if(!negocio.trabajadores.length){el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores.</p>";return;}
+  let totalGeneral = 0;
+  const cards = negocio.trabajadores.map(t=>{
+    const {ganado, adelantos, neto} = calcularPagosPeriodo ? calcularPagosPeriodo(t,mes) : {ganado:getPago(t,mes),adelantos:getAdelantos(t,mes),neto:getPago(t,mes)-getAdelantos(t,mes)};
+    totalGeneral += neto;
+    const nomPago = cap(sanitizarTexto(t.nombre));
+    const ini = nomPago.charAt(0).toUpperCase();
+    return `<div class="pago-card">
+      <div class="pago-card-header">
+        <div class="pago-card-avatar">${ini}</div>
+        <div class="pago-card-nombre">${nomPago}</div>
+      </div>
+      <div class="pago-card-stats">
+        <div class="pago-stat"><span>Ganado</span><strong>$${ganado.toLocaleString()}</strong></div>
+        <div class="pago-stat"><span>Adelantos</span><strong>$${adelantos.toLocaleString()}</strong></div>
+        <div class="pago-stat neto"><span>A pagar</span><strong>$${neto.toLocaleString()}</strong></div>
+      </div>
+    </div>`;
+  }).join("");
+  el.innerHTML = cards + `<div class="pagos-total-bar"><span>Total a pagar</span><strong>$${totalGeneral.toLocaleString()}</strong></div>`;
+}
+async function reiniciarPagosMes(){
+  confirmar("Reiniciar pagos","¿Borrar pagos y adelantos del mes? El historial NO se borra.",async()=>{
+    const mes=getMes(); negocio.trabajadores.forEach(t=>{if(t.pagos)t.pagos[mes]=0;if(t.adelantos)t.adelantos[mes]=[]; });
+    guardar(); actualizarTodo();
+    await guardarEvento({tipoRegistro:"reinicioMes",mes,fecha:new Date().toLocaleString()},1,0);
+    toast("Pagos del mes reiniciados","ok");
+  });
+}
+
+// ══ CIERRE ══
+function getEstadoCierre(mes){ return negocio.cierresMes?.[mes]||"Pendiente"; }
+function calcularResumenMes(mes){
+  let tG=0,tA=0,tP=0;
+  const trabajadores=negocio.trabajadores.map(t=>{const g=getPago(t,mes),a=getAdelantos(t,mes),p=g-a;tG+=g;tA+=a;tP+=p;return{nombre:t.nombre,ganado:g,adelantos:a,totalPagar:p};});
+  return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
+}
+function mostrarCierreMes(){
+  const el=document.getElementById("resumenCierre"); if(!el) return;
+  sincronizarMeses();
+  const mes=document.getElementById("mesCierre")?.value||mesActual();
+  const estado=getEstadoCierre(mes), resumen=calcularResumenMes(mes);
+  const esPagado = estado==="Pagado";
+  const badgeClass = esPagado ? "pagado" : "pendiente";
+  const badgeIcon = esPagado ? "✅" : "⏳";
+  const cards = resumen.trabajadores.map(t=>{
+    const nomCierre = cap(sanitizarTexto(t.nombre));
+    const ini = nomCierre.charAt(0).toUpperCase();
+    return `<div class="cierre-card">
+      <div class="cierre-card-header">
+        <div class="cierre-card-avatar">${ini}</div>
+        <div class="cierre-card-nombre">${nomCierre}</div>
+      </div>
+      <div class="cierre-card-stats">
+        <div class="cierre-stat"><span>Ganado</span><strong>$${t.ganado.toLocaleString()}</strong></div>
+        <div class="cierre-stat"><span>Adelantos</span><strong>$${t.adelantos.toLocaleString()}</strong></div>
+        <div class="cierre-stat neto"><span>A pagar</span><strong>$${t.totalPagar.toLocaleString()}</strong></div>
+      </div>
+    </div>`;
+  }).join("");
+  el.innerHTML =
+    `<div class="cierre-estado-badge ${badgeClass}" style="margin-bottom:16px;">${badgeIcon} Estado ${mes}: ${estado}</div>` +
+    cards +
+    `<div class="cierre-total-bar"><span>Total a pagar este mes</span><strong>$${resumen.totalPagar.toLocaleString()}</strong></div>`;
+}
+async function marcarMesPagado(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pagado"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pagado",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pagado ","ok"); }
+async function marcarMesPendiente(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pendiente"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pendiente",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pendiente","info"); }
+function imprimirResumen(){
+  const mes=document.getElementById("mesCierre")?.value||mesActual(), estado=getEstadoCierre(mes), resumen=calcularResumenMes(mes);
+  const ven=window.open("","_blank");
+  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Resumen ${mes}</title><style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}table{width:100%;border-collapse:collapse;}th{background:#1f3c88;color:#fff;padding:8px;}td{padding:7px 8px;border-bottom:1px solid #e2e8f0;}.total{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px;border-radius:10px;margin-top:14px;}.firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
+</style></head><body>
+  <div class="hdr"><h1>SYMES</h1><p>Resumen mensual — ${negocio.nombreNegocio}</p></div>
+  <p><strong>Mes:</strong> ${mes} &nbsp; <strong>Estado:</strong> ${estado} &nbsp; <strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
+  <table><thead><tr><th>Engrasador</th><th>Ganado</th><th>Adelantos</th><th>A pagar</th></tr></thead>
+  <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
+  <div class="total">Total ganado: $${resumen.totalGanado.toLocaleString()} | Adelantos: $${resumen.totalAdelantos.toLocaleString()} | <strong>A pagar: $${resumen.totalPagar.toLocaleString()}</strong></div>
+  <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador / recibido</div></div>
+  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>
+  <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`);
+  ven.document.close();
+}
+
+// ══ HISTORIAL ══
+function mostrarHistorial(){
+  const el=document.getElementById("historialContenido"); if(!el) return;
+  sincronizarMeses();
+  const mes=document.getElementById("mesHistorial")?.value||mesActual();
+  el.innerHTML=""; let count=0;
+  (negocio.historial||[]).forEach((c,i)=>{
+    if(c.mes!==mes) return; count++;
+    const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${Number(p||0).toLocaleString()}`).join("<br>");
+    const bp=c.planillaId?`<span style="background:#e8f1ff;padding:2px 8px;border-radius:12px;font-size:11px;color:var(--azul);font-weight:700;">Desde planilla</span>`:"";
+    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${c.totalFinal?.toLocaleString()}</p><p><strong>Pagos:</strong><br>${pagos}</p><button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div>`;
+  });
+  if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este mes.</p>";
+}
+function eliminarLiquidacion(i){
+  confirmar("Eliminar liquidación","¿Seguro? Se descontará el pago.",async()=>{
+    const c=negocio.historial[i]; if(!c) return;
+    const mes=c.mes;
+    const descontar=(nom,idx,val)=>{ const t=getTrabPorNombre(nom)||(idx!==null&&negocio.trabajadores[idx]); if(t){if(!t.pagos)t.pagos={};if(!t.pagos[mes])t.pagos[mes]=0;t.pagos[mes]=Math.max(0,t.pagos[mes]-val);} };
+    descontar(c.trabajadorNombre1,c.trabajadorIndex1,c.pagoTrabajador1);
+    if(c.trabajadorNombre2) descontar(c.trabajadorNombre2,c.trabajadorIndex2,c.pagoTrabajador2);
+    if(c.trabajadorNombre3) descontar(c.trabajadorNombre3,c.trabajadorIndex3,c.pagoTrabajador3);
+    if(c.trabajadorNombre4) descontar(c.trabajadorNombre4,c.trabajadorIndex4,c.pagoTrabajador4);
+    negocio.historial.splice(i,1); guardar(); actualizarTodo(); toast("Liquidación eliminada","ok");
+    await guardarEvento({tipoRegistro:"eliminarLiquidacion",planillaId:c.planillaId,fecha:c.fecha,mes:c.mes});
+  });
+}
+async function borrarHistorialMes(){
+  confirmar("Borrar historial","¿Borrar todo el historial de este mes?",async()=>{
+    const mes=document.getElementById("mesHistorial")?.value||mesActual();
+    negocio.historial=(negocio.historial||[]).filter(c=>c.mes!==mes); guardar(); actualizarTodo();
+    await guardarEvento({tipoRegistro:"borrarHistorialMes",mes,fecha:new Date().toLocaleString()},1,0);
+    toast("Historial borrado","ok");
+  });
+}
+
+// ══ CONFIGURACIÓN ══
+function cargarConfigEnPantalla(){
+  const c=negocio?.configuracion; if(!c) return;
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  set("cfgPrecioGrasa",c.precioGrasa); set("cfgPctMixtos",c.porcentajeMixtos); set("cfgPctAzules",c.porcentajeAzules);
+  mostrarReglas();
+}
+async function guardarConfig(){
+  const get=id=>Number(document.getElementById(id)?.value||0);
+  const precioGrasa=get("cfgPrecioGrasa");
+  const pctMixtos=get("cfgPctMixtos");
+  const pctAzules=get("cfgPctAzules");
+  if(precioGrasa<=0||precioGrasa>100000){toast("Precio de grasa inválido (debe ser positivo y menor a 100.000)","error");return;}
+  if(pctMixtos<0||pctMixtos>100){toast("Porcentaje mixtos inválido (0-100)","error");return;}
+  if(pctAzules<0||pctAzules>100){toast("Porcentaje azules inválido (0-100)","error");return;}
+  negocio.configuracion.precioGrasa=precioGrasa;
+  negocio.configuracion.porcentajeMixtos=pctMixtos;
+  negocio.configuracion.porcentajeAzules=pctAzules;
+  guardar();
+  const r=await guardarEvento({tipoRegistro:"configuracion",configuracion:negocio.configuracion,fecha:new Date().toLocaleString()},1,0);
+  toast(r.ok?"Configuración guardada ✅":"Guardada localmente",r.ok?"ok":"aviso");
+}
+function agregarRegla(){
+  const orig=convertirValor(document.getElementById("reglaOrig").value);
+  const reb=convertirValor(document.getElementById("reglaReb").value);
+  if(orig<=0||reb<=0){toast("Ingresa valores válidos mayores a cero","error");return;}
+  if(reb>orig){toast("El valor rebajado no puede ser mayor al original","error");return;}
+  if(negocio.configuracion.reglasMixtos.some(r=>Number(r.original)===orig)){toast("Ya existe una regla para ese valor","aviso");return;}
+  negocio.configuracion.reglasMixtos.push({original:orig,rebajado:reb});
+  document.getElementById("reglaOrig").value="";
+  document.getElementById("reglaReb").value="";
+  guardar(); mostrarReglas(); toast("Regla agregada","ok");
+}
+function mostrarReglas(){ const el=document.getElementById("listaReglas"); if(!el) return; const r=negocio?.configuracion?.reglasMixtos||[]; el.innerHTML=!r.length?"<p style='color:var(--gris);'>Sin reglas.</p>":r.map((rr,i)=>`<div class="item" style="display:flex;justify-content:space-between;align-items:center;"><span>$${Number(rr.original).toLocaleString()} → $${Number(rr.rebajado).toLocaleString()}</span><button class="btn-rojo btn-sm" onclick="eliminarRegla(${i})">Eliminar</button></div>`).join(""); }
+function eliminarRegla(i){ negocio.configuracion.reglasMixtos.splice(i,1); guardar(); mostrarReglas(); }
+
+// ══ PLANES ══
+function mostrarSolicitudPago(){ document.getElementById("panelSolicitudPago").classList.toggle("oculto"); }
+function copiarNequi(){ navigator.clipboard?.writeText("3227167031").then(()=>toast("Número copiado ","ok")).catch(()=>toast("322-716-7031","info",5000)); }
+function actualizarEstadoPlanes(){
+  const el=document.getElementById("estadoPlanGratuito"); if(!el) return;
+  const usado=periodoGratisUsado();
+  el.innerHTML=usado?`<div class="alerta">El período de prueba ya fue usado en este dispositivo.</div>`:`<div class="alerta alerta-verde">Período de prueba gratuito disponible.</div>`;
+}
+
+// ══ SOLICITUD DE PAGO (SISTEMA ADMIN) ══
+async function enviarSolicitudPago(){
+  const nombre=document.getElementById("solNombre").value.trim();
+  const comprobante=document.getElementById("solComprobante").value.trim();
+  const metodo=document.getElementById("solMetodo").value;
+  if(!nombre){ toast("Escribe tu nombre o correo","error"); return; }
+  const solicitud={
+    tipo:"solicitud_pago", nombre, comprobante, metodo,
+    negocioId:negocio?.id, negocioNombre:negocio?.nombreNegocio,
+    fecha:new Date().toLocaleString(), estado:"pendiente",
+    deviceKey:getDeviceKey()
+  };
+  const el=document.getElementById("estadoSolicitud");
+  el.innerHTML=`<div class="alerta">⏳ Enviando solicitud...</div>`;
+  const r=await guardarEvento({tipoRegistro:"solicitud_pago",...solicitud},19900,0);
+  if(r.ok){
+    el.innerHTML=`<div class="alerta alerta-verde">Solicitud enviada correctamente. El administrador la revisará pronto.<br><strong>Estado: PENDIENTE</strong><br>Cuando sea aprobada, tu plan PRO se activará.</div>`;
+    document.getElementById("solNombre").value=""; document.getElementById("solComprobante").value="";
+    toast("Solicitud enviada ","ok");
+  } else {
+    el.innerHTML=`<div class="alerta alerta-rojo">No se pudo enviar. Contacta al administrador por WhatsApp al 322-716-7031.</div>`;
+  }
+}
+
+// ══ SUPERADMIN — GESTIÓN DE USUARIOS ══
+async function cargarSolicitudesAdmin() {
+  if (!negocio?.esAdmin) { toast("Acceso denegado","error"); return; }
+  const el = document.getElementById("listaSolicitudesAdmin");
+  if (!el) return;
+  el.innerHTML = "<p style='color:var(--gris);'>Cargando usuarios...</p>";
+  try {
+    const res = await fetch(`${API_URL}/solicitudes`);
+    const lista = await res.json();
+    // Actualizar stats
+    const statT = document.getElementById("statTotal");
+    const statA = document.getElementById("statActivos");
+    if (statT) statT.textContent = lista.length || 0;
+    if (statA) statA.textContent = lista.length || 0; // todos los registrados son activos
+    if (!lista.length) { el.innerHTML = "<p style='color:var(--gris);'>No hay usuarios registrados.</p>"; return; }
+    el.innerHTML = lista.slice().reverse().map((s,i) => {
+      const esAdminUser = (s.negocio||"").toLowerCase() === ADMIN_NAME;
+      return `<div class="user-card">
+        <div class="user-info">
+          <div class="user-name">🏪 ${sanitizarTexto(s.negocio||"—")}</div>
+          <div class="user-detail">
+            ${s.propietario ? `👤 ${cap(sanitizarTexto(s.propietario))}` : ""}
+            ${s.telefono && s.telefono!=="No registrado" ? ` · 📞 ${sanitizarTexto(s.telefono)}` : ""}
+            ${s.fecha ? ` · 🗓️ ${sanitizarTexto(s.fecha)}` : ""}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          ${esAdminUser
+            ? `<span class="badge-admin-user">👑 Superadmin</span>`
+            : `<span class="badge-activo">✓ Activo</span>
+               <button class="btn-amarillo btn-sm" onclick="adminResetearPassword('${sanitizarTexto(s.negocio||"")}')">🔑 Resetear</button>
+               <button class="btn-rojo btn-sm" onclick="adminEliminarUsuario('${sanitizarTexto(s.id||"")}','${sanitizarTexto(s.negocio||"")}')">🗑️</button>`
+          }
+        </div>
+      </div>`;
+    }).join("");
+  } catch(err) {
+    console.error(err);
+    el.innerHTML = `<div class='alerta alerta-rojo'>Error cargando usuarios. Verifica la conexión.</div>`;
+  }
+}
+
+async function adminAgregarUsuario() {
+  const negocioNom = document.getElementById("adminAddNegocio").value.trim();
+  const correo     = document.getElementById("adminAddCorreo").value.trim();
+  const msgEl      = document.getElementById("adminAddMsg");
+  if (!negocioNom || !correo) { toast("Completa nombre del negocio y correo","error"); return; }
+  msgEl.innerHTML = "<div class='alerta'>⏳ Creando usuario...</div>";
+  // 1. Registrar en el sistema
+  const r = await nubePost("register", { negocio: negocioNom, usuario: correo, password: "123456" });
+  if (!r.ok) {
+    msgEl.innerHTML = `<div class='alerta alerta-rojo'>${sanitizarTexto(r.data?.error || "No se pudo crear el usuario")}</div>`;
+    return;
+  }
+  // 2. Registrar en solicitudes para que aparezca en la lista
+  await fetch(`${API_URL}/solicitudes`, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ negocio: negocioNom, propietario: correo, telefono: "Admin creado" })
+  });
+  msgEl.innerHTML = `<div class='alerta alerta-verde'>✅ Usuario <strong>${sanitizarTexto(negocioNom)}</strong> creado. Contraseña inicial: <strong>123456</strong></div>`;
+  document.getElementById("adminAddNegocio").value = "";
+  document.getElementById("adminAddCorreo").value  = "";
+  toast("Usuario creado exitosamente","ok");
+  setTimeout(cargarSolicitudesAdmin, 800);
+}
+
+async function adminResetearPassword(negocioNom) {
+  confirmar("Resetear contraseña",
+    `¿Resetear la contraseña de "${negocioNom}" a 123456?`,
+    async () => {
+      const r = await nubePost("admin/reset-password", {
+        admin_usuario: cuentaAct,
+        negocio: negocioNom,
+        nueva_password: "123456"
+      });
+      if (r.ok) {
+        toast(`Contraseña de ${negocioNom} reseteada a 123456`,"ok");
+      } else {
+        // Endpoint aún no existe en el Worker — mostrar instrucción manual
+        toast("Agrega el endpoint /admin/reset-password al Worker de Cloudflare","aviso",5000);
+        console.warn("Necesario en Worker: POST /admin/reset-password → {negocio, nueva_password}");
+      }
+    }
+  );
+}
+
+
+
+// ══ PWA ══
+let evtInstall=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();evtInstall=e;document.getElementById("btnInstalar")?.classList.remove("oculto");});
+document.getElementById("btnInstalar")?.addEventListener("click",async()=>{
+  if(evtInstall){evtInstall.prompt();await evtInstall.userChoice;evtInstall=null;document.getElementById("btnInstalar")?.classList.add("oculto");}
+  else document.getElementById("instrIOS")?.classList.toggle("oculto");
+});
+
+// ══ ARRANQUE ══
+async function iniciarSesionGuardada(){
+  try{ await cargarTrabajadores(); await cargarLiquidaciones(); } catch(e){ console.error("Error sync:",e); }
+  entrarSistema();
+}
+if(cuentaAct&&negocio){ iniciarSesionGuardada(); }
+else {
+  // Siempre mostrar login al iniciar (con o sin sesión recordada)
+  mostrarLogin();
+}
+
+
+// NUEVA VALIDACION TRIAL
+function verificarAccesoCuenta(negocio){
+  if(!negocio) return false;
+
+  const tienePro = negocio.plan === 'pro' || negocio.proActivo === true;
+
+  if(tienePro) return true;
+
+  const fechaRegistro = new Date(negocio.fechaRegistro || Date.now());
+  const hoy = new Date();
+
+  const dias = Math.floor((hoy - fechaRegistro)/(1000*60*60*24));
+
+  if(dias <= 30){
+    return true;
+  }
+
+  mostrarModalProObligatorio();
+  return false;
+}
+
+
+function actualizarEstadoCuenta(){
+  try{
+    const el = document.getElementById('estadoCuentaTexto');
+    if(!el) return;
+    // Leer del estado actual en memoria (no del key legacy 'negocioActivo')
+    const neg = (cuentaAct && cuentas) ? cuentas[cuentaAct] : null;
+    if(!neg){ el.innerHTML = ''; return; }
+    const pro = neg.plan === 'pro' || neg.proActivo === true ||
+                neg.plan === 'pro_trial';
+    if(pro){
+      el.innerHTML = '<span class="plan-activo">PRO ACTIVADO</span>';
+    }else{
+      el.innerHTML = '<span class="plan-inactivo">PERÍODO GRATUITO</span>';
+    }
+  }catch(e){}
+}
+
+setTimeout(actualizarEstadoCuenta,1000);
+
+
+// RESPALDO SOLICITUDES PRO
+async function enviarSolicitudPro(datos){
+  try{
+    const solicitudes = JSON.parse(localStorage.getItem('solicitudesPro') || '[]');
+
+    datos.fecha = new Date().toISOString();
+    datos.estado = 'pendiente';
+
+    solicitudes.unshift(datos);
+
+    localStorage.setItem('solicitudesPro', JSON.stringify(solicitudes));
+
+    console.log('Solicitud guardada localmente');
+
+    if(typeof API_URL !== 'undefined'){
+      try{
+        await fetch(API_URL + '/solicitudes', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(datos)
+        });
+        console.log('Solicitud enviada nube');
+      }catch(err){
+        console.log('Cloudflare no respondió, queda respaldo local');
+      }
+    }
+
+    return true;
+
+  }catch(e){
+    console.log(e);
+    return false;
+  }
+}
+
+
+function registrarLiquidacionEngrasador(nombre, valor){
+  try{
+    const liquidaciones = JSON.parse(localStorage.getItem('liquidacionesEngrasadores') || '[]');
+
+    liquidaciones.push({
+      nombre,
+      valor,
+      fecha:new Date().toISOString()
+    });
+
+    localStorage.setItem('liquidacionesEngrasadores', JSON.stringify(liquidaciones));
+
+  }catch(e){
+    console.log(e);
+  }
+}
+  function abrirTerminos() {
+  document.querySelectorAll(".pagina").forEach(p => p.classList.add("oculto"));
+  document.getElementById("paginaTerminos").classList.remove("oculto");
+}
+
+// ══════════════════════════════════════════════════════════
+//  RESET CONTRASEÑA DESDE LOGIN
+// ══════════════════════════════════════════════════════════
+function mostrarResetLogin() {
+  const panel = document.getElementById("panelResetLogin");
+  if (panel) {
+    panel.classList.toggle("oculto");
+    const nomLogin = document.getElementById("loginNombre")?.value;
+    const inp = document.getElementById("resetLoginNombre");
+    if (inp && nomLogin) inp.value = nomLogin;
+  }
+}
+async function solicitarResetLogin() {
+  const nom = document.getElementById("resetLoginNombre")?.value.trim();
+  const msgEl = document.getElementById("resetLoginMsg");
+  if (!nom) { toast("Escribe el nombre exacto de tu negocio","error"); return; }
+  msgEl.innerHTML = "<div class='alerta'>⏳ Enviando solicitud...</div>";
+  const r = await nubePost("admin/reset-password", {
+    negocio: nom,
+    nueva_password: "123456",
+    solicitante: "usuario"
+  });
+  if (r.ok) {
+    msgEl.innerHTML = `<div class='alerta alerta-verde'>✅ Solicitud enviada. El administrador reseteará tu contraseña a <strong>123456</strong>. Intenta ingresar en unos minutos.</div>`;
+    toast("Solicitud de reset enviada","ok");
+  } else {
+    msgEl.innerHTML = `<div class='alerta alerta-rojo'>No se pudo procesar. Contacta al admin por WhatsApp: <strong>322-716-7031</strong></div>`;
+  }
+}
+
+// PERIODOS DE PAGO
+let periodoPagoActual = "mes";
+function setPeriodoPago(periodo, btnEl) {
+  periodoPagoActual = periodo;
+  document.querySelectorAll(".periodo-tab").forEach(b => b.classList.remove("activo"));
+  if (btnEl) btnEl.classList.add("activo");
+  mostrarPanelPagos();
+}
+function getLabelPeriodo() {
+  const labels = { hoy:"Hoy", q1:"1a Quincena", q2:"2a Quincena", mes:"Mes completo" };
+  return labels[periodoPagoActual] || "Mes completo";
+}
+function calcularPagosPeriodo(trabajador, mes) {
+  if (periodoPagoActual === "mes") {
+    return { ganado: getPago(trabajador,mes), adelantos: getAdelantos(trabajador,mes), neto: getPago(trabajador,mes)-getAdelantos(trabajador,mes) };
+  }
+  const hoy = new Date();
+  const historial = negocio.historial || [];
+  let eventos = historial.filter(e => e.mes === mes);
+  if (periodoPagoActual === "hoy") {
+    const fh = hoy.toISOString().slice(0,10);
+    eventos = eventos.filter(e => (e.fecha||"").startsWith(fh));
+  } else if (periodoPagoActual === "q1") {
+    eventos = eventos.filter(e => { const d=parseInt((e.fecha||"").slice(8,10)); return d>=1&&d<=15; });
+  } else if (periodoPagoActual === "q2") {
+    eventos = eventos.filter(e => { const d=parseInt((e.fecha||"").slice(8,10)); return d>=16; });
+  }
+  let ganado = 0;
+  eventos.forEach(e => {
+    if (e.pagoTrabajador1&&(e.trabajadorNombre1===trabajador.nombre||e.trabajador===trabajador.nombre)) ganado+=Number(e.pagoTrabajador1||0);
+    if (e.pagoTrabajador2&&e.trabajadorNombre2===trabajador.nombre) ganado+=Number(e.pagoTrabajador2||0);
+    if (e.pagoTrabajador3&&e.trabajadorNombre3===trabajador.nombre) ganado+=Number(e.pagoTrabajador3||0);
+    if (e.pagoTrabajador4&&e.trabajadorNombre4===trabajador.nombre) ganado+=Number(e.pagoTrabajador4||0);
+  });
+  return { ganado, adelantos: 0, neto: ganado };
+}
+
+// CAMBIAR PASSWORD PROPIO
+async function cambiarPasswordPropio() {
+  const pwActual = document.getElementById("pwActual")?.value.trim();
+  const pwNueva  = document.getElementById("pwNueva")?.value.trim();
+  const pwConf   = document.getElementById("pwConfirmar")?.value.trim();
+  const msgEl    = document.getElementById("msgCambiarPw");
+  if (!pwActual||!pwNueva||!pwConf) { toast("Completa todos los campos","error"); return; }
+  if (pwNueva.length < 6) { toast("Minimo 6 caracteres","error"); return; }
+  if (pwNueva !== pwConf) { toast("Las contrasenas no coinciden","error"); return; }
+  if (msgEl) msgEl.innerHTML = "<div class='alerta'>Cambiando...</div>";
+  const r = await nubePost("change-password", {
+    negocio: negocio.nombreNegocio,
+    password_actual: pwActual,
+    nueva_password: pwNueva
+  });
+  if (r.ok) {
+    if (msgEl) msgEl.innerHTML = "<div class='alerta alerta-verde'>Contrasena cambiada.</div>";
+    toast("Contrasena actualizada","ok");
+    ["pwActual","pwNueva","pwConfirmar"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  } else {
+    const err = r.data?.error || "Error al cambiar";
+    if (msgEl) msgEl.innerHTML = "<div class='alerta alerta-rojo'>" + err + "</div>";
+    toast(err,"error");
+  }
+}
+
+
+
+
+// ══ ADMIN: ELIMINAR USUARIO ═══════════════════════════════════════════════
+async function adminEliminarUsuario(id, negocioNom){
+  if(!negocio?.esAdmin){ toast("Acceso denegado","error"); return; }
+  confirmar(
+    "Eliminar cuenta",
+    `¿Eliminar permanentemente la cuenta "${negocioNom}"? Esta acción no se puede deshacer.`,
+    async ()=>{
+      toast("Eliminando cuenta...","info");
+      try{
+        const res=await fetch(`${API_URL}/admin/delete-account`,{
+          method:'DELETE',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            admin_usuario: cuentaAct,
+            target_id: id,
+            target_negocio: negocioNom
+          })
+        });
+        const data=await res.json().catch(()=>({}));
+        if(res.ok){
+          toast(`Cuenta "${negocioNom}" eliminada`,"ok");
+          setTimeout(cargarSolicitudesAdmin,600);
+        } else {
+          toast(data.error||"No se pudo eliminar la cuenta","error");
+        }
+      }catch(e){
+        toast("Error de conexión al eliminar","error");
+      }
+    }
+  );
+}
+
+// ══ NOTIFICACIONES PWA ════════════════════════════════════════════════════
+async function iniciarNotificaciones(){
+  if(!negocio||!('Notification' in window)) return;
+  if(Notification.permission==='default'){
+    const p=await Notification.requestPermission();
+    if(p==='granted') verificarNotificaciones();
+  } else if(Notification.permission==='granted'){
+    verificarNotificaciones();
+  }
+}
+
+function verificarNotificaciones(){
+  if(!negocio||Notification.permission!=='granted') return;
+  const iconoApp='favicon.png.png';
+
+  // 1. Planillas sin liquidar > 24h
+  const ahora=Date.now();
+  const pendientes=(negocio.planillas||[]).filter(pl=>{
+    if(pl.liquidada) return false;
+    try{
+      // fecha guardada como "2026-06-23" o timestamp
+      const t=new Date(pl.fecha).getTime();
+      return !isNaN(t)&&(ahora-t)>86400000;
+    }catch(_){return false;}
+  });
+  if(pendientes.length>0){
+    new Notification('⏳ SYMES — Planillas pendientes',{
+      body:`Tienes ${pendientes.length} planilla(s) sin liquidar de más de 24 horas.`,
+      icon:iconoApp, tag:'symes-planillas-pendientes'
+    });
+  }
+
+  // 2. Último día del mes sin cierre
+  const hoy=new Date(), manana=new Date(hoy);
+  manana.setDate(hoy.getDate()+1);
+  if(hoy.getMonth()!==manana.getMonth()){
+    const mk=mesActual();
+    if(negocio.cierresMes?.[mk]!=='Pagado'){
+      setTimeout(()=>{
+        new Notification('📅 SYMES — Cierre de mes',{
+          body:`Hoy es el último día del mes. Recuerda hacer el cierre de ${mk}.`,
+          icon:iconoApp, tag:'symes-cierre-mes'
+        });
+      },1500);
+    }
+  }
+}
+
+// ══ ESTADÍSTICAS ══════════════════════════════════════════════════════════
+// ══ SERVICE WORKER (PWA offline) ══════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('SYMES-FINAL/service-worker.js')
+      .then(function(reg) { console.log('[SW] Registrado:', reg.scope); })
+      .catch(function(err) { console.warn('[SW] Error al registrar:', err); });
+  });
+}
+
+</script>
+</body>
+</html>
