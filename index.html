@@ -1204,6 +1204,16 @@ let resultadosQuincenales = []; // para guardar después
 // Formato nuevo: objeto {valor: conteo}
 // Retrocompatible con arrays anteriores
 function _memKey(clave){ return "symes_mem_"+(cuentaAct||"_global")+"_"+clave; }
+function semillarMemoria(){
+  const sembrar=(clave,vals)=>{
+    const raw=localStorage.getItem(_memKey(clave)); let freq={};
+    if(raw){ try{ const p=JSON.parse(raw); if(!Array.isArray(p)) freq=p; }catch(e){} }
+    vals.forEach(v=>{ if(!freq[v]) freq[v]=1; });
+    localStorage.setItem(_memKey(clave),JSON.stringify(freq));
+  };
+  sembrar("tipos_vehiculo",TIPOS_VEHICULO);
+  sembrar("descripciones",DESCRIPCIONES);
+}
 function getMemoria(clave) {
   try {
     const data = localStorage.getItem(_memKey(clave));
@@ -1243,8 +1253,8 @@ function agregarMemoria(clave, valor) {
   } catch(e) {}
 }
 
-const TIPOS_VEHICULO   = ["Carro","Camioneta","Camión","Moto","Volqueta","Bus","Buseta","Tractomula","Furgón","Otro"];
-const DESCRIPCIONES    = ["Engrase general","Engrase completo","Cambio de aceite","Lavado","Engrase parcial","Revisión","Cambio filtro","Servicio A","Servicio B"];
+const TIPOS_VEHICULO   = ["Mula","Camión","Volqueta","Patineta","Carro","Camioneta","Moto","Bus","Buseta","Tractomula","Furgón","Otro"];
+const DESCRIPCIONES    = ["General","Crucetas","Cabezote","Engrase completo","Engrase parcial","Cambio de aceite","Lavado","Revisión","Cambio filtro"];
 const NOTAS_ADELANTO   = ["Adelanto quincena","Préstamo","Descuento uniforme","Descuento herramientas"];
 
 // ══════════════════════════════════════════════════════════
@@ -1365,6 +1375,8 @@ function mesActual() { const f=new Date(); return f.getFullYear()+"-"+String(f.g
 function generarId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,5); }
 // Sanitiza texto de usuario para uso seguro en DOM (nunca usar en innerHTML)
 function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
+function formatPlaca(s){ if(!s) return ""; const c=s.toUpperCase().replace(/[^A-Z0-9]/g,""); return c.length>3?c.slice(0,3)+" "+c.slice(3):c; }
+function labelEngrase(e){ return e==="azul"?"Azul":"Sintético"; }
 function sanitizarTexto(str) {
   if (typeof str !== "string") return "";
   return str.replace(/[<>"'&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
@@ -1744,7 +1756,7 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes();
 }
 
 // ══ MESES ══
@@ -1918,7 +1930,7 @@ function nuevaPlanilla() {
   const ahora=new Date();
   const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
   const mes=mesActual();
-  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"mixto",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
   const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
   if(!negocio.planillas) negocio.planillas=[];
   negocio.planillas.unshift(planilla);
@@ -2057,12 +2069,12 @@ function renderFilasPlanilla(id) {
   const disabled=pl.liquidada?"disabled":""
   tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>`<tr>
     <td class="num-fila">${i+1}</td>
-    <td><input type="text" value="${v.placa||''}" ${disabled} oninput="actualizarFila('${id}',${i},'placa',this.value)" id="pl_${id}_${i}" placeholder="AAA-000" style="width:100%;"></td>
-    <td><input type="text" value="${v.tipoVehiculo||''}" ${disabled} oninput="actualizarFila('${id}',${i},'tipoVehiculo',this.value)" id="tv_${id}_${i}" placeholder="Carro..." style="width:100%;"></td>
-    <td><input type="text" value="${v.descripcion||''}" ${disabled} oninput="actualizarFila('${id}',${i},'descripcion',this.value)" id="de_${id}_${i}" placeholder="Engrase general" style="width:100%;"></td>
+    <td><input type="text" value="${formatPlaca(v.placa)}" ${disabled} autocomplete="off" oninput="const c=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');this.value=c.length>3?c.slice(0,3)+' '+c.slice(3):c;actualizarFila('${id}',${i},'placa',this.value)" id="pl_${id}_${i}" placeholder="ABC 123" style="width:100%;text-transform:uppercase;"></td>
+    <td><input type="text" value="${v.tipoVehiculo||''}" ${disabled} autocomplete="off" oninput="actualizarFila('${id}',${i},'tipoVehiculo',this.value)" id="tv_${id}_${i}" placeholder="Mula, Camión..." style="width:100%;"></td>
+    <td><input type="text" value="${v.descripcion||''}" ${disabled} autocomplete="off" oninput="actualizarFila('${id}',${i},'descripcion',this.value)" id="de_${id}_${i}" placeholder="General, Crucetas..." style="width:100%;"></td>
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'tipoEngrase',this.value);recalcularTotal('${id}')">
-      <option value="mixto" ${(!v.tipoEngrase||v.tipoEngrase==='mixto')?'selected':''}>Mixto</option>
-      <option value="azul" ${v.tipoEngrase==='azul'?'selected':''}>Azul</option>
+      <option value="mixto" ${v.tipoEngrase==='mixto'?'selected':''}>Sintético</option>
+      <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
     <td><input type="number" value="${v.valorRaw||v.valor||''}" ${disabled}
       oninput="actualizarValorFila('${id}',${i},this.value)"
@@ -2071,7 +2083,7 @@ function renderFilasPlanilla(id) {
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
     </select></td>
-    <td><input type="text" value="${v.observaciones||''}" ${disabled} oninput="actualizarFila('${id}',${i},'observaciones',this.value)" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
+    <td><input type="text" value="${v.observaciones||''}" ${disabled} autocomplete="off" oninput="actualizarFila('${id}',${i},'observaciones',this.value)" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
     <td class="col-del">${!pl.liquidada?`<button class="btn-rojo btn-icon" onclick="eliminarFilaPlanilla('${id}',${i})">✕</button>`:""}</td>
   </tr>`).join("");
 
@@ -2093,6 +2105,7 @@ function renderFilasPlanilla(id) {
 
 function actualizarFila(id,i,campo,valor){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  if(campo==="placa") valor=formatPlaca(valor);
   pl.vehiculos[i][campo]=valor;
   const _clavesMem={placa:"placas",tipoVehiculo:"tipos_vehiculo",descripcion:"descripciones",observaciones:"observaciones"};
   if(_clavesMem[campo]&&valor.trim()) agregarMemoria(_clavesMem[campo], valor.trim());
@@ -2111,7 +2124,7 @@ function recalcularTotal(id){
 function agregarFilaPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||pl.liquidada) return;
   if(!pl.vehiculos) pl.vehiculos=[];
-  pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"mixto",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
   renderFilasPlanilla(id);
   setTimeout(()=>{ const tbody=document.getElementById(`tbody_${id}`); if(tbody?.lastElementChild){ const inp=tbody.lastElementChild.querySelector("input"); if(inp) inp.focus(); } },50);
 }
@@ -2222,7 +2235,7 @@ function liquidarDesdePlanilla(id) {
       <p style="color:var(--gris);font-size:12px;">${vehiculos.length} servicio(s)</p><hr style="margin:8px 0;">
       <strong>🛢️ Grasa</strong><br>
       Antes: ${(pl.grasaAntes||0).toLocaleString()} g | Quedó: ${(pl.grasaQuedo||0).toLocaleString()} g | Gastada: ${res.grasaGastada.toLocaleString()} g → $${res.valorGrasaGastada.toLocaleString()}<hr style="margin:8px 0;">
-      <strong>Mixtos (${vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==='mixto').length})</strong><br>
+      <strong>Sintéticos (${vehiculos.filter(v=>v.tipoEngrase==='mixto').length})</strong><br>
       Total rebajados: $${res.totalMixtosRebajados.toLocaleString()} — ${negocio.configuracion.porcentajeMixtos}% = $${res.porcentajeMixtos.toLocaleString()}<hr style="margin:8px 0;">
       <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length})</strong><br>
       Total: $${res.totalAzules.toLocaleString()} — Menos grasa: $${res.azulesMenosGrasa.toLocaleString()} — ${negocio.configuracion.porcentajeAzules}% = $${res.porcentajeAzules.toLocaleString()}
@@ -2319,8 +2332,8 @@ function imprimirPlanilla(id){
   const vehiculos=pl.vehiculos||[];
   const total=vehiculos.reduce((s,v)=>s+Number(v.valor||0),0);
   const gG=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
-  const filas=vehiculos.map((v,i)=>`<tr><td>${i+1}</td><td>${v.placa||""}</td><td>${v.tipoVehiculo||""}</td><td>${v.descripcion||""}</td>
-    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':'#856404'}">${v.tipoEngrase||"mixto"}</span></td>
+  const filas=vehiculos.map((v,i)=>`<tr><td>${i+1}</td><td>${formatPlaca(v.placa)}</td><td>${v.tipoVehiculo||""}</td><td>${v.descripcion||""}</td>
+    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':'#856404'}">${labelEngrase(v.tipoEngrase||"azul")}</span></td>
     <td>$${Number(v.valor||0).toLocaleString()}</td><td>${v.engrasador||""}</td><td>${v.observaciones||""}</td></tr>`).join("");
   const ven=window.open("","_blank");
   ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Planilla SYMES</title>
