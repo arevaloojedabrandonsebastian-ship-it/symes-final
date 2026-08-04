@@ -1205,17 +1205,25 @@ let resultadosQuincenales = []; // para guardar después
 // Retrocompatible con arrays anteriores
 function _memKey(clave){ return "symes_mem_"+(cuentaAct||"_global")+"_"+clave; }
 function semillarMemoria(){
-  const limpiarYSembrar=(clave,vals)=>{
+  const limpiarYSembrar=(clave,vals,excluir=[])=>{
     const raw=localStorage.getItem(_memKey(clave)); let freq={};
     if(raw){ try{ const p=JSON.parse(raw); if(!Array.isArray(p)) freq=p; else p.forEach((v,i)=>{ freq[v]=p.length-i; }); }catch(e){} }
-    // Eliminar entradas cortas (basura de tecleos parciales)
-    Object.keys(freq).forEach(k=>{ if(k.trim().length<3) delete freq[k]; });
+    // Eliminar cortas y valores de otras categorias
+    Object.keys(freq).forEach(k=>{ if(k.trim().length<3||excluir.includes(k.toLowerCase())) delete freq[k]; });
+    // Normalizar capitalizacion: fusionar variantes del mismo predefinido
+    const newFreq={}; const valsLow=vals.map(v=>v.toLowerCase());
+    Object.entries(freq).forEach(([k,v])=>{
+      const idx=valsLow.indexOf(k.toLowerCase());
+      const normKey=idx>=0?vals[idx]:k.charAt(0).toUpperCase()+k.slice(1);
+      newFreq[normKey]=(newFreq[normKey]||0)+v;
+    });
+    freq=newFreq;
     // Sembrar predefinidos con prioridad alta
     vals.forEach((v,i)=>{ if(!freq[v]||freq[v]<=2) freq[v]=vals.length-i+10; });
     localStorage.setItem(_memKey(clave),JSON.stringify(freq));
   };
-  limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO);
-  limpiarYSembrar("descripciones",DESCRIPCIONES);
+  limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO,["mixto","azul","sintetico"]);
+  limpiarYSembrar("descripciones",DESCRIPCIONES,["mixto","azul","sintetico","carro","mula","camion","volqueta","moto"]);
 }
 function getMemoria(clave) {
   try {
@@ -2080,10 +2088,13 @@ function renderFilasPlanilla(id) {
       <option value="mixto" ${v.tipoEngrase==='mixto'?'selected':''}>Sintético</option>
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
-    <td><input type="number" value="${v.valorRaw||v.valor||''}" ${disabled}
-      oninput="actualizarValorFila('${id}',${i},this.value)"
-      onkeydown="if(event.key==='Tab'){}" 
-      placeholder="40" style="width:100%;" title="Escribe 40 → $40.000"></td>
+    <td>
+      <input type="number" value="${v.valorRaw||v.valor||''}" ${disabled} autocomplete="off"
+        oninput="actualizarValorFila('${id}',${i},this.value);actualizarHintValor('${id}',${i},this.value)"
+        onkeydown="if(event.key==='Tab'){}"
+        placeholder="Ej: 40" style="width:100%;">
+      <small id="vh_${id}_${i}" style="color:#1f8a4c;font-weight:700;font-size:11px;display:block;min-height:14px;"></small>
+    </td>
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
     </select></td>
@@ -2112,6 +2123,11 @@ function actualizarFila(id,i,campo,valor){
   if(campo==="placa") valor=formatPlaca(valor);
   pl.vehiculos[i][campo]=valor;
   // memoria se guarda en blur (setupAC), no en cada tecla
+}
+function actualizarHintValor(id,i,raw){
+  const hint=document.getElementById("vh_"+id+"_"+i); if(!hint) return;
+  const n=Number(raw); if(!n||n<=0){hint.textContent="";return;}
+  const v=n<1000?n*1000:n; hint.textContent="$"+v.toLocaleString();
 }
 function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
