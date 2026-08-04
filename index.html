@@ -1205,14 +1205,17 @@ let resultadosQuincenales = []; // para guardar después
 // Retrocompatible con arrays anteriores
 function _memKey(clave){ return "symes_mem_"+(cuentaAct||"_global")+"_"+clave; }
 function semillarMemoria(){
-  const sembrar=(clave,vals)=>{
+  const limpiarYSembrar=(clave,vals)=>{
     const raw=localStorage.getItem(_memKey(clave)); let freq={};
-    if(raw){ try{ const p=JSON.parse(raw); if(!Array.isArray(p)) freq=p; }catch(e){} }
-    vals.forEach(v=>{ if(!freq[v]) freq[v]=1; });
+    if(raw){ try{ const p=JSON.parse(raw); if(!Array.isArray(p)) freq=p; else p.forEach((v,i)=>{ freq[v]=p.length-i; }); }catch(e){} }
+    // Eliminar entradas cortas (basura de tecleos parciales)
+    Object.keys(freq).forEach(k=>{ if(k.trim().length<3) delete freq[k]; });
+    // Sembrar predefinidos con prioridad alta
+    vals.forEach((v,i)=>{ if(!freq[v]||freq[v]<=2) freq[v]=vals.length-i+10; });
     localStorage.setItem(_memKey(clave),JSON.stringify(freq));
   };
-  sembrar("tipos_vehiculo",TIPOS_VEHICULO);
-  sembrar("descripciones",DESCRIPCIONES);
+  limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO);
+  limpiarYSembrar("descripciones",DESCRIPCIONES);
 }
 function getMemoria(clave) {
   try {
@@ -1323,6 +1326,7 @@ function setupAC(input, _fuente, onSelect, claveMem) {
   };
 
   input.addEventListener('input',mostrar);
+  input.addEventListener('blur',()=>{ const v=input.value.trim(); if(v.length>=3&&claveMem) agregarMemoria(claveMem,v); });
   input.addEventListener('focus',mostrar);
   input.addEventListener('blur',()=>setTimeout(cerrar,180));
   input.addEventListener('keydown',e=>{
@@ -2107,8 +2111,7 @@ function actualizarFila(id,i,campo,valor){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   if(campo==="placa") valor=formatPlaca(valor);
   pl.vehiculos[i][campo]=valor;
-  const _clavesMem={placa:"placas",tipoVehiculo:"tipos_vehiculo",descripcion:"descripciones",observaciones:"observaciones"};
-  if(_clavesMem[campo]&&valor.trim()) agregarMemoria(_clavesMem[campo], valor.trim());
+  // memoria se guarda en blur (setupAC), no en cada tecla
 }
 function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
