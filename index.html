@@ -2091,7 +2091,7 @@ function renderFilasPlanilla(id) {
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
     <td>
-      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${fmtMiles(v.valor)}" ${disabled} autocomplete="off"
+      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?fmtMiles(v.valor):(v.valorRaw?fmtMiles(Number(String(v.valorRaw).replace(/\./g,'').replace(/,/g,''))):''  )}" ${disabled} autocomplete="off"
         oninput="actualizarValorFila('${id}',${i},this.value)"
         onfocus="if(this.value)this.select()"
         onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
@@ -2121,6 +2121,17 @@ function renderFilasPlanilla(id) {
     });
   }
   recalcularTotal(id);
+  // Post-render: forzar formato de miles en todos los campos valor
+  setTimeout(()=>{
+    (pl.vehiculos||[]).forEach((_,j)=>{
+      const el=document.getElementById(`vl_${id}_${j}`);
+      if(el&&el.value){
+        const s=el.value.replace(/\./g,'').replace(/,/g,'');
+        const n=Number(s);
+        if(!isNaN(n)&&n>0)el.value=fmtMiles(n<1000?n*1000:n);
+      }
+    });
+  },0);
 }
 
 function actualizarFila(id,i,campo,valor){
