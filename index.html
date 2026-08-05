@@ -1815,9 +1815,18 @@ async function cargarLiquidaciones() {
   const r=await nubeGet(`liquidaciones?usuario_id=${negocio.id}`);
   if(!r.ok){toast("No se pudieron cargar liquidaciones","error");return;}
   limpiarPagosLocales();
+  const planillasEliminadas=new Set();
   r.data.slice().reverse().forEach(item=>{
-    try { procesarEvento(JSON.parse(item.descripcion)); } catch(e){console.error("Evento inválido:",e);}
+    try {
+      const ev=JSON.parse(item.descripcion);
+      if(ev.tipoRegistro==="eliminarPlanilla"&&ev.planillaId) planillasEliminadas.add(ev.planillaId);
+      procesarEvento(ev);
+    } catch(e){console.error("Evento inválido:",e);}
   });
+  // Filtrar planillas eliminadas al final, sin importar el orden de eventos
+  if(planillasEliminadas.size>0){
+    negocio.planillas=(negocio.planillas||[]).filter(p=>!planillasEliminadas.has(p.id));
+  }
   guardar();
 }
 function limpiarPagosLocales() {
