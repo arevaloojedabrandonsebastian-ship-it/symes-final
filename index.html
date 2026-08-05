@@ -3103,6 +3103,14 @@ function verificarNotificaciones(){
 // ══ ESTADÍSTICAS ══════════════════════════════════════════════════════════
 // ══ SERVICE WORKER (PWA offline) ══════════════════════
 if ('serviceWorker' in navigator) {
+  // Desregistrar cualquier SW viejo que cache versiones antiguas
+  navigator.serviceWorker.getRegistrations().then(regs=>{
+    regs.forEach(r=>{ console.log('[SW] Eliminando SW viejo:', r.scope); r.unregister(); });
+  });
+  // Limpiar cachés viejos
+  if(window.caches){ caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))); }
+}
+if (false && 'serviceWorker' in navigator) {  // PWA desactivado temporalmente
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('SYMES-FINAL/service-worker.js')
       .then(function(reg) { console.log('[SW] Registrado:', reg.scope); })
