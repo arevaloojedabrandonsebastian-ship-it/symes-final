@@ -1225,6 +1225,16 @@ function semillarMemoria(){
   limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO,["mixto","azul","sintetico"]);
   limpiarYSembrar("descripciones",DESCRIPCIONES,["mixto","azul","sintetico","carro","mula","camion","volqueta","moto"]);
   limpiarYSembrar("observaciones",["Efectivo","Transferencia"],[]);
+  // Limpiar placas: eliminar entradas cortas (teclas sueltas, no placas reales)
+  try{
+    const rawPl=localStorage.getItem(_memKey("placas"));
+    if(rawPl){
+      const p=JSON.parse(rawPl); const freq=Array.isArray(p)?{}:p;
+      const nFreq={};
+      Object.entries(freq).forEach(([k,v])=>{ if(k.replace(/\s/g,"").length>=6) nFreq[k]=v; });
+      localStorage.setItem(_memKey("placas"),JSON.stringify(nFreq));
+    }
+  }catch(e){}
 }
 function getMemoria(clave) {
   try {
@@ -1272,7 +1282,8 @@ const NOTAS_ADELANTO   = ["Adelanto quincena","Préstamo","Descuento uniforme","
 // ══════════════════════════════════════════════════════════
 //  AUTOCOMPLETE MEJORADO CON FLECHAS
 // ══════════════════════════════════════════════════════════
-function setupAC(input, _fuente, onSelect, claveMem) {
+function setupAC(input, _fuente, onSelect, claveMem, minGuardar) {
+  if(minGuardar===undefined) minGuardar=3;
   if (!input.parentElement.classList.contains('ac-wrap')) {
     const w=document.createElement('div'); w.className='ac-wrap';
     input.parentNode.insertBefore(w,input); w.appendChild(input);
@@ -1283,6 +1294,8 @@ function setupAC(input, _fuente, onSelect, claveMem) {
   let sel=-1;
 
   const getSugs=()=>{
+    if(_fuente&&_fuente.length) return _fuente;
+    if(!claveMem) return [];
     try{
       const raw=localStorage.getItem(_memKey(claveMem));
       if(!raw) return [];
@@ -1335,7 +1348,7 @@ function setupAC(input, _fuente, onSelect, claveMem) {
   };
 
   input.addEventListener('input',mostrar);
-  input.addEventListener('blur',()=>{ const v=input.value.trim(); if(v.length>=3&&claveMem) agregarMemoria(claveMem,v); });
+  input.addEventListener('blur',()=>{ const v=input.value.trim(); if(v.length>=minGuardar&&claveMem) agregarMemoria(claveMem,v); });
   input.addEventListener('focus',mostrar);
   input.addEventListener('blur',()=>setTimeout(cerrar,180));
   input.addEventListener('keydown',e=>{
@@ -2119,10 +2132,10 @@ function renderFilasPlanilla(id) {
       const tvEl=document.getElementById(`tv_${id}_${i}`);
       const deEl=document.getElementById(`de_${id}_${i}`);
       const obEl=document.getElementById(`ob_${id}_${i}`);
-      if(plEl) setupAC(plEl,[], val=>{ actualizarFila(id,i,'placa',val); agregarMemoria('placas',val); }, 'placas');
+      if(plEl) setupAC(plEl,[], val=>{ actualizarFila(id,i,'placa',val); agregarMemoria('placas',val); }, 'placas', 7);
       if(tvEl) setupAC(tvEl,[], val=>{ actualizarFila(id,i,'tipoVehiculo',val); agregarMemoria('tipos_vehiculo',val); }, 'tipos_vehiculo');
       if(deEl) setupAC(deEl,[], val=>{ actualizarFila(id,i,'descripcion',val); agregarMemoria('descripciones',val); }, 'descripciones');
-      if(obEl) setupAC(obEl,[], val=>{ actualizarFila(id,i,'observaciones',val); agregarMemoria('observaciones',val); }, 'observaciones');
+      if(obEl) setupAC(obEl,["Efectivo","Transferencia"], val=>{ actualizarFila(id,i,'observaciones',val); }, null);
       const vlEl=document.getElementById(`vl_${id}_${i}`);
       if(vlEl) setupAC(vlEl,[], val=>{ actualizarValorFila(id,i,val); }, 'precios');
     });
