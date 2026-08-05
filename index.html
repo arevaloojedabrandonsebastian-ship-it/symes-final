@@ -2105,6 +2105,13 @@ function renderFilasPlanilla(id) {
     <td class="col-del">${!pl.liquidada?`<button class="btn-rojo btn-icon" onclick="eliminarFilaPlanilla('${id}',${i})">✕</button>`:""}</td>
   </tr>`).join("");
 
+  // Forzar formato de miles SINCRONO (inmediato, antes de cualquier evento)
+  (pl.vehiculos||[]).forEach((v,j)=>{
+    const vEl=document.getElementById(`vl_${id}_${j}`);
+    if(!vEl) return;
+    const n=v.valor>0?v.valor:(v.valorRaw?Number(String(v.valorRaw).replace(/\./g,'').replace(/,/g,'')):0);
+    if(n>0) vEl.value=fmtMiles(n<1000?n*1000:n);
+  });
   // Autocomplete en 4 campos de texto (solo planillas activas)
   if (!pl.liquidada) {
     (pl.vehiculos||[]).forEach((v,i)=>{
