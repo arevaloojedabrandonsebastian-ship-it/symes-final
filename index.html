@@ -818,20 +818,12 @@ body.oscuro .stat-box { opacity:.9; }
   <!-- PAGOS -->
   <div id="paginaPagos" class="pagina oculto">
     <div class="seccion">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-        <h2 style="margin:0;">💵 Pagos</h2>
-        <input type="month" id="mesTrabajo" onchange="cambiarMesPagos()" style="width:auto;">
-      </div>
-      <div class="periodo-tabs" id="periodoTabs">
-        <button class="periodo-tab activo" onclick="setPeriodoPago('hoy',this)">📅 Hoy</button>
-        <button class="periodo-tab" onclick="setPeriodoPago('q1',this)">1ª Quincena</button>
-        <button class="periodo-tab" onclick="setPeriodoPago('q2',this)">2ª Quincena</button>
-        <button class="periodo-tab" onclick="setPeriodoPago('mes',this)">Mes completo</button>
+      <div style="margin-bottom:16px;">
+        <h2 style="margin:0;">💵 Pagos pendientes</h2>
       </div>
       <div id="panelPagos"></div>
       <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="btn-rojo btn-sm" onclick="reiniciarPagosMes()">🗑️ Reiniciar mes</button>
-        <span style="font-size:11px;color:var(--gris);">Borra pagos y adelantos del mes, NO el historial.</span>
+        <button class="btn-verde" onclick="pagarTodos()">✅ Pagar todo</button>
       </div>
     </div>
   </div>
@@ -840,18 +832,15 @@ body.oscuro .stat-box { opacity:.9; }
   <div id="paginaCierreMes" class="pagina oculto">
     <div class="seccion">
       <div class="cierre-header">
-        <h2 style="margin:0;">📅 Cierre de mes</h2>
+        <h2 style="margin:0;">📊 Historial de pagos</h2>
         <div style="display:flex;align-items:center;gap:10px;">
           <input type="month" id="mesCierre" onchange="cambiarMesCierre()" style="width:auto;">
         </div>
       </div>
       <div id="resumenCierre"></div>
       <div class="cierre-acciones" style="margin-top:16px;">
-        <button class="btn-verde" onclick="marcarMesPagado()">✅ Marcar como pagado</button>
-        <button class="btn-gris" onclick="marcarMesPendiente()">⏳ Pendiente</button>
         <button onclick="imprimirResumen()">🖨️ Imprimir</button>
       </div>
-      <p style="color:var(--gris);font-size:12px;margin-top:8px;">Marcar como pagado no borra datos, solo guarda el estado.</p>
     </div>
   </div>
 
@@ -1641,7 +1630,7 @@ function entrarSistema() {
     {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
     {id:"paginaLiquidacion",  icono:"🧾", titulo:"Liquidación",      desc:"Calcula grasa, mixtos, azules y pagos."},
     {id:"paginaPagos",        icono:"💵", titulo:"Pagos",            desc:"Pagos por día, quincena o mes completo."},
-    {id:"paginaCierreMes",    icono:"📅", titulo:"Cierre de mes",    desc:"Revisa el total mensual y marca el estado."},
+    {id:"paginaCierreMes",    icono:"📊", titulo:"Historial de pagos",    desc:"Consulta el historial de pagos del mes."},
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
     {id:"paginaHistorial",    icono:"📂", titulo:"Historial",        desc:"Liquidaciones guardadas por mes."},
@@ -1657,7 +1646,7 @@ function entrarSistema() {
     {icono:"📋",label:"Planillas",     pagina:"paginaPlanillas"},
     {icono:"🧾",label:"Liquidación",   pagina:"paginaLiquidacion"},
     {icono:"💵",label:"Pagos",         pagina:"paginaPagos"},
-    {icono:"📅",label:"Cierre de mes", pagina:"paginaCierreMes"},
+    {icono:"📊",label:"Historial de pagos", pagina:"paginaCierreMes"},
     {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
     {icono:"📂",label:"Historial",     pagina:"paginaHistorial"},
@@ -2549,12 +2538,10 @@ function eliminarAdelanto(iT,iA){
 function mostrarPanelPagos(){
   const el=document.getElementById("panelPagos"); if(!el) return;
   const mes=getMes();
-  const etiq = document.getElementById("periodoEtiqueta");
-  if(etiq) etiq.textContent = getLabelPeriodo ? getLabelPeriodo() : "";
   if(!negocio.trabajadores.length){el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores.</p>";return;}
   let totalGeneral = 0;
-  const cards = negocio.trabajadores.map(t=>{
-    const {ganado, adelantos, neto} = calcularPagosPeriodo ? calcularPagosPeriodo(t,mes) : {ganado:getPago(t,mes),adelantos:getAdelantos(t,mes),neto:getPago(t,mes)-getAdelantos(t,mes)};
+  const cards = negocio.trabajadores.map((t,idx)=>{
+    const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes), neto=ganado-adelantos;
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
     const ini = nomPago.charAt(0).toUpperCase();
@@ -2564,13 +2551,16 @@ function mostrarPanelPagos(){
         <div class="pago-card-nombre">${nomPago}</div>
       </div>
       <div class="pago-card-stats">
-        <div class="pago-stat"><span>Ganado</span><strong>$${ganado.toLocaleString()}</strong></div>
-        <div class="pago-stat"><span>Adelantos</span><strong>$${adelantos.toLocaleString()}</strong></div>
-        <div class="pago-stat neto"><span>A pagar</span><strong>$${neto.toLocaleString()}</strong></div>
+        <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
+        <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
+        <div class="pago-stat neto"><span>A pagar</span><strong>$${fmtMiles(neto)}</strong></div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn-verde btn-sm" onclick="pagarTrabajador(${idx})">💸 Pagar</button>
       </div>
     </div>`;
   }).join("");
-  el.innerHTML = cards + `<div class="pagos-total-bar"><span>Total a pagar</span><strong>$${totalGeneral.toLocaleString()}</strong></div>`;
+  el.innerHTML = cards + `<div class="pagos-total-bar"><span>Total pendiente</span><strong>$${fmtMiles(totalGeneral)}</strong></div>`;
 }
 async function reiniciarPagosMes(){
   confirmar("Reiniciar pagos","¿Borrar pagos y adelantos del mes? El historial NO se borra.",async()=>{
@@ -2580,6 +2570,18 @@ async function reiniciarPagosMes(){
     toast("Pagos del mes reiniciados","ok");
   });
 }
+async function pagarTrabajador(idx){
+  const t=negocio.trabajadores[idx]; if(!t) return;
+  const mes=getMes();
+  const nom=cap(sanitizarTexto(t.nombre));
+  confirmar("Pagar a "+nom,"¿Registrar pago y reiniciar saldo de "+nom+"?",async()=>{
+    if(t.pagos)t.pagos[mes]=0; if(t.adelantos)t.adelantos[mes]=[];
+    guardar(); actualizarTodo();
+    await guardarEvento({tipoRegistro:"pagoTrabajador",trabajador:t.nombre,mes,fecha:new Date().toLocaleString()},1,0);
+    toast("Pago registrado para "+nom,"ok");
+  });
+}
+function pagarTodos(){ reiniciarPagosMes(); }
 
 // ══ CIERRE ══
 function getEstadoCierre(mes){ return negocio.cierresMes?.[mes]||"Pendiente"; }
