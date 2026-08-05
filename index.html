@@ -2089,10 +2089,11 @@ function renderFilasPlanilla(id) {
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
     <td>
-      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valorRaw||v.valor||''}" ${disabled} autocomplete="off"
+      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?Number(v.valor).toLocaleString():''}" ${disabled} autocomplete="off"
         oninput="actualizarValorFila('${id}',${i},this.value)"
+        onfocus="if(this.value)this.select()"
         onkeydown="if(event.key==='Tab'){}"
-        placeholder="Ej: 40" style="width:100%;">
+        placeholder="40" style="width:100%;">
     </td>
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
@@ -2129,7 +2130,7 @@ function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
-  if(raw&&raw.trim()&&num>0) agregarMemoria("precios",raw.trim());
+  if(raw&&raw.trim()&&valor>0) agregarMemoria("precios",valor.toLocaleString());
 }
 function recalcularTotal(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
