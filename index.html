@@ -1224,6 +1224,7 @@ function semillarMemoria(){
   };
   limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO,["mixto","azul","sintetico"]);
   limpiarYSembrar("descripciones",DESCRIPCIONES,["mixto","azul","sintetico","carro","mula","camion","volqueta","moto"]);
+  limpiarYSembrar("observaciones",["Efectivo","Transferencia"],[]);
 }
 function getMemoria(clave) {
   try {
@@ -1388,6 +1389,7 @@ function generarId() { return Date.now().toString(36)+Math.random().toString(36)
 // Sanitiza texto de usuario para uso seguro en DOM (nunca usar en innerHTML)
 function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
 function formatPlaca(s){ if(!s) return ""; const c=s.toUpperCase().replace(/[^A-Z0-9]/g,""); return c.length>3?c.slice(0,3)+" "+c.slice(3):c; }
+function fmtMiles(n){var x=Number(String(n).replace(/\./g,'').replace(/,/g,''))||0;return x>0?x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''}
 function labelEngrase(e){ return e==="azul"?"Azul":"Sintético"; }
 function sanitizarTexto(str) {
   if (typeof str !== "string") return "";
@@ -2089,11 +2091,12 @@ function renderFilasPlanilla(id) {
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
     <td>
-      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?Number(v.valor).toLocaleString():''}" ${disabled} autocomplete="off"
+      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${fmtMiles(v.valor)}" ${disabled} autocomplete="off"
         oninput="actualizarValorFila('${id}',${i},this.value)"
         onfocus="if(this.value)this.select()"
+        onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
         onkeydown="if(event.key==='Tab'){}"
-        placeholder="40" style="width:100%;">
+        placeholder="" style="width:100%;">
     </td>
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
@@ -2130,7 +2133,7 @@ function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
-  if(raw&&raw.trim()&&valor>0) agregarMemoria("precios",valor.toLocaleString());
+  if(raw&&raw.trim()&&valor>0) agregarMemoria("precios",fmtMiles(valor));
 }
 function recalcularTotal(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
