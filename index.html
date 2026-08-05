@@ -2089,11 +2089,10 @@ function renderFilasPlanilla(id) {
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
     </select></td>
     <td>
-      <input type="number" value="${v.valorRaw||v.valor||''}" ${disabled} autocomplete="off"
-        oninput="actualizarValorFila('${id}',${i},this.value);actualizarHintValor('${id}',${i},this.value)"
+      <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valorRaw||v.valor||''}" ${disabled} autocomplete="off"
+        oninput="actualizarValorFila('${id}',${i},this.value)"
         onkeydown="if(event.key==='Tab'){}"
         placeholder="Ej: 40" style="width:100%;">
-      <small id="vh_${id}_${i}" style="color:#1f8a4c;font-weight:700;font-size:11px;display:block;min-height:14px;"></small>
     </td>
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
@@ -2113,6 +2112,8 @@ function renderFilasPlanilla(id) {
       if(tvEl) setupAC(tvEl,[], val=>{ actualizarFila(id,i,'tipoVehiculo',val); agregarMemoria('tipos_vehiculo',val); }, 'tipos_vehiculo');
       if(deEl) setupAC(deEl,[], val=>{ actualizarFila(id,i,'descripcion',val); agregarMemoria('descripciones',val); }, 'descripciones');
       if(obEl) setupAC(obEl,[], val=>{ actualizarFila(id,i,'observaciones',val); agregarMemoria('observaciones',val); }, 'observaciones');
+      const vlEl=document.getElementById(`vl_${id}_${i}`);
+      if(vlEl) setupAC(vlEl,[], val=>{ actualizarValorFila(id,i,val); }, 'precios');
     });
   }
   recalcularTotal(id);
@@ -2124,15 +2125,11 @@ function actualizarFila(id,i,campo,valor){
   pl.vehiculos[i][campo]=valor;
   // memoria se guarda en blur (setupAC), no en cada tecla
 }
-function actualizarHintValor(id,i,raw){
-  const hint=document.getElementById("vh_"+id+"_"+i); if(!hint) return;
-  const n=Number(raw); if(!n||n<=0){hint.textContent="";return;}
-  const v=n<1000?n*1000:n; hint.textContent="$"+v.toLocaleString();
-}
 function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
+  if(raw&&raw.trim()&&num>0) agregarMemoria("precios",raw.trim());
 }
 function recalcularTotal(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
