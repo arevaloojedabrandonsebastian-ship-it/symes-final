@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260807_131511 -->
+<meta charset="UTF-8"><!-- SYMES v20260807_150000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -204,11 +204,11 @@ button:active{transform:scale(.98);}
 .pago-card-header{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
 .pago-card-avatar{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;}
 .pago-card-nombre{font-size:15px;font-weight:700;color:var(--azul);text-transform:capitalize;}
-.pago-card-body{display:flex;align-items:center;gap:14px;}.pago-card-stats{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}.pago-total{min-width:130px;text-align:right;padding:10px 14px;background:linear-gradient(135deg,rgba(31,60,136,.06),rgba(31,138,76,.06));border-radius:14px;border:1.5px solid rgba(31,60,136,.12);}
+.pago-card-body{display:block;}.pago-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}.pago-total{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;background:linear-gradient(135deg,rgba(31,60,136,.07),rgba(31,138,76,.07));border-radius:14px;border:1.5px solid rgba(31,60,136,.13);}
 .pago-stat{background:#f8faff;border-radius:11px;padding:8px 10px;text-align:center;}
 .pago-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .pago-stat strong{font-size:14px;font-weight:700;color:#243044;}
-.pago-total span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-bottom:3px;}.pago-total strong{display:block;font-size:19px;font-weight:800;color:var(--verde);}
+.pago-total span{font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;font-weight:600;}.pago-total strong{font-size:21px;font-weight:800;color:var(--verde);}
 .pagos-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:18px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 6px 20px rgba(31,60,136,.2);}
 .pagos-total-bar span{font-size:13px;opacity:.88;}
 .pagos-total-bar strong{font-size:22px;font-weight:800;}
@@ -2713,7 +2713,7 @@ function mostrarPanelPagos(){
   let totalGeneral = 0;
   const cards = negocio.trabajadores.map((t,idx)=>{
     const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes);
-    const seguridad=Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
+    const seguridad=periodoPagoActual==='q1'?Number(negocio.configuracion?.seguridadQ1||0):periodoPagoActual==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
     const neto=ganado-adelantos-seguridad;
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
