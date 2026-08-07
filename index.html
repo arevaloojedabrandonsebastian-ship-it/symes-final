@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260807_165500 -->
+<meta charset="UTF-8"><!-- SYMES v20260807_171000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -1822,17 +1822,22 @@ function cambiarMesHistorial(){ const m=document.getElementById("mesHistorial").
 // ══ NUBE CARGA ══
 async function cargarTrabajadores() {
   if (!negocio?.id) return;
+  const loc=negocio.trabajadores||[];
+  const eliminados=new Set((negocio.trabajadoresEliminados||[]).map(n=>n.toLowerCase()));
   const r=await nubeGet(`trabajadores?usuario_id=${negocio.id}&_=${Date.now()}`);
   if(!r.ok){toast("No se pudieron cargar engrasadores","error");return;}
-  const loc=negocio.trabajadores||[];
-  negocio.trabajadores=r.data.map(t=>{
-    const l=loc.find(tl=>tl.id===t.id||tl.nombre===t.nombre);
+  // Construir lista desde D1 conservando pagos/adelantos locales
+  const d1List=r.data.map(t=>{
+    const l=loc.find(tl=>tl.nombre.toLowerCase()===t.nombre.toLowerCase()||tl.id===t.id);
     return {id:t.id,nombre:t.nombre,porcentaje:t.porcentaje||50,pagos:l?.pagos||{},adelantos:l?.adelantos||{}};
   });
-  // Filtrar eliminados guardados en localStorage (respaldo offline)
-  const localElim=(negocio.trabajadoresEliminados||[]).map(n=>n.toLowerCase());
-  if(localElim.length>0){
-    negocio.trabajadores=negocio.trabajadores.filter(t=>!localElim.includes(t.nombre.toLowerCase()));
+  // Preservar trabajadores locales que D1 aún no tiene (recién agregados, sync pendiente)
+  const d1Nombres=new Set(d1List.map(t=>t.nombre.toLowerCase()));
+  const soloLocales=loc.filter(t=>!d1Nombres.has(t.nombre.toLowerCase())&&!eliminados.has(t.nombre.toLowerCase()));
+  negocio.trabajadores=[...d1List,...soloLocales].filter(t=>!eliminados.has(t.nombre.toLowerCase()));
+  // Reintentar guardar en D1 los que no llegaron
+  for(const t of soloLocales){
+    nubePost("trabajadores",{usuario_id:negocio.id,nombre:t.nombre,porcentaje:t.porcentaje||50});
   }
   guardar();
 }
