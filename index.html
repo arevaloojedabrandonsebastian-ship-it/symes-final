@@ -47,7 +47,8 @@ body{
 .boton-menu{width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(31,60,136,.26);transition:.15s;}
 .boton-menu:hover{transform:scale(1.06);}
 /* SIDEBAR IZQUIERDO */
-#sidebarTrigger{position:fixed;left:0;top:0;width:18px;height:100vh;z-index:9997;cursor:pointer;background:linear-gradient(to right,rgba(31,60,136,.22),transparent);display:none;border-radius:0 6px 6px 0;}
+#sidebarTrigger{position:fixed;left:0;top:50%;transform:translateY(-50%);width:42px;height:80px;z-index:9997;cursor:pointer;background:linear-gradient(135deg,var(--azul),#188a4e);color:#fff;font-size:22px;display:none;align-items:center;justify-content:center;border-radius:0 16px 16px 0;box-shadow:4px 0 16px rgba(31,60,136,.35);transition:width .15s,box-shadow .15s;}
+#sidebarTrigger:hover{width:50px;box-shadow:6px 0 22px rgba(31,60,136,.45);}
 .contenido-menu{position:fixed;left:0;top:0;width:270px;height:100vh;padding:18px 12px 20px;z-index:9998;background:var(--fondo);border-right:2px solid var(--borde);border-radius:0 22px 22px 0;box-shadow:6px 0 32px rgba(15,23,42,.18);overflow-y:auto;transform:translateX(-270px);transition:transform .22s cubic-bezier(.4,0,.2,1),visibility .22s;visibility:hidden;}
 .contenido-menu.sidebar-abierto{transform:translateX(0);visibility:visible;}
 .contenido-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;margin:4px 0;border-radius:13px;background:#f8faff;color:var(--texto);border:1px solid #e2e8f0;font-size:14px;font-weight:700;text-align:left;cursor:pointer;transition:.14s;}
@@ -303,7 +304,7 @@ button:active{transform:scale(.98);}
   .marca p{display:none;}
 }
 @media(min-width:769px){
-  #sidebarTrigger{display:block;}
+  #sidebarTrigger{display:flex;}
   .boton-menu{display:none;}
 }
 
@@ -655,7 +656,7 @@ body.oscuro .stat-box { opacity:.9; }
     <button class="boton-menu" onclick="toggleMenu()">☰</button>
   </div>
 </div>
-<div id="sidebarTrigger" title="Abrir menú"></div>
+<div id="sidebarTrigger" title="Abrir menú" onclick="toggleMenu()">☰</div>
 <div id="contenidoMenu" class="contenido-menu"></div>
 
 <!-- NAV INFERIOR MÓVIL -->
@@ -1476,6 +1477,8 @@ function volverMenu() {
   ["vistaRegistro","vistaLogin","sistema"].forEach(id => document.getElementById(id).classList.add("oculto"));
   document.getElementById("menuInicial").classList.remove("oculto");
   document.getElementById("menuDerecha").style.display = "none";
+  const _st=document.getElementById("sidebarTrigger"); if(_st) _st.style.display="none";
+  const _cm=document.getElementById("contenidoMenu"); if(_cm) _cm.classList.remove("sidebar-abierto");
 }
 function irAlInicio() {
   const enSistema = !document.getElementById("sistema").classList.contains("oculto");
@@ -1610,6 +1613,7 @@ function entrarSistema() {
   ["menuInicial","vistaRegistro","vistaLogin"].forEach(id => document.getElementById(id).classList.add("oculto"));
   document.getElementById("sistema").classList.remove("oculto");
   document.getElementById("menuDerecha").style.display = "block";
+  if(window.innerWidth >= 769){ const st=document.getElementById("sidebarTrigger"); if(st) st.style.display="flex"; }
   document.getElementById("tituloCuenta").innerText = cap(negocio.nombreNegocio||"");
   document.getElementById("descInicio").innerText   = "Sistema de liquidaciones — Panel principal";
 
