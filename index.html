@@ -103,6 +103,10 @@ input:focus,select:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 
 button{background:var(--azul);color:#fff;border:none;padding:11px 16px;border-radius:13px;cursor:pointer;margin:6px 4px 6px 0;font-size:14px;font-weight:700;transition:.14s;box-shadow:0 4px 10px rgba(31,60,136,.18);font-family:Arial,sans-serif;}
 button:hover{background:var(--azul-oscuro);transform:translateY(-1px);box-shadow:0 8px 18px rgba(31,60,136,.18);}
 button:active{transform:scale(.98);}
+#modalConfirm .modal-acciones button:focus,
+#modalConfirm .modal-acciones button:focus-visible{outline:3px solid var(--azul);outline-offset:3px;box-shadow:0 0 0 4px rgba(31,60,136,.25);}
+#modalConfirm .modal-acciones .btn-rojo:focus,
+#modalConfirm .modal-acciones .btn-rojo:focus-visible{outline-color:#dc2626;box-shadow:0 0 0 4px rgba(220,38,38,.25);}
 .btn-verde{background:var(--verde);box-shadow:0 4px 10px rgba(31,138,76,.2);}
 .btn-verde:hover{background:var(--verde-oscuro);}
 .btn-rojo{background:var(--rojo);box-shadow:0 4px 10px rgba(192,57,43,.2);}
@@ -1817,6 +1821,12 @@ async function cargarLiquidaciones() {
   if(planillasEliminadas.size>0){
     negocio.planillas=(negocio.planillas||[]).filter(p=>!planillasEliminadas.has(p.id));
   }
+  // Respaldo: filtrar también por IDs eliminados guardados en localStorage
+  const localEliminadas=negocio.planillasEliminadas||[];
+  if(localEliminadas.length>0){
+    const localSet=new Set(localEliminadas);
+    negocio.planillas=(negocio.planillas||[]).filter(p=>!localSet.has(p.id));
+  }
   guardar();
 }
 function limpiarPagosLocales() {
@@ -2192,10 +2202,13 @@ async function guardarPlanilla(id){
 }
 function eliminarPlanilla(id){
   confirmar("Eliminar planilla","¿Eliminar esta planilla?",async()=>{
-    negocio.planillas=negocio.planillas.filter(p=>p.id!==id);
+    negocio.planillas=(negocio.planillas||[]).filter(p=>p.id!==id);
+    // Respaldo local: guardar IDs eliminados para que no reaparezcan aunque falle la nube
+    if(!negocio.planillasEliminadas) negocio.planillasEliminadas=[];
+    if(!negocio.planillasEliminadas.includes(id)) negocio.planillasEliminadas.push(id);
     cerrarPestania(id,null); guardar(); mostrarListaPlanillas(); toast("Planilla eliminada","ok");
     const r=await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
-    if(!r||!r.ok) toast("⚠️ Sin conexión: la eliminación no se guardó en la nube. Vuelve a intentarlo con conexión.","error");
+    if(!r||!r.ok) toast("⚠️ Sin conexión: eliminación guardada localmente, pero no en la nube.","error");
   });
 }
 
