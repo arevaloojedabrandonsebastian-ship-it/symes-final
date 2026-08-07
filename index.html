@@ -1265,7 +1265,7 @@ function agregarMemoria(clave, valor) {
   } catch(e) {}
 }
 
-const TIPOS_VEHICULO   = ["Mula","Camión","Volqueta","Patineta","Carro","Camioneta","Moto","Bus","Buseta","Tractomula","Furgón","Otro"];
+const TIPOS_VEHICULO   = ["Mula","Camión","Volqueta","Patineta","Carro","Camioneta","Bus","Buseta","Tractomula","Furgón","Otro"];
 const DESCRIPCIONES    = ["General","Crucetas","Cabezote","Engrase completo","Engrase parcial","Cambio de aceite","Lavado","Revisión","Cambio filtro"];
 const NOTAS_ADELANTO   = ["Adelanto quincena","Préstamo","Descuento uniforme","Descuento herramientas"];
 
@@ -1394,7 +1394,7 @@ function generarId() { return Date.now().toString(36)+Math.random().toString(36)
 function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
 function formatPlaca(s){ if(!s) return ""; const c=s.toUpperCase().replace(/[^A-Z0-9]/g,""); return c.length>3?c.slice(0,3)+" "+c.slice(3):c; }
 function fmtMiles(n){var x=Number(String(n).replace(/\./g,'').replace(/,/g,''))||0;return x>0?x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''}
-function labelEngrase(e){ return e==="azul"?"Azul":"Sintético"; }
+function labelEngrase(e){ return e==="azul"?"Azul":e==="mixto_r"?"Mixto":"Sintético"; }
 function sanitizarTexto(str) {
   if (typeof str !== "string") return "";
   return str.replace(/[<>"'&]/g, c => ({'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]));
@@ -2165,6 +2165,7 @@ function renderFilasPlanilla(id) {
     <td><select ${disabled} onchange="actualizarFila('${id}',${i},'tipoEngrase',this.value);recalcularTotal('${id}')">
       <option value="mixto" ${v.tipoEngrase==='mixto'?'selected':''}>Sintético</option>
       <option value="azul" ${(!v.tipoEngrase||v.tipoEngrase==='azul')?'selected':''}>Azul</option>
+      <option value="mixto_r" ${v.tipoEngrase==='mixto_r'?'selected':''}>Mixto</option>
     </select></td>
     <td>
       <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?fmtMiles(v.valor):(v.valorRaw?fmtMiles(Number(String(v.valorRaw).replace(/\./g,'').replace(/,/g,''))):''  )}" ${disabled} autocomplete="off"
@@ -2387,7 +2388,7 @@ function calcularResultadoPlanilla(pl) {
   const vehiculos=pl.vehiculos||[];
   const config=negocio.configuracion;
   const mixtos=vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==="mixto");
-  const azules=vehiculos.filter(v=>v.tipoEngrase==="azul");
+  const azules=vehiculos.filter(v=>v.tipoEngrase==="azul"||v.tipoEngrase==="mixto_r");
   const totalMixtosReb=mixtos.reduce((s,v)=>s+rebajarMixto(convertirValor(v.valorRaw!=null?v.valorRaw:v.valor)),0);
   const pctMixtos=totalMixtosReb*(Number(config.porcentajeMixtos)/100);
   const totalAzules=azules.reduce((s,v)=>s+convertirValor(v.valorRaw!=null?v.valorRaw:v.valor),0);
@@ -2438,7 +2439,7 @@ function liquidarDesdePlanilla(id) {
       Antes: ${(pl.grasaAntes||0).toLocaleString()} g | Quedó: ${(pl.grasaQuedo||0).toLocaleString()} g | Gastada: ${res.grasaGastada.toLocaleString()} g → $${res.valorGrasaGastada.toLocaleString()}<hr style="margin:8px 0;">
       <strong>Sintéticos (${vehiculos.filter(v=>v.tipoEngrase==='mixto').length})</strong><br>
       Total rebajados: $${res.totalMixtosRebajados.toLocaleString()} — ${negocio.configuracion.porcentajeMixtos}% = $${res.porcentajeMixtos.toLocaleString()}<hr style="margin:8px 0;">
-      <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length})</strong><br>
+      <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length}) · Mixtos (${vehiculos.filter(v=>v.tipoEngrase==='mixto_r').length})</strong><br>
       Total: $${res.totalAzules.toLocaleString()} — Menos grasa: $${res.azulesMenosGrasa.toLocaleString()} — ${negocio.configuracion.porcentajeAzules}% = $${res.porcentajeAzules.toLocaleString()}
       <div class="total-final">Total: $${res.totalFinal.toLocaleString()}<br>${textoPago}</div>
     </div>`;
@@ -2534,7 +2535,7 @@ function imprimirPlanilla(id){
   const total=vehiculos.reduce((s,v)=>s+Number(v.valor||0),0);
   const gG=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
   const filas=vehiculos.map((v,i)=>`<tr><td>${i+1}</td><td>${formatPlaca(v.placa)}</td><td>${v.tipoVehiculo||""}</td><td>${v.descripcion||""}</td>
-    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':'#856404'}">${labelEngrase(v.tipoEngrase||"azul")}</span></td>
+    <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':v.tipoEngrase==='mixto_r'?'#166b3b':'#856404'}">${labelEngrase(v.tipoEngrase||"azul")}</span></td>
     <td>$${Number(v.valor||0).toLocaleString()}</td><td>${v.engrasador||""}</td><td>${v.observaciones||""}</td></tr>`).join("");
   const ven=window.open("","_blank");
   ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Planilla SYMES</title>
