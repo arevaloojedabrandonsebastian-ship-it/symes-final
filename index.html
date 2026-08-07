@@ -1817,6 +1817,11 @@ async function cargarTrabajadores() {
     const l=loc.find(tl=>tl.id===t.id||tl.nombre===t.nombre);
     return {id:t.id,nombre:t.nombre,porcentaje:t.porcentaje||50,pagos:l?.pagos||{},adelantos:l?.adelantos||{}};
   });
+  // Filtrar eliminados guardados en localStorage (respaldo offline)
+  const localElim=(negocio.trabajadoresEliminados||[]).map(n=>n.toLowerCase());
+  if(localElim.length>0){
+    negocio.trabajadores=negocio.trabajadores.filter(t=>!localElim.includes(t.nombre.toLowerCase()));
+  }
   guardar();
 }
 async function cargarLiquidaciones() {
@@ -1841,6 +1846,11 @@ async function cargarLiquidaciones() {
   if(localEliminadas.length>0){
     const localSet=new Set(localEliminadas);
     negocio.planillas=(negocio.planillas||[]).filter(p=>!localSet.has(p.id));
+  }
+  // Filtrar engrasadores eliminados (respaldo local)
+  const localElimT=(negocio.trabajadoresEliminados||[]).map(n=>n.toLowerCase());
+  if(localElimT.length>0){
+    negocio.trabajadores=(negocio.trabajadores||[]).filter(t=>!localElimT.includes(t.nombre.toLowerCase()));
   }
   guardar();
 }
@@ -1914,7 +1924,10 @@ async function agregarTrabajador() {
   if(!nombre){toast("Escribe el nombre","error");return;}
   if(nombre.length > 60){toast("El nombre es demasiado largo (máx 60 caracteres)","error");return;}
   if(!negocio?.id){toast("Inicia sesión primero","error");return;}
-  if(negocio.trabajadores.some(t=>t.nombre.toLowerCase()===nombre.toLowerCase())){toast("Ese engrasador ya existe","error");return;}
+  const nombreNorm=nombre.toLowerCase().replace(/\s+/g," ").trim();
+  if(negocio.trabajadores.some(t=>t.nombre.toLowerCase().replace(/\s+/g," ").trim()===nombreNorm)){
+    toast("Ya existe un engrasador con ese nombre","error");return;
+  }
   const r=await nubePost("trabajadores",{usuario_id:negocio.id,nombre,porcentaje:50});
   if(!r.ok){toast(r.data?.error||"No se pudo guardar","error");return;}
   negocio.trabajadores.push({nombre,pagos:{},adelantos:{}});
@@ -1971,7 +1984,15 @@ function editarEngrasador(i){
 }
 function eliminarEngrasador(i){
   const nombreE=negocio.trabajadores[i].nombre;
-  confirmar("Eliminar engrasador",`¿Eliminar a ${nombreE}?`,async()=>{negocio.trabajadores.splice(i,1);guardar();actualizarTodo();toast("Eliminado","ok");await guardarEvento({tipoRegistro:"eliminarTrabajador",nombre:nombreE});});
+  confirmar("Eliminar engrasador",`¿Eliminar a ${cap(sanitizarTexto(nombreE))}?`,async()=>{
+    negocio.trabajadores.splice(i,1);
+    // Respaldo local: guardar nombre en lista de eliminados
+    if(!negocio.trabajadoresEliminados) negocio.trabajadoresEliminados=[];
+    if(!negocio.trabajadoresEliminados.includes(nombreE)) negocio.trabajadoresEliminados.push(nombreE);
+    guardar(); actualizarTodo(); toast("Eliminado","ok");
+    const r=await guardarEvento({tipoRegistro:"eliminarTrabajador",nombre:nombreE});
+    if(!r||!r.ok) toast("⚠️ Sin conexión: eliminación guardada localmente","error");
+  });
 }
 
 // ══════════════════════════════════════════════════════════
