@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8"><!-- SYMES v20260807_131511 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -913,6 +913,7 @@ body.oscuro .stat-box { opacity:.9; }
           <label>Descuento Seguridad 2ª Quincena ($): <span class="info" data-tip="Monto fijo a descontar por engrasador en la segunda quincena.">!</span></label>
           <input type="number" id="cfgSegQ2" min="0">
         </div>
+
       </div>
       <button class="btn-verde" onclick="guardarConfig()">💾 Guardar configuración</button>
     </div>
@@ -1600,6 +1601,7 @@ async function iniciarSesion() {
   agregarMemoria("neg_nombres", nombre);
   await cargarTrabajadores();
   await cargarLiquidaciones();
+  await _sincronizarEliminaciones();
   guardar();
   document.getElementById("loginNombre").value = "";
   document.getElementById("loginPin").value    = "";
@@ -1840,11 +1842,12 @@ async function cargarLiquidaciones() {
   limpiarPagosLocales();
   const planillasEliminadas=new Set();
   const trabEliminadosCloud=new Set();
+  _trabElimNube=new Set(); _planillaElimNube=new Set(); // reset globales
   r.data.slice().reverse().forEach(item=>{
     try {
       const ev=JSON.parse(item.descripcion);
-      if(ev.tipoRegistro==="eliminarPlanilla"&&ev.planillaId) planillasEliminadas.add(ev.planillaId);
-      if(ev.tipoRegistro==="eliminarTrabajador"&&ev.nombre) trabEliminadosCloud.add(ev.nombre.toLowerCase());
+      if(ev.tipoRegistro==="eliminarPlanilla"&&ev.planillaId){ planillasEliminadas.add(ev.planillaId); _planillaElimNube.add(ev.planillaId); }
+      if(ev.tipoRegistro==="eliminarTrabajador"&&ev.nombre){ trabEliminadosCloud.add(ev.nombre.toLowerCase()); _trabElimNube.add(ev.nombre.toLowerCase()); }
       procesarEvento(ev);
     } catch(e){console.error("Evento inválido:",e);}
   });
@@ -2708,7 +2711,9 @@ function mostrarPanelPagos(){
   if(!negocio.trabajadores.length){el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores.</p>";return;}
   let totalGeneral = 0;
   const cards = negocio.trabajadores.map((t,idx)=>{
-    const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes), neto=ganado-adelantos;
+    const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes);
+    const seguridad=Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
+    const neto=ganado-adelantos-seguridad;
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
     const ini = nomPago.charAt(0).toUpperCase();
@@ -2720,6 +2725,7 @@ function mostrarPanelPagos(){
       <div class="pago-card-stats">
         <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
         <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
+        ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
         <div class="pago-stat neto"><span>A pagar</span><strong>$${fmtMiles(neto)}</strong></div>
       </div>
       <div style="margin-top:10px;">
@@ -2753,6 +2759,8 @@ function pagarTodos(){ reiniciarPagosMes(); }
 // ══ QUINCENA HELPERS ══
 let _quinHistorial = 'mes';
 let _quinCierre    = 'mes';
+let _trabElimNube = new Set();   // nombres en D1 con evento eliminarTrabajador
+let _planillaElimNube = new Set(); // ids en D1 con evento eliminarPlanilla
 
 function setQuinHistorial(q, btn){
   _quinHistorial=q;
@@ -2844,6 +2852,7 @@ function mostrarCierreMes(){
       <div class="cierre-card-stats">
         <div class="cierre-stat"><span>Ganado</span><strong>$${t.ganado.toLocaleString()}</strong></div>
         <div class="cierre-stat"><span>Adelantos</span><strong>$${t.adelantos.toLocaleString()}</strong></div>
+
         ${t.seguridad>0?`<div class="cierre-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${t.seguridad.toLocaleString()}</strong></div>`:""}
         <div class="cierre-stat neto"><span>A pagar</span><strong>$${t.totalPagar.toLocaleString()}</strong></div>
       </div>
@@ -2916,6 +2925,7 @@ function cargarConfigEnPantalla(){
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
   set("cfgPrecioGrasa",c.precioGrasa); set("cfgPctMixtos",c.porcentajeMixtos); set("cfgPctAzules",c.porcentajeAzules);
   set("cfgSegQ1",c.seguridadQ1||0); set("cfgSegQ2",c.seguridadQ2||0);
+
   mostrarReglas();
 }
 async function guardarConfig(){
@@ -3079,8 +3089,23 @@ document.getElementById("btnInstalar")?.addEventListener("click",async()=>{
 });
 
 // ══ ARRANQUE ══
+// Sube a D1 cualquier eliminación que solo quedó en localStorage (sin conexión previa)
+async function _sincronizarEliminaciones(){
+  const localT=(negocio.trabajadoresEliminados||[]);
+  for(const nombre of localT){
+    if(!_trabElimNube.has(nombre.toLowerCase())){
+      await guardarEvento({tipoRegistro:"eliminarTrabajador",nombre});
+    }
+  }
+  const localP=(negocio.planillasEliminadas||[]);
+  for(const id of localP){
+    if(!_planillaElimNube.has(id)){
+      await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
+    }
+  }
+}
 async function iniciarSesionGuardada(){
-  try{ await cargarTrabajadores(); await cargarLiquidaciones(); } catch(e){ console.error("Error sync:",e); }
+  try{ await cargarTrabajadores(); await cargarLiquidaciones(); await _sincronizarEliminaciones(); } catch(e){ console.error("Error sync:",e); }
   entrarSistema();
 }
 if(cuentaAct&&negocio){ iniciarSesionGuardada(); }

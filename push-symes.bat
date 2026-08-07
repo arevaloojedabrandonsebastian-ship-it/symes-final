@@ -4,7 +4,11 @@ echo === SYMES Deploy === > push-log.txt 2>&1
 
 if exist .git\index.lock (
   del /f .git\index.lock >> push-log.txt 2>&1
-  echo Lock eliminado >> push-log.txt
+  echo Lock index eliminado >> push-log.txt
+)
+if exist .git\HEAD.lock (
+  del /f .git\HEAD.lock >> push-log.txt 2>&1
+  echo Lock HEAD eliminado >> push-log.txt
 )
 
 echo [1/4] Agregando archivos... >> push-log.txt
