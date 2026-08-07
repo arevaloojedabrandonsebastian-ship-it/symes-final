@@ -1,0 +1,9 @@
+# Wrangler cache
+.wrangler/
+wrangler-account.json
+
+# Logs del deploy
+push-log.txt
+
+# Node
+node_modules/
