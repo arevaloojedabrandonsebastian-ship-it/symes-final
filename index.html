@@ -1839,14 +1839,16 @@ async function cargarLiquidaciones() {
   if(!r.ok){toast("No se pudieron cargar liquidaciones","error");return;}
   limpiarPagosLocales();
   const planillasEliminadas=new Set();
+  const trabEliminadosCloud=new Set();
   r.data.slice().reverse().forEach(item=>{
     try {
       const ev=JSON.parse(item.descripcion);
       if(ev.tipoRegistro==="eliminarPlanilla"&&ev.planillaId) planillasEliminadas.add(ev.planillaId);
+      if(ev.tipoRegistro==="eliminarTrabajador"&&ev.nombre) trabEliminadosCloud.add(ev.nombre.toLowerCase());
       procesarEvento(ev);
     } catch(e){console.error("Evento inválido:",e);}
   });
-  // Filtrar planillas eliminadas al final, sin importar el orden de eventos
+  // Filtrar planillas eliminadas al final (two-pass igual que trabajadores)
   if(planillasEliminadas.size>0){
     negocio.planillas=(negocio.planillas||[]).filter(p=>!planillasEliminadas.has(p.id));
   }
@@ -1856,7 +1858,10 @@ async function cargarLiquidaciones() {
     const localSet=new Set(localEliminadas);
     negocio.planillas=(negocio.planillas||[]).filter(p=>!localSet.has(p.id));
   }
-  // Filtrar engrasadores eliminados (respaldo local)
+  // Filtrar engrasadores eliminados - two-pass (cloud + localStorage)
+  if(trabEliminadosCloud.size>0){
+    negocio.trabajadores=(negocio.trabajadores||[]).filter(t=>!trabEliminadosCloud.has(t.nombre.toLowerCase()));
+  }
   const localElimT=(negocio.trabajadoresEliminados||[]).map(n=>n.toLowerCase());
   if(localElimT.length>0){
     negocio.trabajadores=(negocio.trabajadores||[]).filter(t=>!localElimT.includes(t.nombre.toLowerCase()));

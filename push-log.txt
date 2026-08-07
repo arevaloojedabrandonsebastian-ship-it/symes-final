@@ -1,2 +1,21 @@
 === SYMES Deploy === 
 [1/4] Agregando archivos... 
+warning: in the working copy of 'index.html', LF will be replaced by CRLF the next time Git touches it
+[2/4] Commit... 
+[main e7899fb] chore: update symes
+ 1 file changed, 40 insertions(+), 11 deletions(-)
+[3/4] Push a GitHub... 
+To https://github.com/arevaloojedabrandonsebastian-ship-it/symes-final.git
+   d126f7a..e7899fb  main -> main
+[4/4] Deploy directo a Cloudflare Pages (produccion)... 
+
+ ⛅️ wrangler 4.119.0 (update available 4.120.0)
+───────────────────────────────────────────────
+Uploading... (6/8)
+Uploading... (7/8)
+Uploading... (8/8)
+✨ Success! Uploaded 2 files (6 already uploaded) (1.78 sec)
+
+✨ Uploading _headers
+🌎 Deploying...
+✨ Deployment complete! Take a peek over at https://180efb33.symes-final.pages.dev
