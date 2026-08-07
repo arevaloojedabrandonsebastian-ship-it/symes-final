@@ -507,33 +507,34 @@ body.oscuro :root { --texto:#e2e8f0; --borde:#374151; --gris:#9ca3af; }
   align-items: center;
 }
 .toggle-track {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
-  background: rgba(255,255,255,.85);
+  background: #fff;
   border: 1.5px solid rgba(220,227,240,.9);
-  box-shadow: 0 3px 10px rgba(15,23,42,.1);
+  box-shadow: 0 3px 12px rgba(15,23,42,.13);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background .25s, box-shadow .25s, transform .15s;
+  transition: background .25s, box-shadow .22s, transform .18s cubic-bezier(.34,1.56,.64,1);
   user-select: none;
 }
 .toggle-track:hover {
-  transform: scale(1.07);
-  box-shadow: 0 6px 18px rgba(31,60,136,.18);
+  transform: scale(1.15);
+  box-shadow: 0 8px 24px rgba(31,60,136,.22);
+  border-color: rgba(31,60,136,.25);
 }
-.toggle-track:active { transform: scale(.96); }
+.toggle-track:active { transform: scale(.94); }
 .modo-ico {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   transition: transform .3s cubic-bezier(.34,1.56,.64,1);
 }
 body.oscuro .toggle-track {
-  background: rgba(30,58,138,.5);
-  border-color: rgba(59,130,246,.35);
-  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  background: #1e3a8a;
+  border-color: rgba(59,130,246,.45);
+  box-shadow: 0 3px 12px rgba(0,0,0,.35);
 }
 /* ocultar el thumb antiguo que ya no existe */
 .toggle-thumb { display: none; }
