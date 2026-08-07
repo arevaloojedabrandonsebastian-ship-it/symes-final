@@ -877,9 +877,8 @@ body.oscuro .stat-box { opacity:.9; }
         <h2 style="margin:0;">📂 Historial</h2>
         <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()" style="width:auto;">
       </div>
-      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:12px;">
-        <button class="periodo-tab activo" onclick="setQuinHistorial('mes',this)">📅 Mes completo</button>
-        <button class="periodo-tab" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
+      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:12px;grid-template-columns:repeat(2,1fr);">
+        <button class="periodo-tab activo" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
         <button class="periodo-tab" onclick="setQuinHistorial('q2',this)">2ª Quincena</button>
       </div>
       <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
@@ -2757,7 +2756,7 @@ async function pagarTrabajador(idx){
 function pagarTodos(){ reiniciarPagosMes(); }
 
 // ══ QUINCENA HELPERS ══
-let _quinHistorial = 'mes';
+let _quinHistorial = 'q1';
 let _quinCierre    = 'mes';
 let _trabElimNube = new Set();   // nombres en D1 con evento eliminarTrabajador
 let _planillaElimNube = new Set(); // ids en D1 con evento eliminarPlanilla
@@ -2865,15 +2864,36 @@ function mostrarCierreMes(){
 }
 async function marcarMesPagado(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pagado"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pagado",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pagado ","ok"); }
 async function marcarMesPendiente(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pendiente"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pendiente",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pendiente","info"); }
+function _rangoQuincena(mes, q){
+  const [y,m]=mes.split('-');
+  const hoy=new Date();
+  const esMesAct=(hoy.getFullYear()===parseInt(y)&&(hoy.getMonth()+1)===parseInt(m));
+  const dHoy=hoy.getDate();
+  const mm=m.padStart(2,'0');
+  const fmt=d=>`${String(d).padStart(2,'0')}/${mm}/${y}`;
+  if(q==='q1'){
+    const fin=esMesAct?Math.min(15,dHoy):15;
+    return `${fmt(1)} al ${fmt(fin)}`;
+  } else if(q==='q2'){
+    const fin=esMesAct?dHoy:new Date(parseInt(y),parseInt(m),0).getDate();
+    return `${fmt(16)} al ${fmt(fin)}`;
+  }
+  return `Mes completo`;
+}
 function imprimirResumen(){
-  const mes=document.getElementById("mesCierre")?.value||mesActual(), estado=getEstadoCierre(mes), resumen=calcularResumenMes(mes);
+  const mes=document.getElementById("mesCierre")?.value||mesActual();
+  const q=_quinCierre;
+  const estado=getEstadoCierre(mes);
+  const resumen=calcularResumenQuincena(mes,q);
+  const quincenaNom=q==='q1'?'1ª Quincena':q==='q2'?'2ª Quincena':'Mes completo';
+  const rango=_rangoQuincena(mes,q);
   const ven=window.open("","_blank");
-  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Resumen ${mes}</title><style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}table{width:100%;border-collapse:collapse;}th{background:#1f3c88;color:#fff;padding:8px 10px;text-align:left;}th:not(:first-child){text-align:right;}td{padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:left;}td:not(:first-child){text-align:right;}.total{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px;border-radius:10px;margin-top:14px;}.firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
+  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Resumen ${mes} — ${quincenaNom}</title><style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}table{width:100%;border-collapse:collapse;}th{background:#1f3c88;color:#fff;padding:8px 10px;text-align:left;}th:not(:first-child){text-align:right;}td{padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:left;}td:not(:first-child){text-align:right;}.total{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px;border-radius:10px;margin-top:14px;}.firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
 </style></head><body>
-  <div class="hdr"><h1>SYMES</h1><p>Resumen mensual — ${negocio.nombreNegocio}</p></div>
-  <p><strong>Mes:</strong> ${mes} &nbsp; <strong>Estado:</strong> ${estado} &nbsp; <strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
+  <div class="hdr"><h1>SYMES</h1><p>${quincenaNom} — ${negocio.nombreNegocio}</p></div>
+  <p><strong>Período:</strong> ${rango} &nbsp; <strong>Estado:</strong> ${estado} &nbsp; <strong>Impresión:</strong> ${new Date().toLocaleString()}</p>
   <table><thead><tr><th>Engrasador</th><th>Ganado</th><th>Adelantos</th><th>Seguridad</th><th>A pagar</th></tr></thead>
-  <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td style="color:#c0392b">-$${(t.seguridad||0).toLocaleString()}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
+  <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td style="color:#c0392b">${(t.seguridad||0)>0?'-$'+(t.seguridad||0).toLocaleString():'$0'}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
   <div class="total">Total ganado: $${resumen.totalGanado.toLocaleString()} | Adelantos: $${resumen.totalAdelantos.toLocaleString()} | Seguridad: -$${resumen.trabajadores.reduce((s,t)=>s+(t.seguridad||0),0).toLocaleString()} | <strong>A pagar: $${resumen.totalPagar.toLocaleString()}</strong></div>
   <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador / recibido</div></div>
   <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>

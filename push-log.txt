@@ -1,3 +1,2 @@
 === SYMES Deploy === 
-Lock HEAD eliminado 
 [1/4] Agregando archivos... 
