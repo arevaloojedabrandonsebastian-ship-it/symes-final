@@ -1791,7 +1791,22 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); refrescarDropdownsPlanilla();
+}
+
+// Refresca solo los selects de engrasador de las planillas abiertas (sin re-renderizar toda la planilla)
+function refrescarDropdownsPlanilla(){
+  const nombresE=(negocio.trabajadores||[]).map(t=>cap(sanitizarTexto(t.nombre))).filter(Boolean);
+  const optsE=`<option value="">— Ninguno —</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
+  pestaniasAbiertas.forEach(p=>{
+    const pl=negocio.planillas.find(x=>x.id===p.id); if(!pl) return;
+    [1,2,3,4].forEach(n=>{
+      const sel=document.getElementById(`planE${n}_${pl.id}`); if(!sel) return;
+      const cur=sel.value;
+      sel.innerHTML=optsE;
+      if(cur) sel.value=cur; // conservar selección actual
+    });
+  });
 }
 
 // ══ MESES ══
@@ -2210,9 +2225,9 @@ function eliminarFilaPlanilla(id,i){
 async function guardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   recalcularTotal(id); guardar();
+  renderTabsPlanillas(); mostrarListaPlanillas(); // Actualizar UI de inmediato
   const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
   toast(r.ok?"Planilla guardada ":"Guardada localmente (fallo nube)",r.ok?"ok":"aviso");
-  renderTabsPlanillas(); mostrarListaPlanillas();
 }
 function eliminarPlanilla(id){
   confirmar("Eliminar planilla","¿Eliminar esta planilla?",async()=>{
