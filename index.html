@@ -905,6 +905,14 @@ body.oscuro .stat-box { opacity:.9; }
           <label>Porcentaje azules (%): <span class="info" data-tip="% que ganan los engrasadores de los azules menos grasa. Por defecto 35%.">!</span></label>
           <input type="number" id="cfgPctAzules">
         </div>
+        <div>
+          <label>Descuento Seguridad 1ª Quincena ($): <span class="info" data-tip="Monto fijo a descontar por engrasador en la primera quincena.">!</span></label>
+          <input type="number" id="cfgSegQ1" min="0">
+        </div>
+        <div>
+          <label>Descuento Seguridad 2ª Quincena ($): <span class="info" data-tip="Monto fijo a descontar por engrasador en la segunda quincena.">!</span></label>
+          <input type="number" id="cfgSegQ2" min="0">
+        </div>
       </div>
       <button class="btn-verde" onclick="guardarConfig()">💾 Guardar configuración</button>
     </div>
@@ -1170,6 +1178,7 @@ const ADMIN_NAME = "brandon";
 const CONFIG_DEFECTO = {
   precioGrasa:11500, divisorGrasa:1000,
   porcentajeMixtos:25, porcentajeAzules:35,
+  seguridadQ1:0, seguridadQ2:0,
   reglasMixtos:[
     {original:40000,rebajado:40000},{original:45000,rebajado:40000},
     {original:50000,rebajado:45000},{original:55000,rebajado:45000},
@@ -2387,8 +2396,8 @@ function _confirmarArchivoLiquidadas(){
 function calcularResultadoPlanilla(pl) {
   const vehiculos=pl.vehiculos||[];
   const config=negocio.configuracion;
-  const mixtos=vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==="mixto");
-  const azules=vehiculos.filter(v=>v.tipoEngrase==="azul"||v.tipoEngrase==="mixto_r");
+  const mixtos=vehiculos.filter(v=>!v.tipoEngrase||v.tipoEngrase==="mixto"||v.tipoEngrase==="mixto_r");
+  const azules=vehiculos.filter(v=>v.tipoEngrase==="azul");
   const totalMixtosReb=mixtos.reduce((s,v)=>s+rebajarMixto(convertirValor(v.valorRaw!=null?v.valorRaw:v.valor)),0);
   const pctMixtos=totalMixtosReb*(Number(config.porcentajeMixtos)/100);
   const totalAzules=azules.reduce((s,v)=>s+convertirValor(v.valorRaw!=null?v.valorRaw:v.valor),0);
@@ -2437,9 +2446,9 @@ function liquidarDesdePlanilla(id) {
       <p style="color:var(--gris);font-size:12px;">${vehiculos.length} servicio(s)</p><hr style="margin:8px 0;">
       <strong>🛢️ Grasa</strong><br>
       Antes: ${(pl.grasaAntes||0).toLocaleString()} g | Quedó: ${(pl.grasaQuedo||0).toLocaleString()} g | Gastada: ${res.grasaGastada.toLocaleString()} g → $${res.valorGrasaGastada.toLocaleString()}<hr style="margin:8px 0;">
-      <strong>Sintéticos (${vehiculos.filter(v=>v.tipoEngrase==='mixto').length})</strong><br>
+      <strong>Sintéticos (${vehiculos.filter(v=>v.tipoEngrase==='mixto').length}) · Mixtos (${vehiculos.filter(v=>v.tipoEngrase==='mixto_r').length})</strong><br>
       Total rebajados: $${res.totalMixtosRebajados.toLocaleString()} — ${negocio.configuracion.porcentajeMixtos}% = $${res.porcentajeMixtos.toLocaleString()}<hr style="margin:8px 0;">
-      <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length}) · Mixtos (${vehiculos.filter(v=>v.tipoEngrase==='mixto_r').length})</strong><br>
+      <strong>Azules (${vehiculos.filter(v=>v.tipoEngrase==='azul').length})</strong><br>
       Total: $${res.totalAzules.toLocaleString()} — Menos grasa: $${res.azulesMenosGrasa.toLocaleString()} — ${negocio.configuracion.porcentajeAzules}% = $${res.porcentajeAzules.toLocaleString()}
       <div class="total-final">Total: $${res.totalFinal.toLocaleString()}<br>${textoPago}</div>
     </div>`;
@@ -2781,9 +2790,10 @@ function calcularResumenQuincena(mes, q){
     const adelantos=(t.adelantos?.[mes]||[])
       .filter(a=>_enQuincena(a.fecha,q))
       .reduce((s,a)=>s+Number(a.valor||0),0);
-    const neto=ganado-adelantos;
+    const segDesc=(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):q==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
+    const neto=ganado-adelantos-segDesc;
     tG+=ganado;tA+=adelantos;tP+=neto;
-    return{nombre:t.nombre,ganado,adelantos,totalPagar:neto};
+    return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
   });
   return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
 }
@@ -2792,7 +2802,22 @@ function calcularResumenQuincena(mes, q){
 function getEstadoCierre(mes){ return negocio.cierresMes?.[mes]||"Pendiente"; }
 function calcularResumenMes(mes){
   let tG=0,tA=0,tP=0;
-  const trabajadores=negocio.trabajadores.map(t=>{const g=getPago(t,mes),a=getAdelantos(t,mes),p=g-a;tG+=g;tA+=a;tP+=p;return{nombre:t.nombre,ganado:g,adelantos:a,totalPagar:p};});
+  const trabajadores=negocio.trabajadores.map(t=>{
+    // Usar historial (igual que quincenas) para no verse afectado por reset de pagos
+    const ganado=(negocio.historial||[])
+      .filter(c=>c.mes===mes)
+      .reduce((s,c)=>{
+        [[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],
+         [c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]]
+        .forEach(([n,p])=>{ if(n&&n.toLowerCase()===t.nombre.toLowerCase()) s+=Number(p||0); });
+        return s;
+      },0);
+    const adelantos=(t.adelantos?.[mes]||[]).reduce((s,a)=>s+Number(a.valor||0),0);
+    const segDesc=Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
+    const neto=ganado-adelantos-segDesc;
+    tG+=ganado;tA+=adelantos;tP+=neto;
+    return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
+  });
   return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
 }
 function mostrarCierreMes(){
@@ -2814,6 +2839,7 @@ function mostrarCierreMes(){
       <div class="cierre-card-stats">
         <div class="cierre-stat"><span>Ganado</span><strong>$${t.ganado.toLocaleString()}</strong></div>
         <div class="cierre-stat"><span>Adelantos</span><strong>$${t.adelantos.toLocaleString()}</strong></div>
+        ${t.seguridad>0?`<div class="cierre-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${t.seguridad.toLocaleString()}</strong></div>`:""}
         <div class="cierre-stat neto"><span>A pagar</span><strong>$${t.totalPagar.toLocaleString()}</strong></div>
       </div>
     </div>`;
@@ -2828,13 +2854,13 @@ async function marcarMesPendiente(){ const mes=document.getElementById("mesCierr
 function imprimirResumen(){
   const mes=document.getElementById("mesCierre")?.value||mesActual(), estado=getEstadoCierre(mes), resumen=calcularResumenMes(mes);
   const ven=window.open("","_blank");
-  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Resumen ${mes}</title><style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}table{width:100%;border-collapse:collapse;}th{background:#1f3c88;color:#fff;padding:8px;}td{padding:7px 8px;border-bottom:1px solid #e2e8f0;}.total{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px;border-radius:10px;margin-top:14px;}.firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
+  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Resumen ${mes}</title><style>body{font-family:Arial,sans-serif;color:#243044;margin:20px;}.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}.hdr h1{margin:0 0 3px;font-size:24px;}table{width:100%;border-collapse:collapse;}th{background:#1f3c88;color:#fff;padding:8px 10px;text-align:left;}th:not(:first-child){text-align:right;}td{padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:left;}td:not(:first-child){text-align:right;}.total{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px;border-radius:10px;margin-top:14px;}.firma{margin-top:50px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #333;padding-top:7px;width:44%;text-align:center;font-size:12px;}.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}@media print{button{display:none;}}
 </style></head><body>
   <div class="hdr"><h1>SYMES</h1><p>Resumen mensual — ${negocio.nombreNegocio}</p></div>
   <p><strong>Mes:</strong> ${mes} &nbsp; <strong>Estado:</strong> ${estado} &nbsp; <strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
-  <table><thead><tr><th>Engrasador</th><th>Ganado</th><th>Adelantos</th><th>A pagar</th></tr></thead>
-  <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
-  <div class="total">Total ganado: $${resumen.totalGanado.toLocaleString()} | Adelantos: $${resumen.totalAdelantos.toLocaleString()} | <strong>A pagar: $${resumen.totalPagar.toLocaleString()}</strong></div>
+  <table><thead><tr><th>Engrasador</th><th>Ganado</th><th>Adelantos</th><th>Seguridad</th><th>A pagar</th></tr></thead>
+  <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td style="color:#c0392b">-$${(t.seguridad||0).toLocaleString()}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
+  <div class="total">Total ganado: $${resumen.totalGanado.toLocaleString()} | Adelantos: $${resumen.totalAdelantos.toLocaleString()} | Seguridad: -$${resumen.trabajadores.reduce((s,t)=>s+(t.seguridad||0),0).toLocaleString()} | <strong>A pagar: $${resumen.totalPagar.toLocaleString()}</strong></div>
   <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador / recibido</div></div>
   <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>
   <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`);
@@ -2884,6 +2910,7 @@ function cargarConfigEnPantalla(){
   const c=negocio?.configuracion; if(!c) return;
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
   set("cfgPrecioGrasa",c.precioGrasa); set("cfgPctMixtos",c.porcentajeMixtos); set("cfgPctAzules",c.porcentajeAzules);
+  set("cfgSegQ1",c.seguridadQ1||0); set("cfgSegQ2",c.seguridadQ2||0);
   mostrarReglas();
 }
 async function guardarConfig(){
@@ -2897,6 +2924,8 @@ async function guardarConfig(){
   negocio.configuracion.precioGrasa=precioGrasa;
   negocio.configuracion.porcentajeMixtos=pctMixtos;
   negocio.configuracion.porcentajeAzules=pctAzules;
+  negocio.configuracion.seguridadQ1=Math.max(0,get("cfgSegQ1"));
+  negocio.configuracion.seguridadQ2=Math.max(0,get("cfgSegQ2"));
   guardar();
   const r=await guardarEvento({tipoRegistro:"configuracion",configuracion:negocio.configuracion,fecha:new Date().toLocaleString()},1,0);
   toast(r.ok?"Configuración guardada ✅":"Guardada localmente",r.ok?"ok":"aviso");
