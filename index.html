@@ -204,11 +204,11 @@ button:active{transform:scale(.98);}
 .pago-card-header{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
 .pago-card-avatar{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;}
 .pago-card-nombre{font-size:15px;font-weight:700;color:var(--azul);text-transform:capitalize;}
-.pago-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pago-card-body{display:flex;align-items:center;gap:14px;}.pago-card-stats{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}.pago-total{min-width:130px;text-align:right;padding:10px 14px;background:linear-gradient(135deg,rgba(31,60,136,.06),rgba(31,138,76,.06));border-radius:14px;border:1.5px solid rgba(31,60,136,.12);}
 .pago-stat{background:#f8faff;border-radius:11px;padding:8px 10px;text-align:center;}
 .pago-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .pago-stat strong{font-size:14px;font-weight:700;color:#243044;}
-.pago-stat.neto strong{color:var(--verde);font-size:16px;}
+.pago-total span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-bottom:3px;}.pago-total strong{display:block;font-size:19px;font-weight:800;color:var(--verde);}
 .pagos-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:18px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 6px 20px rgba(31,60,136,.2);}
 .pagos-total-bar span{font-size:13px;opacity:.88;}
 .pagos-total-bar strong{font-size:22px;font-weight:800;}
@@ -491,6 +491,8 @@ body.oscuro .pago-stat { background:rgba(255,255,255,.04); }
 body.oscuro .pago-stat span { color:#6b7280; }
 body.oscuro .pago-stat strong { color:#e2e8f0; }
 body.oscuro .pago-stat.neto strong { color:#4ade80; }
+body.oscuro .pago-total { background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1); }
+body.oscuro .pago-total strong { color:#4ade80; }
 body.oscuro .info::after { background:#0d1117; }
 body.oscuro .terminos-content { color:#9ca3af; }
 body.oscuro .terminos-content h3 { color:#60a5fa; }
@@ -2721,11 +2723,16 @@ function mostrarPanelPagos(){
         <div class="pago-card-avatar">${ini}</div>
         <div class="pago-card-nombre">${nomPago}</div>
       </div>
-      <div class="pago-card-stats">
-        <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
-        <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
-        ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
-        <div class="pago-stat neto"><span>A pagar</span><strong>$${fmtMiles(neto)}</strong></div>
+      <div class="pago-card-body">
+        <div class="pago-card-stats">
+          <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
+          <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
+          ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
+        </div>
+        <div class="pago-total">
+          <span>A pagar</span>
+          <strong>$${fmtMiles(neto)}</strong>
+        </div>
       </div>
       <div style="margin-top:10px;">
         <button class="btn-verde btn-sm" onclick="pagarTrabajador(${idx})">💸 Pagar</button>
