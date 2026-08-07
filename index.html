@@ -2132,12 +2132,29 @@ function actualizarDatoPlanilla(id, campo, valor) {
     const gg=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
     const el=document.getElementById(`planGG_${id}`); if(el) el.innerText=gg.toLocaleString()+" g";
   }
+  if(["engrasador1","engrasador2","engrasador3","engrasador4"].includes(campo)){
+    _refrescarFilasEngrasador(id);
+  }
+}
+function _refrescarFilasEngrasador(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const nombresE=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
+  const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
+  (pl.vehiculos||[]).forEach((v,i)=>{
+    const sel=document.getElementById(`rowE_${id}_${i}`); if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML=optsE;
+    // mantener selección si el engrasador sigue siendo válido
+    if(nombresE.includes(cur)) sel.value=cur;
+    else { sel.value=""; v.engrasador=""; }
+  });
 }
 
 function renderFilasPlanilla(id) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   const tbody=document.getElementById(`tbody_${id}`); if(!tbody) return;
-  const nombresE=getSugerenciasEngrasadores();
+  // Solo los engrasadores seleccionados en el header de esta planilla
+  const nombresE=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
   const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
   const disabled=pl.liquidada?"disabled":""
   tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>`<tr>
@@ -2157,7 +2174,7 @@ function renderFilasPlanilla(id) {
         onkeydown="if(event.key==='Tab'){}"
         placeholder="" style="width:100%;">
     </td>
-    <td><select ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
+    <td><select id="rowE_${id}_${i}" ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
     </select></td>
     <td><input type="text" value="${v.observaciones||''}" ${disabled} autocomplete="off" oninput="actualizarFila('${id}',${i},'observaciones',this.value)" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
