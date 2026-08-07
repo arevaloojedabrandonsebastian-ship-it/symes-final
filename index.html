@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260807_171000 -->
+<meta charset="UTF-8"><!-- SYMES v20260807_173000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -1854,6 +1854,7 @@ async function cargarLiquidaciones() {
       const ev=JSON.parse(item.descripcion);
       if(ev.tipoRegistro==="eliminarPlanilla"&&ev.planillaId){ planillasEliminadas.add(ev.planillaId); _planillaElimNube.add(ev.planillaId); }
       if(ev.tipoRegistro==="eliminarTrabajador"&&ev.nombre){ trabEliminadosCloud.add(ev.nombre.toLowerCase()); _trabElimNube.add(ev.nombre.toLowerCase()); }
+      if(ev.tipoRegistro==="agregarTrabajador"&&ev.nombre){ trabEliminadosCloud.delete(ev.nombre.toLowerCase()); _trabElimNube.delete(ev.nombre.toLowerCase()); }
       procesarEvento(ev);
     } catch(e){console.error("Evento inválido:",e);}
   });
@@ -1923,6 +1924,13 @@ function procesarEvento(ev) {
       negocio.trabajadores=(negocio.trabajadores||[]).filter(t=>t.nombre.toLowerCase()!==nl);
       return;
     }
+    if (ev.tipoRegistro==="agregarTrabajador"){
+      if(!ev.nombre) return;
+      const nl=ev.nombre.toLowerCase();
+      const ya=(negocio.trabajadores||[]).some(t=>t.nombre.toLowerCase()===nl);
+      if(!ya){ if(!negocio.trabajadores)negocio.trabajadores=[]; negocio.trabajadores.push({nombre:ev.nombre,porcentaje:ev.porcentaje||50,pagos:{},adelantos:{}}); }
+      return;
+    }
   } catch(e) { console.error("Error procesando evento:", e, ev); }
 }
 
@@ -1952,8 +1960,10 @@ async function agregarTrabajador() {
     toast("Ya existe un engrasador con ese nombre","error");return;
   }
   const r=await nubePost("trabajadores",{usuario_id:negocio.id,nombre,porcentaje:50});
-  if(!r.ok){toast(r.data?.error||"No se pudo guardar","error");return;}
-  // Si este nombre estaba en la lista de eliminados, quitarlo para que no sea re-eliminado por _sincronizarEliminaciones
+  // Guardar también como evento en liquidaciones (fuente de verdad alternativa si falla D1 trabajadores)
+  await guardarEvento({tipoRegistro:"agregarTrabajador",nombre,porcentaje:50});
+  if(!r.ok) console.warn("trabajadores POST falló, pero evento guardado en liquidaciones");
+  // Si este nombre estaba en la lista de eliminados, quitarlo
   if(negocio.trabajadoresEliminados){
     negocio.trabajadoresEliminados=negocio.trabajadoresEliminados.filter(n=>n.toLowerCase()!==nombreNorm);
   }
