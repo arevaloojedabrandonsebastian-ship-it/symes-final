@@ -46,7 +46,10 @@ body{
 .menu-derecha{position:relative;display:none;}
 .boton-menu{width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,.7);background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(31,60,136,.26);transition:.15s;}
 .boton-menu:hover{transform:scale(1.06);}
-.contenido-menu{display:none;position:fixed;right:20px;top:62px;min-width:260px;padding:12px;z-index:9999;background:#fff;border:1px solid rgba(220,227,240,.98);border-radius:22px;box-shadow:0 18px 48px rgba(15,23,42,.2);max-height:80vh;overflow-y:auto;}
+/* SIDEBAR IZQUIERDO */
+#sidebarTrigger{position:fixed;left:0;top:0;width:18px;height:100vh;z-index:9997;cursor:pointer;background:linear-gradient(to right,rgba(31,60,136,.22),transparent);display:none;border-radius:0 6px 6px 0;}
+.contenido-menu{position:fixed;left:0;top:0;width:270px;height:100vh;padding:18px 12px 20px;z-index:9998;background:var(--fondo);border-right:2px solid var(--borde);border-radius:0 22px 22px 0;box-shadow:6px 0 32px rgba(15,23,42,.18);overflow-y:auto;transform:translateX(-270px);transition:transform .22s cubic-bezier(.4,0,.2,1),visibility .22s;visibility:hidden;}
+.contenido-menu.sidebar-abierto{transform:translateX(0);visibility:visible;}
 .contenido-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 13px;margin:4px 0;border-radius:13px;background:#f8faff;color:var(--texto);border:1px solid #e2e8f0;font-size:14px;font-weight:700;text-align:left;cursor:pointer;transition:.14s;}
 .contenido-menu button:hover{background:linear-gradient(135deg,rgba(31,60,136,.09),rgba(31,138,76,.09));color:var(--azul);border-color:rgba(31,60,136,.26);transform:translateX(3px);}
 .contenido-menu button.rojo-menu{background:var(--rojo-suave);color:var(--rojo);border-color:rgba(192,57,43,.2);}
@@ -284,6 +287,7 @@ button:active{transform:scale(.98);}
 @media(max-width:768px){
   .contenedor{margin:0;border-radius:0;min-height:100vh;padding:14px;padding-bottom:16px;}
   .menu-derecha{display:block!important;}
+  #sidebarTrigger{display:none!important;}
   .barra-superior{top:0;border-radius:0 0 16px 16px;margin:-14px -14px 16px;}
   body{font-size:16px;}
   h2{font-size:22px;}h3{font-size:18px;}
@@ -297,6 +301,10 @@ button:active{transform:scale(.98);}
   .contenedor{padding:10px;padding-bottom:14px;}
   .marca h1{font-size:24px;}
   .marca p{display:none;}
+}
+@media(min-width:769px){
+  #sidebarTrigger{display:block;}
+  .boton-menu{display:none;}
 }
 
 /* ADMIN PANEL MODERNO */
@@ -645,9 +653,10 @@ body.oscuro .stat-box { opacity:.9; }
   </div>
   <div id="menuDerecha" class="menu-derecha">
     <button class="boton-menu" onclick="toggleMenu()">☰</button>
-    <div id="contenidoMenu" class="contenido-menu"></div>
   </div>
 </div>
+<div id="sidebarTrigger" title="Abrir menú"></div>
+<div id="contenidoMenu" class="contenido-menu"></div>
 
 <!-- NAV INFERIOR MÓVIL -->
 <div class="nav-inferior" id="navInferior"></div>
@@ -773,52 +782,23 @@ body.oscuro .stat-box { opacity:.9; }
   <!-- LIQUIDACIÓN -->
   <div id="paginaLiquidacion" class="pagina oculto">
     <div class="seccion">
-      <h2>Liquidación manual</h2>
-      <div class="alerta" style="margin-bottom:12px;">💡 También puede <button class="btn-verde btn-sm" onclick="mostrarPagina('paginaPlanillas')" style="display:inline;width:auto;padding:5px 10px;margin-left:6px;">liquidar desde planilla</button></div>
-      <label>Tipo de turno:</label>
-      <select id="tipoTurno" onchange="mostrarTrabajadores()">
-        <option value="">Seleccione</option>
-        <option value="1">1 trabajador</option>
-        <option value="2">2 trabajadores</option>
-        <option value="3">3 trabajadores</option>
-        <option value="4">4 trabajadores</option>
-      </select>
-      <div id="zonaTrab1" class="oculto"><label>Trabajador 1:</label><select id="selTrab1"></select></div>
-      <div id="zonaTrab2" class="oculto"><label>Trabajador 2:</label><select id="selTrab2"></select></div>
-      <div id="zonaTrab3" class="oculto"><label>Trabajador 3:</label><select id="selTrab3"></select></div>
-      <div id="zonaTrab4" class="oculto"><label>Trabajador 4:</label><select id="selTrab4"></select></div>
-    </div>
-    <div class="seccion">
-      <h2>🛢️ Grasa</h2>
-      <div class="config-grid">
-        <div><label>Grasa antes (g):</label><input type="number" id="grasaAntes"></div>
-        <div><label>Grasa que quedó (g):</label><input type="number" id="grasaQuedo"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <button class="btn-gris btn-sm" onclick="mostrarPagina('paginaPlanillas')" style="margin:0;">← Planillas</button>
+        <h2 style="margin:0;">⚡ Resultado de liquidación</h2>
       </div>
-    </div>
-    <div class="seccion">
-      <h2>Engrases mixtos</h2>
-      <div class="fila">
-        <div><label>Valor (ej: 45 = $45.000):</label><input type="number" id="valMixto" onkeydown="if(event.key==='Enter'){agregarMixto();}"></div>
-        <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarMixto()">Agregar</button></div>
-      </div>
-      <div id="listaMixtos"></div>
-    </div>
-    <div class="seccion">
-      <h2>Engrases azules</h2>
-      <div class="fila">
-        <div><label>Valor (ej: 40 = $40.000):</label><input type="number" id="valAzul" onkeydown="if(event.key==='Enter'){agregarAzul();}"></div>
-        <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarAzul()">Agregar</button></div>
-      </div>
-      <div id="listaAzules"></div>
-    </div>
-    <div class="seccion">
-      <button onclick="calcular()">⚡ Calcular</button>
-      <button class="btn-gris" onclick="reiniciarCalculo()">🔄 Reiniciar</button>
-    </div>
-    <div class="seccion">
-      <h2>Resultado</h2>
       <div id="resultado"></div>
-      <button id="btnGuardarLiq" class="btn-verde oculto" onclick="guardarLiquidacion()">💾 Guardar liquidación</button>
+      <button id="btnGuardarLiq" class="btn-verde oculto" onclick="guardarLiquidacion()" style="margin-top:14px;">💾 Guardar liquidación</button>
+      <!-- Elementos ocultos requeridos por lógica existente -->
+      <select id="tipoTurno" style="display:none"></select>
+      <select id="selTrab1" style="display:none"></select>
+      <select id="selTrab2" style="display:none"></select>
+      <select id="selTrab3" style="display:none"></select>
+      <select id="selTrab4" style="display:none"></select>
+      <input id="grasaAntes" style="display:none"><input id="grasaQuedo" style="display:none">
+      <div id="zonaTrab1" style="display:none"></div><div id="zonaTrab2" style="display:none"></div>
+      <div id="zonaTrab3" style="display:none"></div><div id="zonaTrab4" style="display:none"></div>
+      <div id="listaMixtos" style="display:none"></div>
+      <div id="listaAzules" style="display:none"></div>
     </div>
   </div>
 
@@ -1647,7 +1627,7 @@ function entrarSistema() {
 
   const tarjetas = [
     {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
-    {id:"paginaLiquidacion",  icono:"🧾", titulo:"Liquidación",      desc:"Calcula grasa, mixtos, azules y pagos."},
+
     {id:"paginaPagos",        icono:"💵", titulo:"Pagos",            desc:"Pagos por día, quincena o mes completo."},
     {id:"paginaCierreMes",    icono:"📊", titulo:"Historial de pagos",    desc:"Consulta el historial de pagos del mes."},
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
@@ -1679,7 +1659,7 @@ function entrarSistema() {
   const navItems = [
     {icono:"🏠",label:"Inicio",   pagina:"paginaInicio"},
     {icono:"📋",label:"Planillas",pagina:"paginaPlanillas"},
-    {icono:"🧾",label:"Liquidar", pagina:"paginaLiquidacion"},
+
     {icono:"💵",label:"Pagos",    pagina:"paginaPagos"},
     {icono:"☰", label:"Menú",    accion:"menu"},
   ];
@@ -1747,7 +1727,7 @@ function cerrarSesion() {
 
 function toggleMenu() {
   const m=document.getElementById("contenidoMenu");
-  m.style.display=m.style.display==="block"?"none":"block";
+  m.classList.toggle("sidebar-abierto");
 }
 // Variable para evitar loop en popstate
 let _navegandoAtras = false;
@@ -1757,7 +1737,7 @@ function mostrarPagina(id, sinHistorial=false) {
   if (!negocio) { mostrarLogin(); return; }
   document.querySelectorAll(".pagina").forEach(p=>p.classList.add("oculto"));
   const el=document.getElementById(id); if(el) el.classList.remove("oculto");
-  document.getElementById("contenidoMenu").style.display="none";
+  document.getElementById("contenidoMenu").classList.remove("sidebar-abierto");
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
   if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
   if (id==="paginaHistorial") sincronizarMeses();
@@ -3326,12 +3306,23 @@ if (false && 'serviceWorker' in navigator) {  // PWA desactivado temporalmente
 
 // ── Cerrar menú al hacer clic afuera ──
 document.addEventListener("click", function(e) {
-  const md = document.getElementById("menuDerecha");
   const cm = document.getElementById("contenidoMenu");
-  if (cm && cm.style.display === "block" && md && !md.contains(e.target)) {
-    cm.style.display = "none";
+  const trig = document.getElementById("sidebarTrigger");
+  if (cm && cm.classList.contains("sidebar-abierto") && !cm.contains(e.target) && (!trig || !trig.contains(e.target))) {
+    cm.classList.remove("sidebar-abierto");
   }
 }, true);
+
+// ── Hover sidebar izquierdo ──
+let _sidebarTimer = null;
+function _abrirSidebar(){ clearTimeout(_sidebarTimer); const cm=document.getElementById("contenidoMenu"); if(cm) cm.classList.add("sidebar-abierto"); }
+function _cerrarSidebarDelay(){ _sidebarTimer=setTimeout(()=>{ const cm=document.getElementById("contenidoMenu"); if(cm) cm.classList.remove("sidebar-abierto"); },220); }
+(function(){
+  const trig=document.getElementById("sidebarTrigger");
+  const cm=document.getElementById("contenidoMenu");
+  if(trig){ trig.addEventListener("mouseenter",_abrirSidebar); trig.addEventListener("mouseleave",_cerrarSidebarDelay); }
+  if(cm){ cm.addEventListener("mouseenter",_abrirSidebar); cm.addEventListener("mouseleave",_cerrarSidebarDelay); }
+})();
 
 // ── Teclado en modal de confirmación ──
 document.addEventListener("keydown", function(e) {
