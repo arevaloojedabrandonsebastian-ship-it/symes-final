@@ -1370,6 +1370,7 @@ function confirmar(titulo, msg, cb) {
   document.getElementById("modalConfirmMsg").innerText    = msg;
   document.getElementById("modalConfirmOk").onclick = () => { cerrarModal("modalConfirm"); cb(); };
   document.getElementById("modalConfirm").classList.add("abierto");
+  setTimeout(()=>{ document.getElementById("modalConfirmOk").focus(); }, 60);
 }
 function cerrarModal(id) { document.getElementById(id).classList.remove("abierto"); }
 
@@ -1821,6 +1822,7 @@ async function cargarLiquidaciones() {
 function limpiarPagosLocales() {
   negocio.trabajadores?.forEach(t=>{t.pagos={};t.adelantos={};});
   negocio.historial=[];
+  negocio.planillas=[];
 }
 function procesarEvento(ev) {
   try {
@@ -2192,7 +2194,8 @@ function eliminarPlanilla(id){
   confirmar("Eliminar planilla","¿Eliminar esta planilla?",async()=>{
     negocio.planillas=negocio.planillas.filter(p=>p.id!==id);
     cerrarPestania(id,null); guardar(); mostrarListaPlanillas(); toast("Planilla eliminada","ok");
-    await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
+    const r=await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
+    if(!r||!r.ok) toast("⚠️ Sin conexión: la eliminación no se guardó en la nube. Vuelve a intentarlo con conexión.","error");
   });
 }
 
@@ -3141,6 +3144,35 @@ if (false && 'serviceWorker' in navigator) {  // PWA desactivado temporalmente
       .catch(function(err) { console.warn('[SW] Error al registrar:', err); });
   });
 }
+
+// ── Cerrar menú al hacer clic afuera ──
+document.addEventListener("click", function(e) {
+  const md = document.getElementById("menuDerecha");
+  const cm = document.getElementById("contenidoMenu");
+  if (cm && cm.style.display === "block" && md && !md.contains(e.target)) {
+    cm.style.display = "none";
+  }
+}, true);
+
+// ── Teclado en modal de confirmación ──
+document.addEventListener("keydown", function(e) {
+  const modal = document.getElementById("modalConfirm");
+  if (!modal || !modal.classList.contains("abierto")) return;
+  const btns = Array.from(modal.querySelectorAll(".modal-acciones button"));
+  if (!btns.length) return;
+  const idx = btns.indexOf(document.activeElement);
+  if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+    e.preventDefault();
+    btns[(idx + 1) % btns.length].focus();
+  } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+    e.preventDefault();
+    btns[((idx - 1) + btns.length) % btns.length].focus();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    cerrarModal("modalConfirm");
+  }
+  // Enter funciona nativamente sobre el botón enfocado
+});
 
 </script>
 </body>
