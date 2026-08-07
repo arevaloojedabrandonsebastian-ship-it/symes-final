@@ -1,12 +1,12 @@
 
- ⛅️ wrangler 4.119.0
-────────────────────
-Uploading... (5/9)
+ ⛅️ wrangler 4.119.0 (update available 4.120.0)
+───────────────────────────────────────────────
 Uploading... (6/9)
 Uploading... (7/9)
+Uploading... (8/9)
 Uploading... (9/9)
-✨ Success! Uploaded 4 files (5 already uploaded) (2.42 sec)
+✨ Success! Uploaded 3 files (6 already uploaded) (1.92 sec)
 
 ✨ Uploading _headers
 🌎 Deploying...
-✨ Deployment complete! Take a peek over at https://9b416ad4.symes-final.pages.dev
+✨ Deployment complete! Take a peek over at https://92906e40.symes-final.pages.dev

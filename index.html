@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260807_150000 -->
+<meta charset="UTF-8"><!-- SYMES v20260807_163000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -204,11 +204,11 @@ button:active{transform:scale(.98);}
 .pago-card-header{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
 .pago-card-avatar{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--azul),var(--verde));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;}
 .pago-card-nombre{font-size:15px;font-weight:700;color:var(--azul);text-transform:capitalize;}
-.pago-card-body{display:block;}.pago-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}.pago-total{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;background:linear-gradient(135deg,rgba(31,60,136,.07),rgba(31,138,76,.07));border-radius:14px;border:1.5px solid rgba(31,60,136,.13);}
+.pago-card-body{display:block;}.pago-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}.pago-total{display:inline-flex;align-items:center;gap:10px;padding:7px 14px;background:linear-gradient(135deg,rgba(31,60,136,.07),rgba(31,138,76,.07));border-radius:12px;border:1.5px solid rgba(31,60,136,.13);margin-left:auto;}
 .pago-stat{background:#f8faff;border-radius:11px;padding:8px 10px;text-align:center;}
 .pago-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .pago-stat strong{font-size:14px;font-weight:700;color:#243044;}
-.pago-total span{font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;font-weight:600;}.pago-total strong{font-size:21px;font-weight:800;color:var(--verde);}
+.pago-total span{font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;font-weight:600;}.pago-total strong{font-size:15px;font-weight:800;color:var(--verde);}
 .pagos-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:18px;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;margin-top:16px;box-shadow:0 6px 20px rgba(31,60,136,.2);}
 .pagos-total-bar span{font-size:13px;opacity:.88;}
 .pagos-total-bar strong{font-size:22px;font-weight:800;}
@@ -1822,7 +1822,7 @@ function cambiarMesHistorial(){ const m=document.getElementById("mesHistorial").
 // ══ NUBE CARGA ══
 async function cargarTrabajadores() {
   if (!negocio?.id) return;
-  const r=await nubeGet(`trabajadores?usuario_id=${negocio.id}`);
+  const r=await nubeGet(`trabajadores?usuario_id=${negocio.id}&_=${Date.now()}`);
   if(!r.ok){toast("No se pudieron cargar engrasadores","error");return;}
   const loc=negocio.trabajadores||[];
   negocio.trabajadores=r.data.map(t=>{
@@ -1838,7 +1838,7 @@ async function cargarTrabajadores() {
 }
 async function cargarLiquidaciones() {
   if(!negocio?.id) return;
-  const r=await nubeGet(`liquidaciones?usuario_id=${negocio.id}`);
+  const r=await nubeGet(`liquidaciones?usuario_id=${negocio.id}&_=${Date.now()}`);
   if(!r.ok){toast("No se pudieron cargar liquidaciones","error");return;}
   limpiarPagosLocales();
   const planillasEliminadas=new Set();
@@ -1948,10 +1948,14 @@ async function agregarTrabajador() {
   }
   const r=await nubePost("trabajadores",{usuario_id:negocio.id,nombre,porcentaje:50});
   if(!r.ok){toast(r.data?.error||"No se pudo guardar","error");return;}
+  // Si este nombre estaba en la lista de eliminados, quitarlo para que no sea re-eliminado por _sincronizarEliminaciones
+  if(negocio.trabajadoresEliminados){
+    negocio.trabajadoresEliminados=negocio.trabajadoresEliminados.filter(n=>n.toLowerCase()!==nombreNorm);
+  }
   negocio.trabajadores.push({nombre,pagos:{},adelantos:{}});
   agregarMemoria("nombres_engrasadores", nombre);
   document.getElementById("nombreTrabajador").value="";
-  guardar(); actualizarTodo(); toast("Engrasador guardado ","ok");
+  guardar(); actualizarTodo(); toast("Engrasador guardado ✅","ok");
 }
 function actualizarEngrasadores() {
   const mes=getMes();
@@ -2713,7 +2717,8 @@ function mostrarPanelPagos(){
   let totalGeneral = 0;
   const cards = negocio.trabajadores.map((t,idx)=>{
     const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes);
-    const seguridad=periodoPagoActual==='q1'?Number(negocio.configuracion?.seguridadQ1||0):periodoPagoActual==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
+    const _hoyDia=new Date().getDate();
+    const seguridad=_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0);
     const neto=ganado-adelantos-seguridad;
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
@@ -2729,9 +2734,11 @@ function mostrarPanelPagos(){
           <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
           ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
         </div>
-        <div class="pago-total">
-          <span>A pagar</span>
-          <strong>$${fmtMiles(neto)}</strong>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <div class="pago-total">
+            <span>A pagar</span>
+            <strong>$${fmtMiles(neto)}</strong>
+          </div>
         </div>
       </div>
       <div style="margin-top:10px;">

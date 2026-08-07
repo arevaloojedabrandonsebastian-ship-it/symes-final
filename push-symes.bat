@@ -11,26 +11,28 @@ if exist .git\HEAD.lock (
   echo Lock HEAD eliminado >> push-log.txt
 )
 
-echo [1/4] Agregando archivos... >> push-log.txt
+echo [1/5] Agregando archivos... >> push-log.txt
 git add -A >> push-log.txt 2>&1
 
-echo [2/4] Commit... >> push-log.txt
+echo [2/5] Commit... >> push-log.txt
 git commit -m "chore: update symes" >> push-log.txt 2>&1
 
-echo [3/4] Push a GitHub... >> push-log.txt
+echo [3/5] Push a GitHub... >> push-log.txt
 git push origin main >> push-log.txt 2>&1
 
-echo [4/4] Deploy a Cloudflare Pages... >> push-log.txt
-npx wrangler pages deploy . --project-name=symes-final --branch=main --commit-dirty=true > deploy-out.txt 2>&1
-type deploy-out.txt >> push-log.txt
+echo [4/5] Deploy a Cloudflare Pages... >> push-log.txt
+npx wrangler pages deploy . --project-name=symes-final --branch=main --commit-dirty=true >> push-log.txt 2>&1
 
-echo [5/5] Promoviendo a produccion... >> push-log.txt
+echo [5/5] Obteniendo deployments y promoviendo a produccion... >> push-log.txt
+npx wrangler pages deployment list --project-name=symes-final > deploy-list.txt 2>&1
+type deploy-list.txt >> push-log.txt
+
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$out = Get-Content 'deploy-out.txt' -Raw; " ^
-  "$m = [regex]::Match($out, 'https://([a-f0-9]+)\.symes-final\.pages\.dev'); " ^
-  "if (-not $m.Success) { Write-Host 'ERROR: no se encontro deployment ID'; exit 1 } " ^
-  "$depId = $m.Groups[1].Value; " ^
-  "Write-Host \"Deployment ID: $depId\"; " ^
+  "$list = Get-Content 'deploy-list.txt' -Raw; " ^
+  "$uuidMatch = [regex]::Match($list, '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'); " ^
+  "if (-not $uuidMatch.Success) { Write-Host 'ERROR: no se encontro UUID de deployment'; exit 1 } " ^
+  "$depId = $uuidMatch.Value; " ^
+  "Write-Host \"Deployment UUID: $depId\"; " ^
   "$cfgPath = \"$env:USERPROFILE\.wrangler\config\default.toml\"; " ^
   "if (-not (Test-Path $cfgPath)) { $cfgPath = \"$env:APPDATA\wrangler\config\default.toml\" }; " ^
   "$cfg = Get-Content $cfgPath -Raw -ErrorAction SilentlyContinue; " ^
@@ -42,10 +44,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$url = \"https://api.cloudflare.com/client/v4/accounts/$acct/pages/projects/$proj/deployments/$depId/rollback\"; " ^
   "$h = @{ Authorization = \"Bearer $token\"; 'Content-Type' = 'application/json' }; " ^
   "$r = Invoke-RestMethod -Uri $url -Method POST -Headers $h -Body '{}' -ErrorAction SilentlyContinue; " ^
-  "if ($r.success) { Write-Host 'PRODUCCION ACTUALIZADA exitosamente' } else { Write-Host 'Respuesta: ' + ($r | ConvertTo-Json) }" ^
+  "if ($r.success) { Write-Host 'PRODUCCION ACTUALIZADA exitosamente' } else { Write-Host 'Respuesta CF: ' + ($r | ConvertTo-Json -Depth 3) }" ^
   >> push-log.txt 2>&1
 
 echo === FIN === >> push-log.txt
-del deploy-out.txt 2>nul
+if exist deploy-list.txt del deploy-list.txt 2>nul
 type push-log.txt
 pause
