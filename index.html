@@ -763,7 +763,10 @@ body.oscuro .stat-box { opacity:.9; }
     </div>
     <div id="contenidoPlanillaActiva"></div>
     <div class="seccion" id="seccionListaPlanillas">
-      <h2 style="font-size:16px;margin-bottom:10px;">Planillas guardadas</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <h2 style="font-size:16px;margin:0;">Planillas guardadas</h2>
+        <div id="filtrosPlanillas" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"></div>
+      </div>
       <div id="listaPlanillas"></div></div></div>
   </div>
 
@@ -841,6 +844,11 @@ body.oscuro .stat-box { opacity:.9; }
           <input type="month" id="mesCierre" onchange="cambiarMesCierre()" style="width:auto;">
         </div>
       </div>
+      <div class="periodo-tabs" id="tabsQuinCierre" style="margin-bottom:12px;">
+        <button class="periodo-tab activo" onclick="setQuinCierre('mes',this)">📅 Mes completo</button>
+        <button class="periodo-tab" onclick="setQuinCierre('q1',this)">1ª Quincena</button>
+        <button class="periodo-tab" onclick="setQuinCierre('q2',this)">2ª Quincena</button>
+      </div>
       <div id="resumenCierre"></div>
       <div class="cierre-acciones" style="margin-top:16px;">
         <button onclick="imprimirResumen()">🖨️ Imprimir</button>
@@ -882,10 +890,16 @@ body.oscuro .stat-box { opacity:.9; }
   <!-- HISTORIAL -->
   <div id="paginaHistorial" class="pagina oculto">
     <div class="seccion">
-      <h2>Historial</h2>
-      <label>Mes:</label>
-      <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()">
-      <button class="btn-rojo btn-sm" style="margin-top:10px;" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <h2 style="margin:0;">📂 Historial</h2>
+        <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()" style="width:auto;">
+      </div>
+      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:12px;">
+        <button class="periodo-tab activo" onclick="setQuinHistorial('mes',this)">📅 Mes completo</button>
+        <button class="periodo-tab" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
+        <button class="periodo-tab" onclick="setQuinHistorial('q2',this)">2ª Quincena</button>
+      </div>
+      <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
       <div id="historialContenido" style="margin-top:14px;"></div>
     </div>
   </div>
@@ -2213,10 +2227,41 @@ function eliminarPlanilla(id){
 }
 
 // LISTA DE PLANILLAS GUARDADAS
+let _filtroEngrasadorPlanilla = "";
+let _filtroEstadoPlanilla = "";
+
 function mostrarListaPlanillas(){
   const lista=document.getElementById("listaPlanillas"); if(!lista) return;
-  const planillas=negocio?.planillas||[];
-  if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas guardadas.</p>";return;}
+  const todasPlanillas=negocio?.planillas||[];
+
+  // ── Construir opciones de filtro ──
+  const todosEngrs=[...new Set(todasPlanillas.flatMap(p=>[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].filter(Boolean)))];
+  const filDiv=document.getElementById("filtrosPlanillas");
+  if(filDiv){
+    const hayLiquidadas=todasPlanillas.some(p=>p.liquidada);
+    filDiv.innerHTML=`
+      <select id="selFiltroEngr" onchange="_filtroEngrasadorPlanilla=this.value;mostrarListaPlanillas()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
+        <option value="">👷 Todos</option>
+        ${todosEngrs.map(e=>`<option value="${e}" ${_filtroEngrasadorPlanilla===e?'selected':''}>${cap(sanitizarTexto(e))}</option>`).join("")}
+      </select>
+      <select id="selFiltroEstado" onchange="_filtroEstadoPlanilla=this.value;mostrarListaPlanillas()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
+        <option value="">📋 Todas</option>
+        <option value="pendiente" ${_filtroEstadoPlanilla==='pendiente'?'selected':''}>⏳ Pendientes</option>
+        <option value="liquidada" ${_filtroEstadoPlanilla==='liquidada'?'selected':''}>✅ Liquidadas</option>
+      </select>
+      ${hayLiquidadas?`<button class="btn-sm" onclick="archivarLiquidadas()" style="margin:0;white-space:nowrap;background:#1f3c88;">📄 Archivar liquidadas</button>`:''}
+    `;
+  }
+
+  // ── Aplicar filtros ──
+  let planillas=todasPlanillas;
+  if(_filtroEngrasadorPlanilla){
+    planillas=planillas.filter(p=>[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].includes(_filtroEngrasadorPlanilla));
+  }
+  if(_filtroEstadoPlanilla==='pendiente') planillas=planillas.filter(p=>!p.liquidada);
+  if(_filtroEstadoPlanilla==='liquidada') planillas=planillas.filter(p=>p.liquidada);
+
+  if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas para mostrar.</p>";return;}
   lista.innerHTML=planillas.map(p=>{
     const total=(p.vehiculos||[]).reduce((s,v)=>s+Number(v.valor||0),0);
     const nVeh=(p.vehiculos||[]).length;
@@ -2230,7 +2275,7 @@ function mostrarListaPlanillas(){
           <div class="planilla-meta">
             <span>${fechaSafe}</span><span>${engrsSafe}</span>
             <span>🚗 ${nVeh} servicio(s)</span>
-            <span style="font-weight:700;color:var(--verde);">$${total.toLocaleString()}</span>
+            <span style="font-weight:700;color:var(--verde);">$${fmtMiles(total)}</span>
           </div>
         </div>
       </div>
@@ -2242,6 +2287,58 @@ function mostrarListaPlanillas(){
       </div>
     </div>`;
   }).join("");
+}
+
+function archivarLiquidadas(){
+  const liquidadas=(negocio?.planillas||[]).filter(p=>p.liquidada);
+  if(!liquidadas.length){toast("No hay planillas liquidadas para archivar","info");return;}
+  const totalGen=liquidadas.reduce((s,pl)=>s+(pl.vehiculos||[]).reduce((ss,v)=>ss+Number(v.valor||0),0),0);
+  const filas=liquidadas.map(pl=>{
+    const veh=pl.vehiculos||[];
+    const tot=veh.reduce((s,v)=>s+Number(v.valor||0),0);
+    const engrs=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(Boolean).join(" & ")||"—";
+    return `<tr><td>${pl.fecha}</td><td>${pl.nombre||pl.fecha}</td><td>${engrs}</td><td>${veh.length}</td><td>$${tot.toLocaleString()}</td></tr>`;
+  }).join("");
+  const ven=window.open("","_blank");
+  ven.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Archivo liquidadas SYMES</title>
+<style>
+body{font-family:Arial,sans-serif;color:#243044;margin:20px;}
+.hdr{background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:18px;}
+.hdr h1{margin:0 0 3px;font-size:24px;}.hdr p{margin:0;opacity:.88;font-size:13px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#1f3c88;color:#fff;padding:8px;text-align:left;}
+td{padding:7px 8px;border-bottom:1px solid #e2e8f0;}
+tr:nth-child(even) td{background:#f8faff;}
+.total{margin-top:16px;background:linear-gradient(135deg,#1f3c88,#1f8a4c);color:#fff;padding:12px 16px;border-radius:12px;font-weight:700;font-size:16px;display:flex;justify-content:space-between;}
+.aviso{background:#fff7df;border:1.5px solid #f59e0b;border-radius:12px;padding:14px;margin:16px 0;color:#78350f;font-size:13px;}
+.btn-arch{background:#1f3c88;color:#fff;border:none;padding:12px 24px;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;margin-right:10px;}
+.btn-arch:hover{background:#162d6b;}
+.cred{margin-top:28px;text-align:center;font-size:11px;color:#64748b;border-top:1px solid #dce3f0;padding-top:10px;}
+@media print{.no-print{display:none;}}
+</style></head><body>
+<div class="hdr"><h1>SYMES</h1><p>Archivo de planillas liquidadas — ${negocio.nombreNegocio}</p></div>
+<p><strong>Fecha:</strong> ${new Date().toLocaleString()} &nbsp; <strong>Planillas:</strong> ${liquidadas.length}</p>
+<div class="aviso no-print">⚠️ Imprime o guarda este archivo antes de archivar. Una vez que hagas clic en <strong>"Archivar y eliminar"</strong>, estas planillas se borrarán de la app.</div>
+<div class="no-print" style="margin-bottom:16px;">
+  <button class="btn-arch" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  <button class="btn-arch" style="background:#15803d;" onclick="if(window.opener&&!window.opener.closed){window.opener._confirmarArchivoLiquidadas();window.close();}else{alert('Cierra esta ventana y abre el archivo desde la app.');}">✅ Archivar y eliminar de la app</button>
+</div>
+<table><thead><tr><th>Fecha</th><th>Planilla</th><th>Engrasador(es)</th><th>Servicios</th><th>Total</th></tr></thead>
+<tbody>${filas}</tbody></table>
+<div class="total"><span>Total acumulado:</span><span>$${totalGen.toLocaleString()}</span></div>
+<div class="cred">SYMES — Brandon Sebastian Arevalo Ojeda</div>
+</body></html>`);
+  ven.document.close();
+}
+function _confirmarArchivoLiquidadas(){
+  const liquidadas=(negocio?.planillas||[]).filter(p=>p.liquidada);
+  const ids=liquidadas.map(p=>p.id);
+  negocio.planillas=(negocio.planillas||[]).filter(p=>!p.liquidada);
+  if(!negocio.planillasEliminadas) negocio.planillasEliminadas=[];
+  ids.forEach(id=>{if(!negocio.planillasEliminadas.includes(id))negocio.planillasEliminadas.push(id);});
+  guardar(); mostrarListaPlanillas();
+  toast("Planillas archivadas y eliminadas","ok");
+  ids.forEach(id=>guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id}));
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2599,6 +2696,58 @@ async function pagarTrabajador(idx){
 }
 function pagarTodos(){ reiniciarPagosMes(); }
 
+// ══ QUINCENA HELPERS ══
+let _quinHistorial = 'mes';
+let _quinCierre    = 'mes';
+
+function setQuinHistorial(q, btn){
+  _quinHistorial=q;
+  document.querySelectorAll('#tabsQuinHistorial .periodo-tab').forEach(b=>b.classList.remove('activo'));
+  if(btn) btn.classList.add('activo');
+  mostrarHistorial();
+}
+function setQuinCierre(q, btn){
+  _quinCierre=q;
+  document.querySelectorAll('#tabsQuinCierre .periodo-tab').forEach(b=>b.classList.remove('activo'));
+  if(btn) btn.classList.add('activo');
+  mostrarCierreMes();
+}
+function _getDia(fecha){
+  if(!fecha) return 0;
+  const m=fecha.match(/^(\d{1,2})[\/-]/);
+  if(m) return parseInt(m[1]);
+  const d=new Date(fecha); if(!isNaN(d)) return d.getDate();
+  return 0;
+}
+function _enQuincena(fecha, q){
+  if(q==='mes') return true;
+  const dia=_getDia(fecha);
+  if(q==='q1') return dia>=1&&dia<=15;
+  if(q==='q2') return dia>=16;
+  return true;
+}
+function calcularResumenQuincena(mes, q){
+  if(q==='mes') return calcularResumenMes(mes);
+  let tG=0,tA=0,tP=0;
+  const trabajadores=negocio.trabajadores.map(t=>{
+    const ganado=(negocio.historial||[])
+      .filter(c=>c.mes===mes&&_enQuincena(c.fecha,q))
+      .reduce((s,c)=>{
+        [[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],
+         [c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]]
+        .forEach(([n,p])=>{ if(n&&n.toLowerCase()===t.nombre.toLowerCase()) s+=Number(p||0); });
+        return s;
+      },0);
+    const adelantos=(t.adelantos?.[mes]||[])
+      .filter(a=>_enQuincena(a.fecha,q))
+      .reduce((s,a)=>s+Number(a.valor||0),0);
+    const neto=ganado-adelantos;
+    tG+=ganado;tA+=adelantos;tP+=neto;
+    return{nombre:t.nombre,ganado,adelantos,totalPagar:neto};
+  });
+  return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
+}
+
 // ══ CIERRE ══
 function getEstadoCierre(mes){ return negocio.cierresMes?.[mes]||"Pendiente"; }
 function calcularResumenMes(mes){
@@ -2610,7 +2759,7 @@ function mostrarCierreMes(){
   const el=document.getElementById("resumenCierre"); if(!el) return;
   sincronizarMeses();
   const mes=document.getElementById("mesCierre")?.value||mesActual();
-  const estado=getEstadoCierre(mes), resumen=calcularResumenMes(mes);
+  const estado=getEstadoCierre(mes), resumen=calcularResumenQuincena(mes,_quinCierre);
   const esPagado = estado==="Pagado";
   const badgeClass = esPagado ? "pagado" : "pendiente";
   const badgeIcon = esPagado ? "✅" : "⏳";
@@ -2659,7 +2808,9 @@ function mostrarHistorial(){
   const mes=document.getElementById("mesHistorial")?.value||mesActual();
   el.innerHTML=""; let count=0;
   (negocio.historial||[]).forEach((c,i)=>{
-    if(c.mes!==mes) return; count++;
+    if(c.mes!==mes) return;
+    if(!_enQuincena(c.fecha,_quinHistorial)) return;
+    count++;
     const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${Number(p||0).toLocaleString()}`).join("<br>");
     const bp=c.planillaId?`<span style="background:#e8f1ff;padding:2px 8px;border-radius:12px;font-size:11px;color:var(--azul);font-weight:700;">Desde planilla</span>`:"";
     el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${c.totalFinal?.toLocaleString()}</p><p><strong>Pagos:</strong><br>${pagos}</p><button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div>`;
