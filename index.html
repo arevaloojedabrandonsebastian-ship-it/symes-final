@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260807_173000 -->
+<meta charset="UTF-8"><!-- SYMES v20260818_120000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -3072,7 +3072,7 @@ async function cargarSolicitudesAdmin() {
             ? `<span class="badge-admin-user">👑 Superadmin</span>`
             : `<span class="badge-activo">✓ Activo</span>
                <button class="btn-amarillo btn-sm" onclick="adminResetearPassword('${sanitizarTexto(s.negocio||"")}')">🔑 Resetear</button>
-               <button class="btn-rojo btn-sm" onclick="adminEliminarUsuario('${sanitizarTexto(s.id||"")}','${sanitizarTexto(s.negocio||"")}')">🗑️</button>`
+               <button class="btn-rojo btn-sm" data-uid="${String(s.id||"")}" data-neg="${sanitizarTexto(s.negocio||"")}" onclick="adminEliminarUsuario(this.dataset.uid,this.dataset.neg)">🗑️</button>`
           }
         </div>
       </div>`;
@@ -3368,24 +3368,28 @@ async function adminEliminarUsuario(id, negocioNom){
     async ()=>{
       toast("Eliminando cuenta...","info");
       try{
+        // Payload con id numérico correcto + negocio name
+        const payload={
+          admin_usuario: cuentaAct,
+          target_negocio: negocioNom
+        };
+        if(id) payload.target_id = id;
         const res=await fetch(`${API_URL}/admin/delete-account`,{
           method:'DELETE',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            admin_usuario: cuentaAct,
-            target_id: id,
-            target_negocio: negocioNom
-          })
+          body:JSON.stringify(payload)
         });
         const data=await res.json().catch(()=>({}));
         if(res.ok){
-          toast(`Cuenta "${negocioNom}" eliminada`,"ok");
+          toast(`Cuenta "${negocioNom}" eliminada ✅`,"ok");
           setTimeout(cargarSolicitudesAdmin,600);
         } else {
-          toast(data.error||"No se pudo eliminar la cuenta","error");
+          toast(data.error||"No se pudo eliminar","error");
+          console.error("adminEliminarUsuario error:",data);
         }
       }catch(e){
         toast("Error de conexión al eliminar","error");
+        console.error(e);
       }
     }
   );
