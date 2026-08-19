@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260818_120000 -->
+<meta charset="UTF-8"><!-- SYMES v20260819_100000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -599,6 +599,7 @@ body.oscuro .toggle-track {
 .user-name { font-weight:700;color:var(--texto);font-size:14px;margin-bottom:2px; }
 .user-detail { font-size:12px;color:var(--gris); }
 .badge-activo { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;border:1px solid #86efac; }
+.badge-inactivo { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5; }
 .badge-admin-user { display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#ffd700,#ffb300);color:#5a3a00;border:1px solid #ffc107; }
 
 /* ══ PERÍODO PAGOS ══ */
@@ -1591,6 +1592,11 @@ async function iniciarSesion() {
   if (!nombre||!pin) { toast("Completa todos los campos","error"); return; }
   const r = await nubePost("login",{usuario:nombre,password:pin});
   if (!r.ok) { toast(r.data?.error||"Usuario o PIN incorrecto","error"); return; }
+  // Bloqueo defensivo por si el backend marca la cuenta como desactivada
+  if (r.data?.activo===0 || r.data?.activo===false || r.data?.usuario?.activo===0) {
+    toast("Esta cuenta está desactivada. Contacta al administrador.","error");
+    return;
+  }
   normalizarCuenta(nombre, r.data.usuario, pin);
   cuentaAct = nombre; negocio = cuentas[nombre];
   if (recordar) {
@@ -3048,16 +3054,18 @@ async function cargarSolicitudesAdmin() {
   if (!el) return;
   el.innerHTML = "<p style='color:var(--gris);'>Cargando usuarios...</p>";
   try {
-    const res = await fetch(`${API_URL}/solicitudes`);
+    const res = await fetch(`${API_URL}/solicitudes?_=${Date.now()}`);
     const lista = await res.json();
     // Actualizar stats
     const statT = document.getElementById("statTotal");
     const statA = document.getElementById("statActivos");
+    const esInactivo = s => s && (s.activo===0 || s.activo===false || s.activo==="0");
     if (statT) statT.textContent = lista.length || 0;
-    if (statA) statA.textContent = lista.length || 0; // todos los registrados son activos
+    if (statA) statA.textContent = lista.filter(s=>!esInactivo(s)).length || 0;
     if (!lista.length) { el.innerHTML = "<p style='color:var(--gris);'>No hay usuarios registrados.</p>"; return; }
     el.innerHTML = lista.slice().reverse().map((s,i) => {
       const esAdminUser = (s.negocio||"").toLowerCase() === ADMIN_NAME;
+      const inactivo = esInactivo(s);
       return `<div class="user-card">
         <div class="user-info">
           <div class="user-name">🏪 ${sanitizarTexto(s.negocio||"—")}</div>
@@ -3070,7 +3078,8 @@ async function cargarSolicitudesAdmin() {
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           ${esAdminUser
             ? `<span class="badge-admin-user">👑 Superadmin</span>`
-            : `<span class="badge-activo">✓ Activo</span>
+            : `${inactivo?`<span class="badge-inactivo">⛔ Desactivado</span>`:`<span class="badge-activo">✓ Activo</span>`}
+               <button class="btn-outline btn-sm" data-uid="${String(s.id||"")}" data-neg="${sanitizarTexto(s.negocio||"")}" data-act="${inactivo?"1":"0"}" onclick="adminToggleEstado(this.dataset.uid,this.dataset.neg,this.dataset.act==='1')">${inactivo?"▶️ Activar":"⏸️ Desactivar"}</button>
                <button class="btn-amarillo btn-sm" onclick="adminResetearPassword('${sanitizarTexto(s.negocio||"")}')">🔑 Resetear</button>
                <button class="btn-rojo btn-sm" data-uid="${String(s.id||"")}" data-neg="${sanitizarTexto(s.negocio||"")}" onclick="adminEliminarUsuario(this.dataset.uid,this.dataset.neg)">🗑️</button>`
           }
@@ -3389,6 +3398,44 @@ async function adminEliminarUsuario(id, negocioNom){
         }
       }catch(e){
         toast("Error de conexión al eliminar","error");
+        console.error(e);
+      }
+    }
+  );
+}
+
+// ══ ADMIN: ACTIVAR / DESACTIVAR USUARIO (sin borrar datos) ═════════════════
+async function adminToggleEstado(id, negocioNom, activar){
+  if(!negocio?.esAdmin){ toast("Acceso denegado","error"); return; }
+  confirmar(
+    activar ? "Activar cuenta" : "Desactivar cuenta",
+    activar
+      ? `¿Reactivar la cuenta "${negocioNom}"? Podrá iniciar sesión de nuevo.`
+      : `¿Desactivar la cuenta "${negocioNom}"? No podrá iniciar sesión hasta que la reactives. Sus datos NO se eliminan.`,
+    async ()=>{
+      toast(activar?"Activando cuenta...":"Desactivando cuenta...","info");
+      try{
+        const payload={
+          admin_usuario: cuentaAct,
+          target_negocio: negocioNom,
+          activo: activar?1:0
+        };
+        if(id) payload.target_id = id;
+        const res=await fetch(`${API_URL}/admin/toggle-account`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(payload)
+        });
+        const data=await res.json().catch(()=>({}));
+        if(res.ok){
+          toast(`Cuenta "${negocioNom}" ${activar?"activada ✅":"desactivada ⛔"}`,"ok");
+          setTimeout(cargarSolicitudesAdmin,500);
+        } else {
+          toast(data.error||`No se pudo ${activar?"activar":"desactivar"} la cuenta`,"error");
+          console.error("adminToggleEstado error:",data);
+        }
+      }catch(e){
+        toast("Error de conexión","error");
         console.error(e);
       }
     }

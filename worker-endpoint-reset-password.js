@@ -121,3 +121,93 @@ async function handleAdminDeleteAccount(request, env) {
 //   await env.SYMES_KV.delete(`liquidaciones:${target_id}`);
 //   return respuesta 200 ok;
 // ─────────────────────────────────────────────────────────────────────
+
+
+// ══════════════════════════════════════════════════════════
+//  ACTIVAR / DESACTIVAR CUENTAS (sin borrar nada)
+//  Instrucciones paso a paso — 3 cambios en el Worker + 1 SQL
+// ══════════════════════════════════════════════════════════
+
+// ── PASO 1: Migración SQL (una sola vez, NO destructiva) ─────────────
+//   Ejecutar en la consola D1 de Cloudflare (Workers & Pages > D1 > tu base > Console):
+//
+//     ALTER TABLE usuarios ADD COLUMN activo INTEGER DEFAULT 1;
+//
+//   Esto agrega la columna con valor 1 (activo) a TODOS los usuarios existentes.
+//   No borra ni modifica ningún dato existente.
+
+
+// ── PASO 2: Nuevo endpoint POST /admin/toggle-account ────────────────
+//   Agregar al router:
+//
+//   if (path === "/admin/toggle-account" && method === "POST") {
+//     return handleAdminToggleAccount(request, env);
+//   }
+
+async function handleAdminToggleAccount(request, env) {
+  try {
+    const body = await request.json();
+    const { admin_usuario, target_id, target_negocio, activo } = body;
+
+    if (!admin_usuario || admin_usuario.toLowerCase() !== "brandon") {
+      return new Response(JSON.stringify({ error: "No autorizado" }), { status: 403, headers: CORS });
+    }
+    if ((target_negocio || "").toLowerCase() === "brandon") {
+      return new Response(JSON.stringify({ error: "No se puede desactivar al superadmin" }), { status: 400, headers: CORS });
+    }
+    if (!target_id && !target_negocio) {
+      return new Response(JSON.stringify({ error: "Falta target_id o target_negocio" }), { status: 400, headers: CORS });
+    }
+
+    const activoVal = activo ? 1 : 0;
+
+    if (target_id) {
+      await env.DB.prepare(`UPDATE usuarios SET activo = ?1 WHERE id = ?2`).bind(activoVal, target_id).run();
+    } else {
+      await env.DB.prepare(`UPDATE usuarios SET activo = ?1 WHERE negocio = ?2`).bind(activoVal, target_negocio).run();
+    }
+
+    return new Response(JSON.stringify({ ok: true, mensaje: `Cuenta "${target_negocio}" ${activoVal ? "activada" : "desactivada"}` }), {
+      status: 200, headers: CORS
+    });
+
+  } catch (err) {
+    return new Response(JSON.stringify({ ok: false, error: err.message }), { status: 500, headers: CORS });
+  }
+}
+
+
+// ── PASO 3: Bloquear login de cuentas desactivadas ────────────────────
+//   Dentro de tu handler existente de POST /login, justo DESPUÉS de
+//   verificar que el usuario y password son correctos (y ANTES de
+//   devolver la respuesta 200 con los datos del usuario), agregar:
+//
+//   if (usuarioEncontrado.activo === 0) {
+//     return new Response(JSON.stringify({ error: "Cuenta desactivada. Contacta al administrador." }), {
+//       status: 403, headers: CORS
+//     });
+//   }
+//
+//   (Ajusta el nombre de la variable "usuarioEncontrado" al que uses
+//   realmente en tu handler de login — es la fila que trae SELECT * FROM usuarios WHERE ...)
+
+
+// ── PASO 4: Mostrar el estado correcto en el panel Superadmin ─────────
+//   El handler de GET /solicitudes debe incluir el campo "activo" en
+//   cada objeto que devuelve. Si /solicitudes hace un SELECT directo
+//   de la tabla "usuarios" (o un JOIN con ella), basta con que el
+//   SELECT incluya la columna activo, por ejemplo:
+//
+//     SELECT id, negocio, propietario, telefono, fecha, activo FROM usuarios ...
+//
+//   Si "solicitudes" es una tabla aparte sin relación directa a
+//   "usuarios", habría que hacer JOIN por negocio, ej.:
+//
+//     SELECT s.*, u.activo FROM solicitudes s
+//     LEFT JOIN usuarios u ON u.negocio = s.negocio
+//
+//   Sin este paso, el panel Superadmin mostrará "Activo" para todos
+//   aunque estén desactivados en la base de datos (el botón seguirá
+//   funcionando para bloquear el login, solo el badge visual no se
+//   actualizará hasta hacer este cambio).
+// ─────────────────────────────────────────────────────────────────────
