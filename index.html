@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260819_100000 -->
+<meta charset="UTF-8"><!-- SYMES v20260819_150000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -1386,6 +1386,28 @@ function confirmar(titulo, msg, cb) {
   setTimeout(()=>{ document.getElementById("modalConfirmOk").focus(); }, 60);
 }
 function cerrarModal(id) { document.getElementById(id).classList.remove("abierto"); }
+
+// ══════════════════════════════════════════════════════════
+//  TOAST (notificaciones flotantes) — usa #toastContainer del HTML
+// ══════════════════════════════════════════════════════════
+function toast(msg, tipo, duracion) {
+  const cont = document.getElementById("toastContainer");
+  if (!cont) { console.warn("toast:", msg); return; }
+  tipo = tipo || "info";
+  const iconos = { ok:"✅", error:"❌", info:"ℹ️", aviso:"⚠️" };
+  const el = document.createElement("div");
+  el.className = "toast " + tipo;
+  const icono = document.createElement("span");
+  icono.textContent = iconos[tipo] || iconos.info;
+  const texto = document.createElement("span");
+  texto.textContent = String(msg == null ? "" : msg);
+  el.appendChild(icono);
+  el.appendChild(texto);
+  const vida = duracion || 3100;
+  if (duracion) el.style.animation = `toastIn .28s ease, toastOut .28s ease ${Math.max(0,(duracion-280))/1000}s forwards`;
+  cont.appendChild(el);
+  setTimeout(() => { el.remove(); }, vida);
+}
 
 // ══════════════════════════════════════════════════════════
 //  PERSISTENCIA
