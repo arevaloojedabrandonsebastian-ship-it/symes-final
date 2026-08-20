@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_093000 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_094500 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -2200,6 +2200,7 @@ function actualizarFechaPlanilla(id, isoValue){
   if(!nueva){ toast("Fecha inválida","error"); return; }
   pl.fecha=nueva;
   pl.mes=isoValue.slice(0,7); // yyyy-mm, mantiene el mes sincronizado con la nueva fecha
+  actualizarNombrePlanilla(id, null); // el título ("... — fecha") se regenera con la fecha nueva
   guardar();
   mostrarListaPlanillas();
   renderPlanillaActiva();
