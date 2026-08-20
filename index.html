@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260819_150000 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_090000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -2335,6 +2335,12 @@ function eliminarPlanilla(id){
 let _filtroEngrasadorPlanilla = "";
 let _filtroEstadoPlanilla = "";
 
+function _parseFechaPlanilla(f){
+  if(!f) return 0;
+  const m=String(f).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return 0;
+  return Number(m[3])*10000+Number(m[2])*100+Number(m[1]);
+}
 function mostrarListaPlanillas(){
   const lista=document.getElementById("listaPlanillas"); if(!lista) return;
   const todasPlanillas=negocio?.planillas||[];
@@ -2365,6 +2371,11 @@ function mostrarListaPlanillas(){
   }
   if(_filtroEstadoPlanilla==='pendiente') planillas=planillas.filter(p=>!p.liquidada);
   if(_filtroEstadoPlanilla==='liquidada') planillas=planillas.filter(p=>p.liquidada);
+
+  // Ordenar por fecha de la planilla (más reciente primero). Si dos tienen
+  // la misma fecha, se respeta el orden de creación (sort estable + las
+  // nuevas ya entran al inicio del arreglo con unshift en nuevaPlanilla()).
+  planillas=planillas.slice().sort((a,b)=>_parseFechaPlanilla(b.fecha)-_parseFechaPlanilla(a.fecha));
 
   if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas para mostrar.</p>";return;}
   lista.innerHTML=planillas.map(p=>{
