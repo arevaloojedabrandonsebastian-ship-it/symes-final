@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_100000 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_101500 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -2413,7 +2413,9 @@ function mostrarListaPlanillas(){
     const nVeh=(p.vehiculos||[]).length;
     const engrs=[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].filter(Boolean).join(" & ")||"Sin engrasadores";
     const liqBadge=p.liquidada?`<span class="badge-liquidada">LIQUIDADA</span>`:`<span class="badge-pendiente">⏳ Pendiente</span>`;
-    const nomSafe=sanitizarTexto(p.nombre||p.fecha), fechaSafe=sanitizarTexto(p.fecha), engrsSafe=sanitizarTexto(engrs);
+    // Quita cualquier fecha vieja pegada al nombre (planillas creadas antes de este cambio)
+    const nombreSinFecha=(p.nombre||p.fecha||"").replace(/\s*[—-]\s*\d{1,2}\/\d{1,2}\/\d{4}\s*$/,"");
+    const nomSafe=sanitizarTexto(nombreSinFecha||p.fecha), fechaSafe=sanitizarTexto(p.fecha), engrsSafe=sanitizarTexto(engrs);
     return `<div class="planilla-card ${p.liquidada?'liquidada':''}">
       <div class="planilla-card-header">
         <div>
