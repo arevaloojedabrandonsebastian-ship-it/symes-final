@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_094500 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_100000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -231,6 +231,7 @@ button:active{transform:scale(.98);}
 .planilla-card-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;}
 .planilla-nombre{font-size:15px;font-weight:700;color:var(--azul);}
 .planilla-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gris);margin-top:5px;}
+.planilla-fecha-grande{font-size:16px;font-weight:800;color:var(--azul);white-space:nowrap;}
 .planilla-acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
 
 /* PESTAÑAS */
@@ -454,6 +455,7 @@ body.oscuro .planilla-card:hover { border-color:#3b82f6; }
 body.oscuro .planilla-card.liquidada { background:linear-gradient(135deg,#14532d22,#166534aa); border-color:#16a34a; }
 body.oscuro .planilla-nombre { color:#60a5fa; }
 body.oscuro .planilla-meta { color:#6b7280; }
+body.oscuro .planilla-fecha-grande { color:#60a5fa; }
 body.oscuro .tab-planilla { background:#1f2937; border-color:#374151; color:#9ca3af; }
 body.oscuro .tab-planilla.activa { background:#1e3a8a; border-color:#3b82f6; color:#fff; }
 body.oscuro .planilla-wrap { border-color:#374151; }
@@ -2212,7 +2214,7 @@ function actualizarNombrePlanilla(id, nuevo) {
   else {
     const e1=pl.engrasador1||"", e2=pl.engrasador2||"", e3=pl.engrasador3||"", e4=pl.engrasador4||"";
     const partes=[e1,e2,e3,e4].filter(Boolean);
-    pl.nombre=(partes.length?partes.join(" & "):pl.fecha)+" — "+pl.fecha;
+    pl.nombre=partes.length?partes.join(" & "):("Planilla "+pl.fecha);
     const inp=document.getElementById(`planNombre_${id}`); if(inp) inp.value=pl.nombre;
   }
   const tab=pestaniasAbiertas.find(p=>p.id===id); if(tab) tab.nombre=pl.nombre;
@@ -2415,12 +2417,16 @@ function mostrarListaPlanillas(){
     return `<div class="planilla-card ${p.liquidada?'liquidada':''}">
       <div class="planilla-card-header">
         <div>
-          <div class="planilla-nombre">${nomSafe} ${liqBadge}</div>
+          <div class="planilla-nombre">${nomSafe}</div>
           <div class="planilla-meta">
-            <span>${fechaSafe}</span><span>${engrsSafe}</span>
+            <span>${engrsSafe}</span>
             <span>🚗 ${nVeh} servicio(s)</span>
             <span style="font-weight:700;color:var(--verde);">$${fmtMiles(total)}</span>
           </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span class="planilla-fecha-grande">📅 ${fechaSafe}</span>
+          ${liqBadge}
         </div>
       </div>
       <div class="planilla-acciones">
