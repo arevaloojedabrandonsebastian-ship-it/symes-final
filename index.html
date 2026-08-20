@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_090000 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_093000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -2117,7 +2117,13 @@ function renderPlanillaActiva() {
         oninput="actualizarNombrePlanilla('${pl.id}',this.value)"
         style="max-width:300px;font-weight:700;font-size:15px;">
       ${liqBadge}
-      <span style="color:var(--gris);font-size:12px;margin-left:auto;">Fecha: ${pl.fecha} — Mes: ${pl.mes}</span>
+      <span style="display:flex;align-items:center;gap:6px;margin-left:auto;font-size:12px;color:var(--gris);">
+        Fecha:
+        <input type="date" id="planFecha_${pl.id}" value="${_fechaDDMMYYYYaISO(pl.fecha)}"
+          onchange="actualizarFechaPlanilla('${pl.id}',this.value)"
+          style="width:auto;padding:4px 8px;font-size:12px;margin:0;">
+        — Mes: ${pl.mes}
+      </span>
     </div>
     ${liqBlockMsg}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:10px;">
@@ -2178,6 +2184,27 @@ function renderPlanillaActiva() {
   renderFilasPlanilla(pl.id);
 }
 
+function _fechaDDMMYYYYaISO(f){
+  const m=String(f||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return "";
+  return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+}
+function _fechaISOaDDMMYYYY(iso){
+  const m=String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return "";
+  return m[3]+"/"+m[2]+"/"+m[1];
+}
+function actualizarFechaPlanilla(id, isoValue){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const nueva=_fechaISOaDDMMYYYY(isoValue);
+  if(!nueva){ toast("Fecha inválida","error"); return; }
+  pl.fecha=nueva;
+  pl.mes=isoValue.slice(0,7); // yyyy-mm, mantiene el mes sincronizado con la nueva fecha
+  guardar();
+  mostrarListaPlanillas();
+  renderPlanillaActiva();
+  toast("Fecha de la planilla actualizada ✅","ok");
+}
 function actualizarNombrePlanilla(id, nuevo) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   if(nuevo!==null){ pl.nombre=nuevo; }
