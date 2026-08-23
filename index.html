@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_101500 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_114500 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -235,8 +235,9 @@ button:active{transform:scale(.98);}
 .planilla-acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
 
 /* PESTAÑAS */
-.tabs-planillas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
-.tab-planilla{padding:8px 16px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--borde);background:#f8faff;color:var(--gris);transition:.14s;display:flex;align-items:center;gap:6px;}
+.tabs-planillas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;}
+.tab-planilla{padding:8px 12px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid var(--borde);background:#f8faff;color:var(--gris);transition:.14s;display:flex;align-items:center;justify-content:space-between;gap:6px;overflow:hidden;}
+.tab-planilla-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tab-planilla.activa{border-color:var(--azul);background:var(--azul);color:#fff;}
 .cerrar-tab{font-size:16px;line-height:1;margin-left:4px;opacity:.7;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;}
 .cerrar-tab:hover{opacity:1;background:rgba(255,255,255,.3);}
@@ -299,11 +300,13 @@ button:active{transform:scale(.98);}
   .modal{padding:20px;}
   .tabla-excel{font-size:11px;}
   .tabla-excel td input,.tabla-excel td select{font-size:11px;padding:5px 5px;}
+  .tabs-planillas{grid-template-columns:repeat(2,1fr);}
 }
 @media(max-width:420px){
   .contenedor{padding:10px;padding-bottom:14px;}
   .marca h1{font-size:24px;}
   .marca p{display:none;}
+  .tabs-planillas{grid-template-columns:1fr;}
 }
 @media(min-width:769px){
   #sidebarTrigger{display:flex;}
@@ -1945,7 +1948,16 @@ function procesarEvento(ev) {
       return;
     }
     if (ev.tipoRegistro==="eliminarLiquidacion"){
-      negocio.historial=(negocio.historial||[]).filter(c=>!(c.planillaId===ev.planillaId&&c.fecha===ev.fecha));
+      const idx=(negocio.historial||[]).findIndex(c=>c.planillaId===ev.planillaId&&c.fecha===ev.fecha);
+      if(idx>=0){
+        const c=negocio.historial[idx];
+        const descontar=(nom,val)=>{ const t=getTrabPorNombre(nom); if(t){if(!t.pagos)t.pagos={};if(!t.pagos[c.mes])t.pagos[c.mes]=0;t.pagos[c.mes]=Math.max(0,t.pagos[c.mes]-Number(val||0));} };
+        descontar(c.trabajadorNombre1,c.pagoTrabajador1);
+        if(c.trabajadorNombre2) descontar(c.trabajadorNombre2,c.pagoTrabajador2);
+        if(c.trabajadorNombre3) descontar(c.trabajadorNombre3,c.pagoTrabajador3);
+        if(c.trabajadorNombre4) descontar(c.trabajadorNombre4,c.pagoTrabajador4);
+        negocio.historial.splice(idx,1);
+      }
       return;
     }
     if (ev.tipoRegistro==="eliminarTrabajador"){
@@ -2099,7 +2111,7 @@ function renderTabsPlanillas() {
     const activa=p.id===pestaniaActiva;
     const pl=negocio.planillas.find(pl=>pl.id===p.id);
     const lbl=pl?(pl.nombre||pl.fecha):p.nombre;
-    return `<div class="tab-planilla ${activa?'activa':''}" onclick="cambiarPestania('${p.id}')">${lbl}<span class="cerrar-tab" onclick="cerrarPestania('${p.id}',event)">×</span></div>`;
+    return `<div class="tab-planilla ${activa?'activa':''}" onclick="cambiarPestania('${p.id}')" title="${sanitizarTexto(lbl)}"><span class="tab-planilla-lbl">${sanitizarTexto(lbl)}</span><span class="cerrar-tab" onclick="cerrarPestania('${p.id}',event)">×</span></div>`;
   }).join("");
 }
 function cambiarPestania(id){ pestaniaActiva=id; renderTabsPlanillas(); renderPlanillaActiva(); }
@@ -2433,7 +2445,7 @@ function mostrarListaPlanillas(){
       </div>
       <div class="planilla-acciones">
         <button class="btn-sm" onclick="abrirPestania('${p.id}')">✏️ Abrir</button>
-        ${!p.liquidada?`<button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>`:`<button class="btn-gris btn-sm" disabled style="opacity:.5;">Liquidada</button>`}
+        ${!p.liquidada?`<button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>`:`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${p.id}')">↩️ Revertir</button>`}
         <button class="btn-sm" onclick="imprimirPlanilla('${p.id}')">🖨️ PDF</button>
         <button class="btn-rojo btn-sm" onclick="eliminarPlanilla('${p.id}')">🗑️</button>
       </div>
@@ -2563,17 +2575,55 @@ function liquidarDesdePlanilla(id) {
 
 async function guardarLiquidacionYMarcarPlanilla(planillaId) {
   if(!ultimoCalc){toast("Primero realiza una liquidación","error");return;}
+  const btn=document.getElementById("btnGuardarLiq");
+  if(btn && btn.disabled) return; // evita doble clic / doble envío (duplicaba liquidaciones)
+  if(btn){ btn.disabled=true; btn.classList.add("oculto"); }
   const liq=Object.assign({},ultimoCalc);
   aplicarLiquidacion(liq,true);
   // Marcar planilla como liquidada
   const pl=negocio.planillas.find(p=>p.id===planillaId);
   if(pl){ pl.liquidada=true; await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0); }
   guardar();
-  document.getElementById("btnGuardarLiq").classList.add("oculto");
-  document.getElementById("btnGuardarLiq").onclick=guardarLiquidacion; // restaurar
+  if(btn){ btn.classList.add("oculto"); btn.disabled=false; btn.onclick=guardarLiquidacion; } // restaurar
   ultimoCalc=null; actualizarTodo(); mostrarListaPlanillas();
   const r=await guardarEvento({tipoRegistro:"liquidacion",calculo:liq},liq.totalFinal,(liq.pagoTrabajador1||0)+(liq.pagoTrabajador2||0)+(liq.pagoTrabajador3||0)+(liq.pagoTrabajador4||0));
   toast(r.ok?"Liquidación guardada — Planilla marcada":"Guardada localmente",r.ok?"ok":"aviso");
+}
+
+// ══ REVERTIR PLANILLA LIQUIDADA (requiere PIN) ═════════════════════════════
+async function revertirPlanillaLiquidada(planillaId){
+  const pl=(negocio.planillas||[]).find(p=>p.id===planillaId);
+  if(!pl){toast("Planilla no encontrada","error");return;}
+  if(!pl.liquidada){toast("Esta planilla no está liquidada","aviso");return;}
+  const pinIngresado=prompt("Ingresa tu PIN para revertir esta liquidación:");
+  if(pinIngresado===null) return; // canceló
+  if(String(pinIngresado).trim()!==String(negocio.pin||"").trim()){
+    toast("PIN incorrecto","error");
+    return;
+  }
+  confirmar(
+    "Revertir liquidación",
+    "¿Volver esta planilla a Pendiente? Se descontará el pago ya aplicado a los engrasadores.",
+    async ()=>{
+      // Buscar la(s) liquidación(es) de historial asociadas a esta planilla
+      const entradas=(negocio.historial||[]).filter(c=>c.planillaId===planillaId);
+      for(const c of entradas){
+        const descontar=(nom,val)=>{ const t=getTrabPorNombre(nom); if(t){if(!t.pagos)t.pagos={};if(!t.pagos[c.mes])t.pagos[c.mes]=0;t.pagos[c.mes]=Math.max(0,t.pagos[c.mes]-Number(val||0));} };
+        descontar(c.trabajadorNombre1,c.pagoTrabajador1);
+        if(c.trabajadorNombre2) descontar(c.trabajadorNombre2,c.pagoTrabajador2);
+        if(c.trabajadorNombre3) descontar(c.trabajadorNombre3,c.pagoTrabajador3);
+        if(c.trabajadorNombre4) descontar(c.trabajadorNombre4,c.pagoTrabajador4);
+        await guardarEvento({tipoRegistro:"eliminarLiquidacion",planillaId:c.planillaId,fecha:c.fecha,mes:c.mes});
+      }
+      negocio.historial=(negocio.historial||[]).filter(c=>c.planillaId!==planillaId);
+      pl.liquidada=false;
+      guardar();
+      await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+      actualizarTodo();
+      mostrarListaPlanillas();
+      toast("Planilla revertida a Pendiente ✅","ok");
+    }
+  );
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2624,8 +2674,15 @@ function liquidarQuincenal() {
 }
 
 async function guardarLiquidacionQuincenal() {
+  const btn=document.getElementById("btnGuardarQuincenal");
+  if(btn && btn.disabled) return; // evita doble clic / doble envío (duplicaba TODAS las planillas de la quincena)
+  if(!resultadosQuincenales.length) return;
+  if(btn) btn.disabled=true;
+  const pendientesAProcesar=resultadosQuincenales;
+  resultadosQuincenales=[]; // limpiar de inmediato para que un segundo clic no reprocese lo mismo
   let guardadas=0;
-  for(const {planilla:pl, resultado:r} of resultadosQuincenales) {
+  for(const {planilla:pl, resultado:r} of pendientesAProcesar) {
+    if(pl.liquidada) continue; // ya se liquidó (protección extra)
     aplicarLiquidacion(r, true);
     pl.liquidada=true;
     await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
@@ -2634,7 +2691,7 @@ async function guardarLiquidacionQuincenal() {
   }
   guardar(); actualizarTodo(); mostrarListaPlanillas();
   cerrarModal("modalQuincenal");
-  resultadosQuincenales=[];
+  if(btn) btn.disabled=false;
   toast(`Liquidación quincenal guardada — ${guardadas} planilla(s) `,"ok");
 }
 
@@ -2821,13 +2878,13 @@ function mostrarPanelPagos(){
       <div class="pago-card-body">
         <div class="pago-card-stats">
           <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
-          <div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>
+          ${adelantos>0?`<div class="pago-stat"><span>Adelantos</span><strong style="color:var(--rojo)">-$${fmtMiles(adelantos)}</strong></div>`:`<div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>`}
           ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;">
           <div class="pago-total">
             <span>A pagar</span>
-            <strong>$${fmtMiles(neto)}</strong>
+            <strong style="${neto<0?'color:var(--rojo);':''}">${neto<0?'-':''}$${fmtMiles(Math.abs(neto))||'0'}</strong>
           </div>
         </div>
       </div>
