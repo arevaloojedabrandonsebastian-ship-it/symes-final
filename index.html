@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_124500 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_130000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -197,10 +197,10 @@ button:active{transform:scale(.98);}
 .tabla-excel td input,.tabla-excel td select{padding:6px 7px;font-size:12px;border-radius:6px;margin:0;border:1px solid transparent;background:transparent;min-height:unset;width:100%;}
 .tabla-excel td input:hover,.tabla-excel td select:hover{border-color:#9ec5fe;background:#fff;}
 .tabla-excel td input:focus,.tabla-excel td select:focus{background:#fff;border-color:var(--azul);box-shadow:0 0 0 2px rgba(31,60,136,.14);}
-.tabla-excel tbody tr.fila-sintetico{background:#fff4d6!important;}
-.tabla-excel tbody tr.fila-mixto{background:#efe4ff!important;}
-.tabla-excel tbody tr.fila-sintetico:hover{background:#ffe9ad!important;}
-.tabla-excel tbody tr.fila-mixto:hover{background:#e0cdfd!important;}
+.tabla-excel tbody tr.fila-resaltada{background:#dcfce7!important;}
+.tabla-excel tbody tr.fila-resaltada td{background:#dcfce7!important;}
+.tabla-excel tbody tr.fila-resaltada:hover{background:#bbf7d0!important;}
+.tabla-excel tbody tr.fila-resaltada:hover td{background:#bbf7d0!important;}
 .num-fila{color:#94a3b8;font-size:11px;text-align:center;width:26px;font-weight:700;background:#f8faff!important;}
 .planilla-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-weight:700;font-size:16px;}
 .pago-card{background:#fff;border:1px solid rgba(203,213,225,.7);border-radius:18px;padding:16px 18px;margin:10px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s,box-shadow .15s;}
@@ -476,8 +476,8 @@ body.oscuro .tabla-excel td { border-bottom-color:#374151; border-right-color:#1
 body.oscuro .tabla-excel td input, body.oscuro .tabla-excel td select { color:#e2e8f0; }
 body.oscuro .tabla-excel td input:hover, body.oscuro .tabla-excel td select:hover { background:#111827; border-color:#374151; }
 body.oscuro .tabla-excel td input:focus, body.oscuro .tabla-excel td select:focus { background:#0d1117; }
-body.oscuro .tabla-excel tbody tr.fila-sintetico { background:#4d3b00!important; }
-body.oscuro .tabla-excel tbody tr.fila-mixto { background:#3a1f5c!important; }
+body.oscuro .tabla-excel tbody tr.fila-resaltada { background:#14532d!important; }
+body.oscuro .tabla-excel tbody tr.fila-resaltada td { background:#14532d!important; }
 body.oscuro .num-fila { background:#111827!important; color:#6b7280; }
 body.oscuro .admin-card { background:#1f2937; border-color:#374151; }
 body.oscuro .admin-login-box { background:#1f2937; border-color:#374151; }
@@ -2260,9 +2260,7 @@ function actualizarDatoPlanilla(id, campo, valor) {
 }
 function _actualizarColorFila(id,i,tipo){
   const tr=document.getElementById(`fila_${id}_${i}`); if(!tr) return;
-  tr.classList.remove('fila-sintetico','fila-mixto');
-  if(tipo==='mixto') tr.classList.add('fila-sintetico');
-  else if(tipo==='mixto_r') tr.classList.add('fila-mixto');
+  tr.classList.toggle('fila-resaltada', tipo==='mixto'||tipo==='mixto_r');
 }
 function _refrescarFilasEngrasador(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -2285,7 +2283,7 @@ function renderFilasPlanilla(id) {
   const nombresE=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
   const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
   const disabled=pl.liquidada?"disabled":""
-  const claseFila=v=>v.tipoEngrase==='mixto'?'fila-sintetico':v.tipoEngrase==='mixto_r'?'fila-mixto':'';
+  const claseFila=v=>(v.tipoEngrase==='mixto'||v.tipoEngrase==='mixto_r')?'fila-resaltada':'';
   tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>`<tr id="fila_${id}_${i}" class="${claseFila(v)}">
     <td class="num-fila">${i+1}</td>
     <td><input type="text" value="${formatPlaca(v.placa)}" ${disabled} autocomplete="off" oninput="const c=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');this.value=c.length>3?c.slice(0,3)+' '+c.slice(3):c;actualizarFila('${id}',${i},'placa',this.value)" id="pl_${id}_${i}" placeholder="ABC 123" style="width:100%;text-transform:uppercase;"></td>
