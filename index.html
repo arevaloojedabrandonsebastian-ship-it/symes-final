@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_120000 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_121500 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -232,6 +232,7 @@ button:active{transform:scale(.98);}
 .planilla-nombre{font-size:15px;font-weight:700;color:var(--azul);}
 .planilla-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--gris);margin-top:5px;}
 .planilla-fecha-grande{font-size:16px;font-weight:800;color:var(--azul);white-space:nowrap;}
+.planilla-liq-info{background:#f8faff;border:1px solid var(--borde);border-radius:10px;padding:10px 14px;margin-top:8px;font-size:13px;line-height:1.7;color:#243044;}
 .planilla-acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
 
 /* PESTAÑAS */
@@ -459,6 +460,7 @@ body.oscuro .planilla-card.liquidada { background:linear-gradient(135deg,#14532d
 body.oscuro .planilla-nombre { color:#60a5fa; }
 body.oscuro .planilla-meta { color:#6b7280; }
 body.oscuro .planilla-fecha-grande { color:#60a5fa; }
+body.oscuro .planilla-liq-info { background:#1f2937; border-color:#374151; color:#e5e7eb; }
 body.oscuro .tab-planilla { background:#1f2937; border-color:#374151; color:#9ca3af; }
 body.oscuro .tab-planilla.activa { background:#1e3a8a; border-color:#3b82f6; color:#fff; }
 body.oscuro .planilla-wrap { border-color:#374151; }
@@ -2383,6 +2385,17 @@ function eliminarPlanilla(id){
 let _filtroEngrasadorPlanilla = "";
 let _filtroEstadoPlanilla = "";
 
+function _liquidacionDePlanilla(id){
+  const hist=negocio?.historial||[];
+  for(let i=hist.length-1;i>=0;i--){ if(hist[i].planillaId===id) return hist[i]; }
+  return null;
+}
+function _htmlDesgloseLiquidacion(liq){
+  if(!liq) return "";
+  const pagos=[[liq.trabajadorNombre1,liq.pagoTrabajador1],[liq.trabajadorNombre2,liq.pagoTrabajador2],[liq.trabajadorNombre3,liq.pagoTrabajador3],[liq.trabajadorNombre4,liq.pagoTrabajador4]]
+    .filter(([n])=>n).map(([n,v])=>`${sanitizarTexto(n)}: $${fmtMiles(v)}`).join("<br>");
+  return `Total: $${fmtMiles(liq.totalFinal)}<br>${pagos}`;
+}
 function _parseFechaPlanilla(f){
   if(!f) return 0;
   const m=String(f).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -2449,6 +2462,7 @@ function mostrarListaPlanillas(){
           ${liqBadge}
         </div>
       </div>
+      ${p.liquidada?(()=>{const liq=_liquidacionDePlanilla(p.id); return liq?`<div class="planilla-liq-info">${_htmlDesgloseLiquidacion(liq)}</div>`:"";})():""}
       <div class="planilla-acciones">
         <button class="btn-sm" onclick="abrirPestania('${p.id}')">✏️ Abrir</button>
         ${!p.liquidada?`<button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>`:`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${p.id}')">↩️ Revertir</button>`}
@@ -2709,6 +2723,17 @@ function imprimirPlanilla(id){
   const vehiculos=pl.vehiculos||[];
   const total=vehiculos.reduce((s,v)=>s+Number(v.valor||0),0);
   const gG=(pl.grasaAntes||0)-(pl.grasaQuedo||0);
+  const liq=pl.liquidada?_liquidacionDePlanilla(id):null;
+  const pagosLiq=liq?[[liq.trabajadorNombre1,liq.pagoTrabajador1],[liq.trabajadorNombre2,liq.pagoTrabajador2],[liq.trabajadorNombre3,liq.pagoTrabajador3],[liq.trabajadorNombre4,liq.pagoTrabajador4]].filter(([n])=>n).map(([n,v])=>`<tr><td>${sanitizarTexto(n)}</td><td>$${fmtMiles(v)}</td></tr>`).join(""):"";
+  const bloqueLiquidacion=liq?`
+  <div class="grasa" style="margin-top:14px;">
+    <strong>⚡ Liquidación</strong><br>
+    Grasa gastada: ${(liq.grasaGastada||0).toLocaleString()} g → $${fmtMiles(liq.valorGrasaGastada)}<br>
+    Sintéticos/Mixtos rebajados: $${fmtMiles(liq.totalMixtosRebajados)} — ${negocio.configuracion.porcentajeMixtos}% = $${fmtMiles(liq.porcentajeMixtos)}<br>
+    Azules: $${fmtMiles(liq.totalAzules)} — Menos grasa: $${fmtMiles(liq.azulesMenosGrasa)} — ${negocio.configuracion.porcentajeAzules}% = $${fmtMiles(liq.porcentajeAzules)}
+  </div>
+  <table><thead><tr><th>Engrasador</th><th>Le corresponde</th></tr></thead><tbody>${pagosLiq}</tbody></table>
+  <div class="total" style="margin-top:10px;"><span>Total liquidación:</span><span>$${fmtMiles(liq.totalFinal)}</span></div>`:"";
   const filas=vehiculos.map((v,i)=>`<tr><td>${i+1}</td><td>${formatPlaca(v.placa)}</td><td>${v.tipoVehiculo||""}</td><td>${v.descripcion||""}</td>
     <td><span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${v.tipoEngrase==='azul'?'#cfe2ff':'#fff3cd'};color:${v.tipoEngrase==='azul'?'#0a3678':v.tipoEngrase==='mixto_r'?'#166b3b':'#856404'}">${labelEngrase(v.tipoEngrase||"azul")}</span></td>
     <td>$${Number(v.valor||0).toLocaleString()}</td><td>${v.engrasador||""}</td><td>${v.observaciones||""}</td></tr>`).join("");
