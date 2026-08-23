@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_114500 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_120000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -1432,7 +1432,13 @@ function generarId() { return Date.now().toString(36)+Math.random().toString(36)
 // Sanitiza texto de usuario para uso seguro en DOM (nunca usar en innerHTML)
 function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
 function formatPlaca(s){ if(!s) return ""; const c=s.toUpperCase().replace(/[^A-Z0-9]/g,""); return c.length>3?c.slice(0,3)+" "+c.slice(3):c; }
-function fmtMiles(n){var x=Number(String(n).replace(/\./g,'').replace(/,/g,''))||0;return x>0?x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''}
+function fmtMiles(n){
+  // Si ya es un número (resultado de cálculos), redondear directo — nunca tratar
+  // el punto decimal como separador de miles (ese era el bug: convertía
+  // 1234.56 en "1.234.560.000..." al quitarle el punto decimal por error).
+  var x = (typeof n === "number") ? Math.round(n) : Math.round(Number(String(n).replace(/\./g,'').replace(/,/g,''))||0);
+  return x>0?x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''
+}
 function labelEngrase(e){ return e==="azul"?"Azul":e==="mixto_r"?"Mixto":"Sintético"; }
 function sanitizarTexto(str) {
   if (typeof str !== "string") return "";
@@ -2863,10 +2869,10 @@ function mostrarPanelPagos(){
   if(!negocio.trabajadores.length){el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores.</p>";return;}
   let totalGeneral = 0;
   const cards = negocio.trabajadores.map((t,idx)=>{
-    const ganado=getPago(t,mes), adelantos=getAdelantos(t,mes);
+    const ganado=Math.round(getPago(t,mes)), adelantos=Math.round(getAdelantos(t,mes));
     const _hoyDia=new Date().getDate();
-    const seguridad=_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0);
-    const neto=ganado-adelantos-seguridad;
+    const seguridad=Math.round(_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
+    const neto=Math.round(ganado-adelantos-seguridad);
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
     const ini = nomPago.charAt(0).toUpperCase();
