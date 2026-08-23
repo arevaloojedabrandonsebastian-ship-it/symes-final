@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"><!-- SYMES v20260820_121500 -->
+<meta charset="UTF-8"><!-- SYMES v20260820_123000 -->
 <title>SYMES — Sistema de Engrasaderos</title>
 <link rel="icon" type="image/png" href="favicon.png.png">
 <link rel="apple-touch-icon" href="favicon.png.png">
@@ -2983,23 +2983,23 @@ function calcularResumenQuincena(mes, q){
   if(q==='mes') return calcularResumenMes(mes);
   let tG=0,tA=0,tP=0;
   const trabajadores=negocio.trabajadores.map(t=>{
-    const ganado=(negocio.historial||[])
+    const ganado=Math.round((negocio.historial||[])
       .filter(c=>c.mes===mes&&_enQuincena(c.fecha,q))
       .reduce((s,c)=>{
         [[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],
          [c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]]
         .forEach(([n,p])=>{ if(n&&n.toLowerCase()===t.nombre.toLowerCase()) s+=Number(p||0); });
         return s;
-      },0);
-    const adelantos=(t.adelantos?.[mes]||[])
+      },0));
+    const adelantos=Math.round((t.adelantos?.[mes]||[])
       .filter(a=>_enQuincena(a.fecha,q))
-      .reduce((s,a)=>s+Number(a.valor||0),0);
-    const segDesc=(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):q==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
-    const neto=ganado-adelantos-segDesc;
+      .reduce((s,a)=>s+Number(a.valor||0),0));
+    const segDesc=Math.round(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):q==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
+    const neto=Math.round(ganado-adelantos-segDesc);
     tG+=ganado;tA+=adelantos;tP+=neto;
     return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
   });
-  return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
+  return{trabajadores,totalGanado:Math.round(tG),totalAdelantos:Math.round(tA),totalPagar:Math.round(tP)};
 }
 
 // ══ CIERRE ══
@@ -3008,21 +3008,21 @@ function calcularResumenMes(mes){
   let tG=0,tA=0,tP=0;
   const trabajadores=negocio.trabajadores.map(t=>{
     // Usar historial (igual que quincenas) para no verse afectado por reset de pagos
-    const ganado=(negocio.historial||[])
+    const ganado=Math.round((negocio.historial||[])
       .filter(c=>c.mes===mes)
       .reduce((s,c)=>{
         [[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],
          [c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]]
         .forEach(([n,p])=>{ if(n&&n.toLowerCase()===t.nombre.toLowerCase()) s+=Number(p||0); });
         return s;
-      },0);
-    const adelantos=(t.adelantos?.[mes]||[]).reduce((s,a)=>s+Number(a.valor||0),0);
-    const segDesc=Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0);
-    const neto=ganado-adelantos-segDesc;
+      },0));
+    const adelantos=Math.round((t.adelantos?.[mes]||[]).reduce((s,a)=>s+Number(a.valor||0),0));
+    const segDesc=Math.round(Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
+    const neto=Math.round(ganado-adelantos-segDesc);
     tG+=ganado;tA+=adelantos;tP+=neto;
     return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
   });
-  return{trabajadores,totalGanado:tG,totalAdelantos:tA,totalPagar:tP};
+  return{trabajadores,totalGanado:Math.round(tG),totalAdelantos:Math.round(tA),totalPagar:Math.round(tP)};
 }
 function mostrarCierreMes(){
   const el=document.getElementById("resumenCierre"); if(!el) return;
@@ -3103,9 +3103,9 @@ function mostrarHistorial(){
     if(c.mes!==mes) return;
     if(!_enQuincena(c.fecha,_quinHistorial)) return;
     count++;
-    const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${Number(p||0).toLocaleString()}`).join("<br>");
+    const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${fmtMiles(Number(p||0))}`).join("<br>");
     const bp=c.planillaId?`<span style="background:#e8f1ff;padding:2px 8px;border-radius:12px;font-size:11px;color:var(--azul);font-weight:700;">Desde planilla</span>`:"";
-    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${c.totalFinal?.toLocaleString()}</p><p><strong>Pagos:</strong><br>${pagos}</p><button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div>`;
+    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div>`;
   });
   if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este mes.</p>";
 }
