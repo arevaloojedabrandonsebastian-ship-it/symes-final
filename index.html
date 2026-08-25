@@ -881,7 +881,10 @@ body.oscuro .stat-box { opacity:.9; }
       <label>Nota:</label>
       <div class="ac-wrap"><input type="text" id="notaAdelanto" placeholder="Ej: Adelanto quincena" autocomplete="off"></div>
       <button class="btn-verde" onclick="registrarAdelanto()">Registrar adelanto</button>
-      <h3 style="margin-top:16px;">Adelantos registrados</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:16px;">
+        <h3 style="margin:0;">Adelantos registrados</h3>
+        <div id="filtrosAdelantos" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
       <div id="listaAdelantos"></div>
     </div>
   </div>
@@ -2872,7 +2875,7 @@ async function registrarAdelanto(){
   const t=negocio.trabajadores[idx];
   if(!t.adelantos) t.adelantos={};
   if(!t.adelantos[mes]) t.adelantos[mes]=[];
-  const adelanto={valor,nota,fecha:new Date().toLocaleString()};
+  const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now()};
   t.adelantos[mes].push(adelanto);
   agregarMemoria("notas_adelanto", nota);
   ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
@@ -2881,24 +2884,49 @@ async function registrarAdelanto(){
   const r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha},valor,0);
   toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
 }
+let _filtroEngrasadorAdelanto = "";
 function mostrarAdelantos(){
   const el=document.getElementById("listaAdelantos"); if(!el) return;
-  const mes=getMes(); el.innerHTML=""; let hay=false;
+  const mes=getMes();
+
+  // Filtro por engrasador
+  const filDiv=document.getElementById("filtrosAdelantos");
+  if(filDiv){
+    filDiv.innerHTML=`<select id="selFiltroEngrAdelanto" onchange="_filtroEngrasadorAdelanto=this.value;mostrarAdelantos()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
+      <option value="">👷 Todos</option>
+      ${negocio.trabajadores.map(t=>`<option value="${t.nombre}" ${_filtroEngrasadorAdelanto===t.nombre?'selected':''}>${cap(sanitizarTexto(t.nombre))}</option>`).join("")}
+    </select>`;
+  }
+
+  // Recolectar adelantos del mes conservando su índice original (para poder eliminarlos)
+  let items=[];
   negocio.trabajadores.forEach((t,i)=>{
-    if(t.adelantos?.[mes]) t.adelantos[mes].forEach((a,j)=>{
-      hay=true;
-      const div=document.createElement("div"); div.className="item";
-      const h3=document.createElement("h3"); h3.textContent=cap(t.nombre);
-      const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
-      const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "; p2.firstChild.nextSibling||p2.appendChild(document.createTextNode((a.nota||"Sin nota")));
-      p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
-      const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
-      const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
-      btn.addEventListener("click",()=>eliminarAdelanto(i,j));
-      div.append(h3,p1,p2,p3,btn); el.appendChild(div);
-    });
+    (t.adelantos?.[mes]||[]).forEach((a,j)=>{ items.push({iT:i, iA:j, nombre:t.nombre, adelanto:a}); });
   });
-  if(!hay) el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>";
+
+  if(_filtroEngrasadorAdelanto){
+    items=items.filter(it=>it.nombre===_filtroEngrasadorAdelanto);
+  }
+
+  // Más recientes primero (usa el timestamp exacto si existe; si no, intenta parsear la fecha guardada)
+  items.sort((a,b)=>{
+    const ta=a.adelanto.ts||Date.parse(a.adelanto.fecha)||0;
+    const tb=b.adelanto.ts||Date.parse(b.adelanto.fecha)||0;
+    return tb-ta;
+  });
+
+  el.innerHTML="";
+  if(!items.length){ el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>"; return; }
+  items.forEach(({iT,iA,nombre,adelanto:a})=>{
+    const div=document.createElement("div"); div.className="item";
+    const h3=document.createElement("h3"); h3.textContent=cap(nombre);
+    const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
+    const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
+    const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
+    const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
+    btn.addEventListener("click",()=>eliminarAdelanto(iT,iA));
+    div.append(h3,p1,p2,p3,btn); el.appendChild(div);
+  });
 }
 function eliminarAdelanto(iT,iA){
   confirmar("Eliminar adelanto","¿Seguro?",()=>{
