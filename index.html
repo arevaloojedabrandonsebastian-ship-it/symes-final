@@ -2262,15 +2262,22 @@ function _actualizarColorFila(id,i,tipo){
   const tr=document.getElementById(`fila_${id}_${i}`); if(!tr) return;
   tr.classList.toggle('fila-resaltada', tipo==='mixto'||tipo==='mixto_r');
 }
+function _opcionesEngrasadorFila(pl){
+  // Titulares definidos arriba primero (son los que se liquidan), luego el resto de engrasadores registrados
+  const titulares=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
+  const todos=getSugerenciasEngrasadores()||[];
+  const resto=todos.filter(n=>!titulares.includes(n));
+  return [...titulares, ...resto];
+}
 function _refrescarFilasEngrasador(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
-  const nombresE=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
+  const nombresE=_opcionesEngrasadorFila(pl);
   const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
   (pl.vehiculos||[]).forEach((v,i)=>{
     const sel=document.getElementById(`rowE_${id}_${i}`); if(!sel) return;
     const cur=sel.value;
     sel.innerHTML=optsE;
-    // mantener selección si el engrasador sigue siendo válido
+    // mantener selección si el engrasador sigue existiendo (aunque ya no sea titular)
     if(nombresE.includes(cur)) sel.value=cur;
     else { sel.value=""; v.engrasador=""; }
   });
@@ -2279,8 +2286,8 @@ function _refrescarFilasEngrasador(id){
 function renderFilasPlanilla(id) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   const tbody=document.getElementById(`tbody_${id}`); if(!tbody) return;
-  // Solo los engrasadores seleccionados en el header de esta planilla
-  const nombresE=[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(n=>n&&n.trim());
+  // Todos los engrasadores registrados; los titulares del encabezado quedan de primeros
+  const nombresE=_opcionesEngrasadorFila(pl);
   const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
   const disabled=pl.liquidada?"disabled":""
   const claseFila=v=>(v.tipoEngrase==='mixto'||v.tipoEngrase==='mixto_r')?'fila-resaltada':'';
