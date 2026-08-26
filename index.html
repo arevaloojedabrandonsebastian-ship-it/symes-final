@@ -2199,6 +2199,17 @@ function procesarEvento(ev) {
       if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});}
       return;
     }
+    if (ev.tipoRegistro==="eliminarAdelanto"){
+      if(!ev.trabajadorNombre||!ev.mes) return;
+      const t=getTrabPorNombre(ev.trabajadorNombre);
+      const lista=t?.adelantos?.[ev.mes];
+      if(!lista||!lista.length) return;
+      let idx=-1;
+      if(ev.ts) idx=lista.findIndex(a=>a.ts===ev.ts);
+      if(idx<0) idx=lista.findIndex(a=>Number(a.valor||0)===Number(ev.valor||0)&&(a.nota||"")===(ev.nota||"")&&(a.fecha||"")===(ev.fecha||""));
+      if(idx>=0) lista.splice(idx,1);
+      return;
+    }
     if (ev.tipoRegistro==="configuracion"){
       if(!ev.configuracion) return;
       negocio.configuracion=Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFECTO)),ev.configuracion||{});
@@ -3752,8 +3763,15 @@ function mostrarAdelantos(){
   });
 }
 function eliminarAdelanto(iT,iA){
-  confirmar("Eliminar adelanto","¿Seguro?",()=>{
-    const mes=getMes(); negocio.trabajadores[iT].adelantos[mes].splice(iA,1); guardar(); actualizarTodo(); toast("Adelanto eliminado","ok");
+  confirmar("Eliminar adelanto","¿Seguro?",async()=>{
+    const mes=getMes();
+    const t=negocio.trabajadores[iT];
+    const a=t?.adelantos?.[mes]?.[iA];
+    if(!t||!a){toast("Adelanto no encontrado","error");return;}
+    t.adelantos[mes].splice(iA,1);
+    guardar(); actualizarTodo();
+    const r=await guardarEvento({tipoRegistro:"eliminarAdelanto",trabajadorNombre:t.nombre,mes,ts:a.ts||null,valor:a.valor,nota:a.nota||"",fecha:a.fecha||""});
+    toast(r.ok?"Adelanto eliminado":"Eliminado localmente (sin conexión)",r.ok?"ok":"aviso");
   });
 }
 
@@ -4114,7 +4132,7 @@ function agregarRegla(){
   guardar(); mostrarReglas(); toast("Regla agregada","ok");
 }
 function mostrarReglas(){ const el=document.getElementById("listaReglas"); if(!el) return; const r=negocio?.configuracion?.reglasMixtos||[]; el.innerHTML=!r.length?"<p style='color:var(--gris);'>Sin reglas.</p>":r.map((rr,i)=>`<div class="item" style="display:flex;justify-content:space-between;align-items:center;"><span>$${Number(rr.original).toLocaleString()} → $${Number(rr.rebajado).toLocaleString()}</span><button class="btn-rojo btn-sm" onclick="eliminarRegla(${i})">Eliminar</button></div>`).join(""); }
-function eliminarRegla(i){ confirmar("Eliminar regla","¿Eliminar esta regla?",()=>{ negocio.configuracion.reglasMixtos.splice(i,1); guardar(); mostrarReglas(); }); }
+function eliminarRegla(i){ confirmar("Eliminar regla","¿Eliminar esta regla?",async()=>{ negocio.configuracion.reglasMixtos.splice(i,1); guardar(); mostrarReglas(); const r=await guardarEvento({tipoRegistro:"configuracion",configuracion:negocio.configuracion,fecha:new Date().toLocaleString()},1,0); toast(r.ok?"Regla eliminada":"Eliminada localmente (sin conexión)",r.ok?"ok":"aviso"); }); }
 
 // ══ PLANES ══
 function mostrarSolicitudPago(){ document.getElementById("panelSolicitudPago").classList.toggle("oculto"); }
