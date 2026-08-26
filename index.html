@@ -24,9 +24,9 @@
   --amarillo:#f59e0b;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
 body{
-  min-height:100vh;font-family:Arial,sans-serif;color:var(--texto);
+  min-height:100vh;overflow-x:hidden;font-family:Arial,sans-serif;color:var(--texto);
   background:radial-gradient(circle at 8% 0%,rgba(31,60,136,.18),transparent 32%),
              radial-gradient(circle at 92% 12%,rgba(31,138,76,.12),transparent 28%),
              linear-gradient(135deg,#eef2f7 0%,#f8fbff 100%);
@@ -82,7 +82,7 @@ body{
 /* SECCIONES */
 .seccion{background:rgba(248,250,255,.95);padding:20px;margin:16px 0;border-radius:20px;border:1px solid rgba(220,227,240,.95);box-shadow:var(--sombra-suave);overflow:visible;}
 .seccion h2{margin-top:0;display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:var(--azul);}
-.hero{position:relative;overflow:visible;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:22px;padding:26px;margin-bottom:18px;box-shadow:0 12px 30px rgba(31,60,136,.22);}
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;border-radius:22px;padding:26px;margin-bottom:18px;box-shadow:0 12px 30px rgba(31,60,136,.22);}
 .hero h2{color:#fff;margin:0 0 6px;font-size:24px;}
 .hero p{color:rgba(255,255,255,.9);line-height:1.5;margin:0;}
 .hero::after{content:"";position:absolute;width:160px;height:160px;right:-60px;top:-60px;background:rgba(255,255,255,.12);border-radius:50%;}
@@ -184,6 +184,7 @@ button:active{transform:scale(.98);}
 
 /* ── TABLA EXCEL MEJORADA ── */
 .planilla-wrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:2px solid #c7d4ef;}
+.scroll-hint{display:none;align-items:center;gap:6px;color:var(--gris);font-size:11px;font-weight:600;margin-top:8px;}
 .tabla-excel{width:100%;border-collapse:collapse;font-size:13px;min-width:780px;}
 .tabla-excel thead tr{background:linear-gradient(90deg,#1f3c88,#1a6aad);}
 .tabla-excel thead th{color:#fff;padding:9px 8px;text-align:left;font-weight:700;position:sticky;top:0;white-space:nowrap;border-right:1px solid rgba(255,255,255,.18);font-size:12px;letter-spacing:.3px;}
@@ -306,10 +307,32 @@ button:active{transform:scale(.98);}
   body{font-size:16px;}
   h2{font-size:22px;}h3{font-size:18px;}
   button{width:100%;margin:5px 0;}
+  /* Botones pequeños de acción (ver/editar/pdf/eliminar en tarjetas y listas)
+     NO deben ir a ancho completo: se agrupan en filas flex-wrap y, forzados a
+     100%, cada uno se apilaba en su propia línea (o incluso se encimaba con
+     el texto cuando el contenedor no envolvía). Se dejan de ancho automático
+     para que formen una fila compacta de píldoras. */
+  .btn-sm{width:auto;margin:3px;}
+  /* Fila de acciones principales del editor de planilla (Guardar/Liquidar/
+     PDF/Eliminar): en vez de 4 barras completas apiladas, 2 columnas — botones
+     grandes y fáciles de tocar, pero la mitad de scroll vertical. */
+  .acciones-editor-planilla{display:grid!important;grid-template-columns:repeat(2,1fr);gap:8px;}
+  .acciones-editor-planilla button{width:100%;margin:0;}
   .fila{flex-direction:column;}
   .modal{padding:20px;}
-  .tabla-excel{font-size:11px;}
+  /* Tabla de servicios (tipo Excel): en pantallas angostas se reduce el ancho
+     mínimo de cada columna para acortar el scroll horizontal, y se avisa que
+     se puede deslizar. */
+  .tabla-excel{font-size:11px;min-width:600px;}
   .tabla-excel td input,.tabla-excel td select{font-size:11px;padding:5px 5px;}
+  .col-placa{min-width:70px;}
+  .col-tipo{min-width:74px;}
+  .col-desc{min-width:84px;}
+  .col-engrase{min-width:60px;}
+  .col-valor{min-width:70px;}
+  .col-engrasador{min-width:84px;}
+  .col-obs{min-width:80px;}
+  .scroll-hint{display:flex;}
   .tabs-planillas{grid-template-columns:repeat(2,1fr);}
 }
 @media(max-width:420px){
@@ -828,7 +851,7 @@ body.oscuro .stat-box { opacity:.9; }
   <!-- LIQUIDACIÓN -->
   <div id="paginaLiquidacion" class="pagina oculto">
     <div class="seccion">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn-gris btn-sm" onclick="mostrarPagina('paginaPlanillas')" style="margin:0;">← Planillas</button>
         <h2 style="margin:0;">⚡ Resultado de liquidación</h2>
       </div>
@@ -2438,6 +2461,7 @@ function renderPlanillaActiva() {
       <input type="number" id="cantFila_${pl.id}" value="1" min="1" max="50" title="Cantidad de filas a agregar" style="width:56px;padding:8px 6px;margin:0;text-align:center;" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarFilaPlanilla('${pl.id}', this.value);}">
       <span style="color:var(--gris);font-size:11px;">Enter = nueva fila · Tab = siguiente columna</span>
     </div>
+    <div class="scroll-hint">↔️ Desliza la tabla hacia los lados para ver todas las columnas</div>
     <div class="planilla-wrap" id="wrapTabla_${pl.id}">
       <table class="tabla-excel planilla-full" id="tabla_${pl.id}">
         <thead><tr>
@@ -2457,7 +2481,7 @@ function renderPlanillaActiva() {
     <div class="planilla-total-bar" id="totalBar_${pl.id}">
       <span>Total planilla:</span><span id="totalNum_${pl.id}">$0</span>
     </div>
-    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+    <div class="acciones-editor-planilla" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
       <button class="btn-verde" onclick="guardarPlanilla('${pl.id}')">💾 Guardar</button>
       ${!pl.liquidada ? `<button onclick="liquidarDesdePlanilla('${pl.id}')">⚡ Liquidar</button>` : `<button class="btn-gris" disabled style="opacity:.5;cursor:not-allowed;">Ya liquidada</button>`}
       <button onclick="imprimirPlanilla('${pl.id}')">PDF</button>
@@ -3744,7 +3768,7 @@ function mostrarPanelPagos(){
     const _hoyDia=new Date().getDate();
     const exentoSeguridad=!!t.sinSeguridad;
     const seguridadBase=Math.round(_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
-    const seguridad=exentoSeguridad?0:seguridadBase;
+    const seguridad=(exentoSeguridad||ganado<=0)?0:seguridadBase;
     const neto=Math.round(ganado-adelantos-seguridad);
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
@@ -3997,21 +4021,28 @@ function mostrarHistorial(){
   if(btnLimp) btnLimp.style.display=(negocio.planillas||[]).some(p=>p.liquidada)?"inline-block":"none";
 
   el.innerHTML=""; let count=0;
+  const entradasHist=[];
   (negocio.historial||[]).forEach((c,i)=>{
     if(c.mes!==mes) return;
     if(!_enPeriodoHistorial(c.fecha)) return;
     const nombresLiq=[c.trabajadorNombre1,c.trabajadorNombre2,c.trabajadorNombre3,c.trabajadorNombre4].filter(Boolean);
     if(_filtroEngrasadorHistorial && !nombresLiq.includes(_filtroEngrasadorHistorial)) return;
+    const pl=c.planillaId?(negocio.planillas||[]).find(p=>p.id===c.planillaId):null;
+    entradasHist.push({c,i,pl});
+  });
+  // Ordenar por fecha de la planilla (más reciente primero), igual que en Planillas.
+  // Si no hay planilla asociada, se usa la fecha de liquidación como respaldo.
+  entradasHist.sort((x,y)=>_parseFechaPlanilla(y.pl?.fecha||y.c.fecha)-_parseFechaPlanilla(x.pl?.fecha||x.c.fecha));
+  entradasHist.forEach(({c,i,pl})=>{
     count++;
     const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${fmtMiles(Number(p||0))}`).join("<br>");
     const bp=c.planillaId?`<span style="background:#e8f1ff;padding:2px 8px;border-radius:12px;font-size:11px;color:var(--azul);font-weight:700;">Desde planilla</span>`:"";
-    const pl=c.planillaId?(negocio.planillas||[]).find(p=>p.id===c.planillaId):null;
     const accionesPlanilla=pl?`
       <button class="btn-sm" onclick="_verPlanillaDesdeHistorial('${pl.id}')">👁️ Ver detalle</button>
       <button class="btn-sm" onclick="imprimirPlanilla('${pl.id}')">🖨️ PDF</button>
       ${pl.liquidada?`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${pl.id}')">↩️ Revertir</button>`:''}
     `:'';
-    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${accionesPlanilla}<button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div></div>`;
+    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(pl?.fecha||c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${accionesPlanilla}<button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div></div>`;
   });
   if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este período.</p>";
 }
