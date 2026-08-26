@@ -959,11 +959,31 @@ body.oscuro .stat-box { opacity:.9; }
         <h2 style="margin:0;">📂 Historial</h2>
         <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()" style="width:auto;">
       </div>
-      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:12px;grid-template-columns:repeat(2,1fr);">
+      <div class="periodo-tabs" style="margin-bottom:10px;grid-template-columns:repeat(2,1fr);">
+        <button class="periodo-tab activo" id="btnModoQuincena" onclick="setModoPeriodoHistorial('quincena')">Por quincena</button>
+        <button class="periodo-tab" id="btnModoSemana" onclick="setModoPeriodoHistorial('semana')">Por semana</button>
+      </div>
+      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr);">
+        <button class="periodo-tab" onclick="setQuinHistorial('mes',this)">Mes completo</button>
         <button class="periodo-tab activo" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
         <button class="periodo-tab" onclick="setQuinHistorial('q2',this)">2ª Quincena</button>
       </div>
-      <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
+      <div class="periodo-tabs oculto" id="tabsSemanaHistorial" style="margin-bottom:10px;grid-template-columns:repeat(5,1fr);">
+        <button class="periodo-tab activo" onclick="setSemanaHistorial(1,this)">Sem. 1</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(2,this)">Sem. 2</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(3,this)">Sem. 3</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(4,this)">Sem. 4</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(5,this)">Sem. 5</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <select id="selFiltroEngrHistorial" onchange="_filtroEngrasadorHistorial=this.value;mostrarHistorial()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
+          <option value="">👷 Todos</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
+        <button class="btn-sm" id="btnLimpiarLiquidadas" style="background:#1f3c88;display:none;" onclick="archivarLiquidadas()">🗄️ Limpiar liquidaciones viejas</button>
+      </div>
       <div id="historialContenido" style="margin-top:14px;"></div>
     </div>
   </div>
@@ -3185,8 +3205,6 @@ function mostrarCreditos(){
 
 // LISTA DE PLANILLAS GUARDADAS
 let _filtroEngrasadorPlanilla = "";
-let _filtroEstadoPlanilla = "";
-
 function _liquidacionDePlanilla(id){
   const hist=negocio?.historial||[];
   for(let i=hist.length-1;i>=0;i--){ if(hist[i].planillaId===id) return hist[i]; }
@@ -3206,24 +3224,18 @@ function _parseFechaPlanilla(f){
 }
 function mostrarListaPlanillas(){
   const lista=document.getElementById("listaPlanillas"); if(!lista) return;
-  const todasPlanillas=negocio?.planillas||[];
+  // Las liquidadas ya no viven aquí — se van al Historial en cuanto se liquidan.
+  const todasPlanillas=(negocio?.planillas||[]).filter(p=>!p.liquidada);
 
   // ── Construir opciones de filtro ──
   const todosEngrs=[...new Set(todasPlanillas.flatMap(p=>[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].filter(Boolean)))];
   const filDiv=document.getElementById("filtrosPlanillas");
   if(filDiv){
-    const hayLiquidadas=todasPlanillas.some(p=>p.liquidada);
     filDiv.innerHTML=`
       <select id="selFiltroEngr" onchange="_filtroEngrasadorPlanilla=this.value;mostrarListaPlanillas()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
         <option value="">👷 Todos</option>
         ${todosEngrs.map(e=>`<option value="${e}" ${_filtroEngrasadorPlanilla===e?'selected':''}>${cap(sanitizarTexto(e))}</option>`).join("")}
       </select>
-      <select id="selFiltroEstado" onchange="_filtroEstadoPlanilla=this.value;mostrarListaPlanillas()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
-        <option value="">📋 Todas</option>
-        <option value="pendiente" ${_filtroEstadoPlanilla==='pendiente'?'selected':''}>⏳ Pendientes</option>
-        <option value="liquidada" ${_filtroEstadoPlanilla==='liquidada'?'selected':''}>✅ Liquidadas</option>
-      </select>
-      ${hayLiquidadas?`<button class="btn-sm" onclick="archivarLiquidadas()" style="margin:0;white-space:nowrap;background:#1f3c88;">📄 Archivar liquidadas</button>`:''}
     `;
   }
 
@@ -3232,24 +3244,21 @@ function mostrarListaPlanillas(){
   if(_filtroEngrasadorPlanilla){
     planillas=planillas.filter(p=>[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].includes(_filtroEngrasadorPlanilla));
   }
-  if(_filtroEstadoPlanilla==='pendiente') planillas=planillas.filter(p=>!p.liquidada);
-  if(_filtroEstadoPlanilla==='liquidada') planillas=planillas.filter(p=>p.liquidada);
 
   // Ordenar por fecha de la planilla (más reciente primero). Si dos tienen
   // la misma fecha, se respeta el orden de creación (sort estable + las
   // nuevas ya entran al inicio del arreglo con unshift en nuevaPlanilla()).
   planillas=planillas.slice().sort((a,b)=>_parseFechaPlanilla(b.fecha)-_parseFechaPlanilla(a.fecha));
 
-  if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas para mostrar.</p>";return;}
+  if(!planillas.length){lista.innerHTML="<p style='color:var(--gris);'>No hay planillas pendientes. Las liquidadas están en Historial.</p>";return;}
   lista.innerHTML=planillas.map(p=>{
     const total=(p.vehiculos||[]).reduce((s,v)=>s+Number(v.valor||0),0);
     const nVeh=(p.vehiculos||[]).length;
     const engrs=[p.engrasador1,p.engrasador2,p.engrasador3,p.engrasador4].filter(Boolean).join(" & ")||"Sin engrasadores";
-    const liqBadge=p.liquidada?`<span class="badge-liquidada">LIQUIDADA</span>`:`<span class="badge-pendiente">⏳ Pendiente</span>`;
     // Quita cualquier fecha vieja pegada al nombre (planillas creadas antes de este cambio)
     const nombreSinFecha=(p.nombre||p.fecha||"").replace(/\s*[—-]\s*\d{1,2}\/\d{1,2}\/\d{4}\s*$/,"");
     const nomSafe=sanitizarTexto(nombreSinFecha||p.fecha), fechaSafe=sanitizarTexto(p.fecha), engrsSafe=sanitizarTexto(engrs);
-    return `<div class="planilla-card ${p.liquidada?'liquidada':''}">
+    return `<div class="planilla-card">
       <div class="planilla-card-header">
         <div>
           <div class="planilla-nombre">${nomSafe}</div>
@@ -3262,13 +3271,12 @@ function mostrarListaPlanillas(){
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
           <span class="planilla-fecha-grande">📅 ${fechaSafe}</span>
-          ${liqBadge}
+          <span class="badge-pendiente">⏳ Pendiente</span>
         </div>
       </div>
-      ${p.liquidada?(()=>{const liq=_liquidacionDePlanilla(p.id); return liq?`<div class="planilla-liq-info">${_htmlDesgloseLiquidacion(liq)}</div>`:"";})():""}
       <div class="planilla-acciones">
         <button class="btn-sm" onclick="abrirPestania('${p.id}')">✏️ Abrir</button>
-        ${!p.liquidada?`<button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>`:`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${p.id}')">↩️ Revertir</button>`}
+        <button class="btn-verde btn-sm" onclick="liquidarDesdePlanilla('${p.id}')">⚡ Liquidar</button>
         <button class="btn-sm" onclick="imprimirPlanilla('${p.id}')">🖨️ PDF</button>
         <button class="btn-rojo btn-sm" onclick="eliminarPlanilla('${p.id}')">🗑️</button>
       </div>
@@ -3804,6 +3812,9 @@ function pagarTodos(){ reiniciarPagosMes(); }
 // ══ QUINCENA HELPERS ══
 let _quinHistorial = 'q1';
 let _quinCierre    = 'mes';
+let _modoPeriodoHistorial = 'quincena'; // 'quincena' | 'semana'
+let _semanaHistorial = 1;               // 1..5, bloques de 7 días del mes
+let _filtroEngrasadorHistorial = '';
 let _trabElimNube = new Set();   // nombres en D1 con evento eliminarTrabajador
 let _planillaElimNube = new Set(); // ids en D1 con evento eliminarPlanilla
 
@@ -3812,6 +3823,30 @@ function setQuinHistorial(q, btn){
   document.querySelectorAll('#tabsQuinHistorial .periodo-tab').forEach(b=>b.classList.remove('activo'));
   if(btn) btn.classList.add('activo');
   mostrarHistorial();
+}
+function setModoPeriodoHistorial(modo){
+  _modoPeriodoHistorial=modo;
+  document.getElementById('btnModoQuincena')?.classList.toggle('activo', modo==='quincena');
+  document.getElementById('btnModoSemana')?.classList.toggle('activo', modo==='semana');
+  document.getElementById('tabsQuinHistorial')?.classList.toggle('oculto', modo!=='quincena');
+  document.getElementById('tabsSemanaHistorial')?.classList.toggle('oculto', modo!=='semana');
+  mostrarHistorial();
+}
+function setSemanaHistorial(sem, btn){
+  _semanaHistorial=sem;
+  document.querySelectorAll('#tabsSemanaHistorial .periodo-tab').forEach(b=>b.classList.remove('activo'));
+  if(btn) btn.classList.add('activo');
+  mostrarHistorial();
+}
+// Semana "de calendario simple": bloques fijos de 7 días dentro del mes (1-7, 8-14, 15-21, 22-28, 29-31).
+function _enPeriodoHistorial(fecha){
+  if(_modoPeriodoHistorial==='semana'){
+    const dia=_getDia(fecha);
+    if(!dia) return false;
+    const sem=Math.min(5, Math.ceil(dia/7));
+    return sem===_semanaHistorial;
+  }
+  return _enQuincena(fecha,_quinHistorial);
 }
 function setQuinCierre(q, btn){
   _quinCierre=q;
@@ -3952,16 +3987,42 @@ function mostrarHistorial(){
   const el=document.getElementById("historialContenido"); if(!el) return;
   sincronizarMeses();
   const mes=document.getElementById("mesHistorial")?.value||mesActual();
+
+  // ── Filtro por engrasador ──
+  const selE=document.getElementById("selFiltroEngrHistorial");
+  if(selE){
+    const nombres=(negocio.trabajadores||[]).map(t=>t.nombre);
+    selE.innerHTML=`<option value="">👷 Todos</option>`+nombres.map(n=>`<option value="${sanitizarTexto(n)}" ${_filtroEngrasadorHistorial===n?'selected':''}>${cap(sanitizarTexto(n))}</option>`).join("");
+  }
+
+  // ── Botón de limpieza: visible si hay planillas liquidadas guardadas en algún lado ──
+  const btnLimp=document.getElementById("btnLimpiarLiquidadas");
+  if(btnLimp) btnLimp.style.display=(negocio.planillas||[]).some(p=>p.liquidada)?"inline-block":"none";
+
   el.innerHTML=""; let count=0;
   (negocio.historial||[]).forEach((c,i)=>{
     if(c.mes!==mes) return;
-    if(!_enQuincena(c.fecha,_quinHistorial)) return;
+    if(!_enPeriodoHistorial(c.fecha)) return;
+    const nombresLiq=[c.trabajadorNombre1,c.trabajadorNombre2,c.trabajadorNombre3,c.trabajadorNombre4].filter(Boolean);
+    if(_filtroEngrasadorHistorial && !nombresLiq.includes(_filtroEngrasadorHistorial)) return;
     count++;
     const pagos=[[c.trabajadorNombre1,c.pagoTrabajador1],[c.trabajadorNombre2,c.pagoTrabajador2],[c.trabajadorNombre3,c.pagoTrabajador3],[c.trabajadorNombre4,c.pagoTrabajador4]].filter(([n])=>n).map(([n,p])=>`${cap(sanitizarTexto(n))}: $${fmtMiles(Number(p||0))}`).join("<br>");
     const bp=c.planillaId?`<span style="background:#e8f1ff;padding:2px 8px;border-radius:12px;font-size:11px;color:var(--azul);font-weight:700;">Desde planilla</span>`:"";
-    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div>`;
+    const pl=c.planillaId?(negocio.planillas||[]).find(p=>p.id===c.planillaId):null;
+    const accionesPlanilla=pl?`
+      <button class="btn-sm" onclick="_verPlanillaDesdeHistorial('${pl.id}')">👁️ Ver detalle</button>
+      <button class="btn-sm" onclick="imprimirPlanilla('${pl.id}')">🖨️ PDF</button>
+      ${pl.liquidada?`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${pl.id}')">↩️ Revertir</button>`:''}
+    `:'';
+    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${accionesPlanilla}<button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div></div>`;
   });
-  if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este mes.</p>";
+  if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este período.</p>";
+}
+function _verPlanillaDesdeHistorial(id){
+  const pl=(negocio.planillas||[]).find(p=>p.id===id);
+  if(!pl){toast("Esta planilla ya no está disponible (fue archivada)","aviso");return;}
+  mostrarPagina("paginaPlanillas");
+  abrirPestania(id);
 }
 function eliminarLiquidacion(i){
   confirmar("Eliminar liquidación","¿Seguro? Se descontará el pago.",async()=>{
