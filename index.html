@@ -137,6 +137,7 @@ button:active{transform:scale(.98);}
 .item-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .item-stat strong{font-size:14px;font-weight:700;color:#243044;}
 .item-stat.neto strong{color:var(--verde);}
+.badge-categoria-precio{display:inline-block;margin-top:2px;font-size:11px;font-weight:700;color:var(--azul);}
 .item-acciones{display:flex;gap:8px;}
 .resumen-pago{background:#e8f1ff;padding:11px;border-radius:12px;line-height:1.7;border-left:4px solid var(--azul);}
 .cierre-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
@@ -466,6 +467,7 @@ body.oscuro .item { background:#1e2a3a; border-color:#2d3f55; }
 body.oscuro .item-nombre { color:#7dd3fc; }
 body.oscuro .item h3 { color:#e2e8f0; }
 body.oscuro .item p { color:#9ca3af; }
+body.oscuro .badge-categoria-precio { color:#7dd3fc; }
 body.oscuro .item-stat { background:rgba(255,255,255,.04); }
 body.oscuro .item-stat span { color:#6b7280; }
 body.oscuro .item-stat strong { color:#e2e8f0; }
@@ -710,6 +712,7 @@ body.oscuro .stat-box { opacity:.9; }
 <body>
 <div class="contenedor">
 <div class="toast-container" id="toastContainer"></div>
+<datalist id="dlProductos"></datalist>
 
 <!-- BARRA SUPERIOR -->
 <div class="barra-superior">
@@ -992,6 +995,73 @@ body.oscuro .stat-box { opacity:.9; }
     </div>
   </div>
 
+  <!-- PRECIOS -->
+  <div id="paginaPrecios" class="pagina oculto">
+    <div class="seccion">
+      <h2>🏷️ Lista de precios</h2>
+      <p style="color:var(--gris);font-size:12px;margin-top:6px;">Guarda cada producto con su precio de compra (a como lo compras o sale) y define el precio de venta con un % de ganancia automático o escribiéndolo tú mismo.</p>
+      <div class="fila" style="align-items:flex-end;gap:10px;margin-top:14px;">
+        <div style="flex:1;">
+          <label>Categorías</label>
+          <div class="ac-wrap"><input type="text" id="nombreCategoriaProducto" placeholder="Ej: Grasas, Filtros, Repuestos" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarCategoriaProducto();}"></div>
+        </div>
+        <button class="btn-verde" onclick="agregarCategoriaProducto()" style="padding:11px 20px;white-space:nowrap;">➕ Agregar categoría</button>
+      </div>
+      <div id="listaCategoriasProducto" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+      <div class="config-grid" style="margin-top:16px;">
+        <div>
+          <label>Producto</label>
+          <div class="ac-wrap"><input type="text" id="prodNombre" placeholder="Ej: Grasa azul, filtro..." autocomplete="off"></div>
+        </div>
+        <div>
+          <label>Unidad (opcional)</label>
+          <div class="ac-wrap"><input type="text" id="prodUnidad" placeholder="Ej: galón, kg, unidad" autocomplete="off"></div>
+        </div>
+        <div>
+          <label>Precio de compra ($)</label>
+          <input type="text" inputmode="numeric" autocomplete="off" id="prodPrecioCompra" oninput="_formatearValorEnVivo(this);_actualizarPreviewPrecio()">
+        </div>
+        <div>
+          <label>Categoría</label>
+          <select id="prodCategoria"></select>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <label style="display:block;margin-bottom:8px;">¿Cómo defines el precio de venta?</label>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--texto);cursor:pointer;"><input type="radio" name="prodModo" value="porcentaje" checked onchange="_cambiarModoPrecio()"> Calcular con % de ganancia</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--texto);cursor:pointer;"><input type="radio" name="prodModo" value="manual" onchange="_cambiarModoPrecio()"> Ponerlo yo mismo</label>
+        </div>
+      </div>
+      <div class="config-grid" style="margin-top:12px;">
+        <div id="wrapProdPorcentaje">
+          <label>% de ganancia</label>
+          <input type="number" step="0.1" id="prodPorcentaje" value="30" oninput="_actualizarPreviewPrecio()">
+        </div>
+        <div id="wrapProdManual" class="oculto">
+          <label>Precio de venta manual ($)</label>
+          <input type="text" inputmode="numeric" autocomplete="off" id="prodPrecioVentaManual" oninput="_formatearValorEnVivo(this);_actualizarPreviewPrecio()">
+        </div>
+        <div>
+          <label>Precio de venta</label>
+          <div id="prodPreviewVenta" style="padding:11px 14px;border-radius:12px;background:#f8faff;border:1px solid var(--borde);font-weight:800;color:var(--verde);">$0</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+        <button class="btn-verde" id="btnGuardarProducto" onclick="guardarProducto()">➕ Agregar producto</button>
+        <button class="btn-gris oculto" id="btnCancelarEdicionProducto" onclick="cancelarEdicionProducto()">Cancelar</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:18px;">
+        <h3 style="margin:0;" id="tituloListaPrecios">Productos guardados</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select id="selFiltroCategoriaPrecio" onchange="_filtroCategoriaProducto=this.value;mostrarPrecios()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;"></select>
+          <div class="ac-wrap" style="max-width:220px;"><input type="text" id="buscarProducto" placeholder="🔎 Buscar..." autocomplete="off" oninput="mostrarPrecios()"></div>
+        </div>
+      </div>
+      <div id="listaPrecios" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
   <!-- PERFILES -->
   <div id="paginaPerfiles" class="pagina oculto">
     <div class="seccion">
@@ -1109,7 +1179,7 @@ body.oscuro .stat-box { opacity:.9; }
 
       <!-- SOLICITUD DE PAGO -->
       <div id="panelSolicitudPago" class="oculto" style="margin-top:20px;">
-        <div class="seccion" style="background:#fff;">
+        <div class="seccion" style="background:#fff;color:#243044;">
           <h2>Solicitar activación PRO</h2>
           <div class="pasos-solicitud">
             <div class="paso-item"><div class="paso-num">1</div><div>Realiza tu pago por Nequi al número <strong>322-716-7031</strong> (Brandon Sebastian Arevalo Ojeda).</div></div>
@@ -1613,6 +1683,199 @@ function mostrarPerfiles(){
   </div>`).join("");
 }
 
+// ══════════════════════════════════════════════════════════
+//  MÓDULO PRECIOS
+// ══════════════════════════════════════════════════════════
+let _productoEditando = null;
+
+function _calcularPrecioVenta(precioCompra, modo, porcentaje, manual){
+  if(modo==="manual") return Math.max(0, Math.round(Number(manual)||0));
+  const p=Number(porcentaje)||0;
+  return Math.max(0, Math.round((Number(precioCompra)||0)*(1+p/100)));
+}
+function _modoPrecioActual(){
+  return document.querySelector('input[name="prodModo"]:checked')?.value || "porcentaje";
+}
+function _cambiarModoPrecio(){
+  const modo=_modoPrecioActual();
+  document.getElementById("wrapProdPorcentaje")?.classList.toggle("oculto", modo!=="porcentaje");
+  document.getElementById("wrapProdManual")?.classList.toggle("oculto", modo!=="manual");
+  _actualizarPreviewPrecio();
+}
+function _actualizarPreviewPrecio(){
+  const compra=_leerNum("prodPrecioCompra");
+  const modo=_modoPrecioActual();
+  const porcentaje=Number(document.getElementById("prodPorcentaje")?.value)||0;
+  const manual=_leerNum("prodPrecioVentaManual");
+  const venta=_calcularPrecioVenta(compra,modo,porcentaje,manual);
+  const el=document.getElementById("prodPreviewVenta");
+  if(el) el.textContent="$"+(fmtMiles(venta)||"0");
+}
+async function guardarProducto(){
+  const nombre=(document.getElementById("prodNombre").value||"").trim();
+  if(!nombre){toast("Escribe el nombre del producto","error");return;}
+  if(nombre.length>60){toast("El nombre es demasiado largo (máx 60 caracteres)","error");return;}
+  const unidad=(document.getElementById("prodUnidad").value||"").trim().slice(0,30);
+  const precioCompra=_leerNum("prodPrecioCompra");
+  const modo=_modoPrecioActual();
+  const porcentaje=Number(document.getElementById("prodPorcentaje").value)||0;
+  const manual=_leerNum("prodPrecioVentaManual");
+  const precioVenta=_calcularPrecioVenta(precioCompra,modo,porcentaje,manual);
+  const categoria=document.getElementById("prodCategoria")?.value || _categoriasProductoActuales()[0];
+  if(!negocio.productos) negocio.productos=[];
+  const nombreNorm=nombre.toLowerCase();
+  const dupe=negocio.productos.some(pr=>pr.nombre.toLowerCase()===nombreNorm && pr.id!==_productoEditando);
+  if(dupe){toast("Ya existe un producto con ese nombre","error");return;}
+  const datos={nombre,unidad,precioCompra,modo,porcentaje,precioVentaManual:manual,precioVenta,categoria};
+  if(_productoEditando){
+    const idx=negocio.productos.findIndex(pr=>pr.id===_productoEditando);
+    if(idx>=0) negocio.productos[idx]=Object.assign({},negocio.productos[idx],datos);
+    toast("Producto actualizado ✅","ok");
+  } else {
+    negocio.productos.push(Object.assign({id:generarId()},datos));
+    toast("Producto agregado ✅","ok");
+  }
+  guardar(); cancelarEdicionProducto(); actualizarTodo();
+  const r=await guardarEvento({tipoRegistro:"productos",productos:negocio.productos,categorias:negocio.categoriasProductos});
+  if(!r||!r.ok) toast("⚠️ Sin conexión: el producto se guardó solo en este dispositivo","aviso");
+}
+function editarProducto(id){
+  const p=(negocio.productos||[]).find(x=>x.id===id); if(!p) return;
+  _productoEditando=id;
+  document.getElementById("prodNombre").value=p.nombre;
+  document.getElementById("prodUnidad").value=p.unidad||"";
+  document.getElementById("prodPrecioCompra").value=fmtMiles(p.precioCompra)||"";
+  document.querySelectorAll('input[name="prodModo"]').forEach(r=>{r.checked=(r.value===p.modo);});
+  document.getElementById("prodPorcentaje").value=p.porcentaje||0;
+  document.getElementById("prodPrecioVentaManual").value=fmtMiles(p.precioVentaManual||p.precioVenta)||"";
+  _poblarSelectCategorias();
+  const selCat=document.getElementById("prodCategoria");
+  if(selCat) selCat.value=p.categoria||_categoriasProductoActuales()[0];
+  _cambiarModoPrecio();
+  document.getElementById("btnGuardarProducto").textContent="💾 Guardar cambios";
+  document.getElementById("btnCancelarEdicionProducto").classList.remove("oculto");
+  document.getElementById("prodNombre").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function cancelarEdicionProducto(){
+  _productoEditando=null;
+  document.getElementById("prodNombre").value="";
+  document.getElementById("prodUnidad").value="";
+  document.getElementById("prodPrecioCompra").value="";
+  document.getElementById("prodPrecioVentaManual").value="";
+  document.getElementById("prodPorcentaje").value=30;
+  document.querySelectorAll('input[name="prodModo"]').forEach(r=>{r.checked=(r.value==="porcentaje");});
+  _poblarSelectCategorias();
+  const selCatReset=document.getElementById("prodCategoria");
+  if(selCatReset) selCatReset.value=_categoriasProductoActuales()[0];
+  _cambiarModoPrecio();
+  document.getElementById("btnGuardarProducto").textContent="➕ Agregar producto";
+  document.getElementById("btnCancelarEdicionProducto").classList.add("oculto");
+}
+async function eliminarProducto(id){
+  const p=(negocio.productos||[]).find(x=>x.id===id); if(!p) return;
+  confirmar("Eliminar producto",`¿Eliminar "${cap(sanitizarTexto(p.nombre))}" de la lista de precios?`,async()=>{
+    negocio.productos=negocio.productos.filter(x=>x.id!==id);
+    if(_productoEditando===id) cancelarEdicionProducto();
+    guardar(); actualizarTodo();
+    toast("Producto eliminado","ok");
+    const r=await guardarEvento({tipoRegistro:"productos",productos:negocio.productos,categorias:negocio.categoriasProductos});
+    if(!r||!r.ok) toast("⚠️ Sin conexión: eliminación guardada solo en este dispositivo","aviso");
+  });
+}
+let _filtroCategoriaProducto = "";
+function _categoriasProductoActuales(){
+  if(!negocio.categoriasProductos || !negocio.categoriasProductos.length) negocio.categoriasProductos=["General"];
+  return negocio.categoriasProductos;
+}
+function _poblarSelectCategorias(){
+  const sel=document.getElementById("prodCategoria"); if(!sel) return;
+  const cats=_categoriasProductoActuales();
+  const actual=sel.value;
+  sel.innerHTML=cats.map(c=>`<option value="${sanitizarTexto(c)}">${sanitizarTexto(c)}</option>`).join("");
+  sel.value=cats.includes(actual)?actual:cats[0];
+}
+function _poblarFiltroCategoriasPrecio(){
+  const sel=document.getElementById("selFiltroCategoriaPrecio"); if(!sel) return;
+  const cats=_categoriasProductoActuales();
+  sel.innerHTML=`<option value="">🏷️ Todas</option>`+cats.map(c=>`<option value="${sanitizarTexto(c)}" ${_filtroCategoriaProducto===c?'selected':''}>${sanitizarTexto(c)}</option>`).join("");
+}
+async function agregarCategoriaProducto(){
+  const input=document.getElementById("nombreCategoriaProducto");
+  const nombre=(input?.value||"").trim();
+  if(!nombre){toast("Escribe el nombre de la categoría","error");return;}
+  if(nombre.length>30){toast("El nombre es demasiado largo (máx 30 caracteres)","error");return;}
+  const cats=_categoriasProductoActuales();
+  const nombreNorm=nombre.toLowerCase();
+  if(cats.some(c=>c.toLowerCase()===nombreNorm)){toast("Ya existe esa categoría","error");return;}
+  cats.push(nombre);
+  input.value="";
+  guardar(); actualizarTodo();
+  toast("Categoría agregada ✅","ok");
+  const r=await guardarEvento({tipoRegistro:"productos",productos:negocio.productos||[],categorias:negocio.categoriasProductos});
+  if(!r||!r.ok) toast("⚠️ Sin conexión: la categoría se guardó solo en este dispositivo","aviso");
+}
+async function eliminarCategoriaProducto(idx){
+  const cats=_categoriasProductoActuales();
+  const nombre=cats[idx]; if(nombre==null) return;
+  if(cats.length<=1){toast("Debe quedar al menos una categoría","error");return;}
+  const enUso=(negocio.productos||[]).some(p=>(p.categoria||"General")===nombre);
+  if(enUso){toast(`No puedes eliminar "${cap(sanitizarTexto(nombre))}": hay productos usándola`,"error");return;}
+  confirmar("Eliminar categoría",`¿Eliminar la categoría "${cap(sanitizarTexto(nombre))}"?`,async()=>{
+    negocio.categoriasProductos=cats.filter((c,i)=>i!==idx);
+    if(_filtroCategoriaProducto===nombre) _filtroCategoriaProducto="";
+    guardar(); actualizarTodo();
+    toast("Categoría eliminada","ok");
+    const r=await guardarEvento({tipoRegistro:"productos",productos:negocio.productos||[],categorias:negocio.categoriasProductos});
+    if(!r||!r.ok) toast("⚠️ Sin conexión: eliminación guardada solo en este dispositivo","aviso");
+  });
+}
+function mostrarPrecios(){
+  const cont=document.getElementById("listaPrecios"); if(!cont) return;
+  if(!negocio.productos) negocio.productos=[];
+  _categoriasProductoActuales();
+  _poblarSelectCategorias();
+  _poblarFiltroCategoriasPrecio();
+  const catCont=document.getElementById("listaCategoriasProducto");
+  if(catCont){
+    catCont.innerHTML=negocio.categoriasProductos.map((c,i)=>`<div class="item" style="display:flex;align-items:center;gap:8px;margin:0;padding:8px 14px;">
+      <span>${sanitizarTexto(c)}</span>
+      <button class="btn-rojo btn-sm" onclick="eliminarCategoriaProducto(${i})">🗑️</button>
+    </div>`).join("");
+  }
+  const q=(document.getElementById("buscarProducto")?.value||"").trim().toLowerCase();
+  let productos=negocio.productos.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  if(_filtroCategoriaProducto) productos=productos.filter(p=>(p.categoria||"General")===_filtroCategoriaProducto);
+  if(q) productos=productos.filter(p=>p.nombre.toLowerCase().includes(q));
+  const titulo=document.getElementById("tituloListaPrecios");
+  if(titulo) titulo.textContent=(_filtroCategoriaProducto||q)?`Productos guardados (${productos.length} de ${negocio.productos.length})`:`Productos guardados (${negocio.productos.length})`;
+  if(!productos.length){
+    cont.innerHTML="<p style='color:var(--gris);'>"+((q||_filtroCategoriaProducto)?"No hay productos que coincidan.":"No hay productos guardados todavía.")+"</p>";
+    return;
+  }
+  cont.innerHTML=productos.map(p=>{
+    const ganancia=Number(p.precioVenta||0)-Number(p.precioCompra||0);
+    const gananciaPct=p.precioCompra>0?(ganancia/p.precioCompra*100):0;
+    const nomSafe=sanitizarTexto(p.nombre)+(p.unidad?` <span style="font-weight:500;color:var(--gris);font-size:12px;">(${sanitizarTexto(p.unidad)})</span>`:"");
+    return `<div class="item">
+      <div class="item-header">
+        <div>
+          <div class="item-nombre">${nomSafe}</div>
+          <span class="badge-categoria-precio">🏷️ ${sanitizarTexto(p.categoria||"General")}</span>
+        </div>
+      </div>
+      <div class="item-stats">
+        <div class="item-stat"><span>Compra</span><strong>$${fmtMiles(p.precioCompra)||'0'}</strong></div>
+        <div class="item-stat"><span>Venta</span><strong>$${fmtMiles(p.precioVenta)||'0'}</strong></div>
+        <div class="item-stat neto"><span>Ganancia</span><strong>$${fmtMiles(ganancia)||'0'} (${gananciaPct.toFixed(0)}%)</strong></div>
+      </div>
+      <div class="item-acciones">
+        <button onclick="editarProducto('${p.id}')">✏️ Editar</button>
+        <button class="btn-rojo" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function confirmar(titulo, msg, cb) {
   document.getElementById("modalConfirmTitulo").innerText = titulo;
   document.getElementById("modalConfirmMsg").innerText    = msg;
@@ -1912,6 +2175,8 @@ function prepararDatos() {
   if (!negocio.cierresMes)    negocio.cierresMes    = {};
   if (!negocio.creditos)      negocio.creditos      = {empresas:[], historial:[]};
   if (!negocio.perfiles)      negocio.perfiles      = ["Admin"];
+  if (!negocio.productos)     negocio.productos     = [];
+  if (!negocio.categoriasProductos) negocio.categoriasProductos = ["General"];
   negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
   guardar();
 }
@@ -1946,6 +2211,7 @@ function entrarSistema() {
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
     {id:"paginaCreditos",     icono:"💳", titulo:"Créditos",         desc:"Servicios a crédito por empresa, para cobrar después."},
+    {id:"paginaPrecios",      icono:"🏷️", titulo:"Precios",          desc:"Productos con precio de compra y de venta, a la mano."},
     {id:"paginaPerfiles",     icono:"👤", titulo:"Perfiles",         desc:"Quién usa el sistema — queda registrado en planillas, adelantos y cobros."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
@@ -1963,6 +2229,7 @@ function entrarSistema() {
     {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
     {icono:"💳",label:"Créditos",      pagina:"paginaCreditos"},
+    {icono:"🏷️",label:"Precios",       pagina:"paginaPrecios"},
     {icono:"👤",label:"Perfiles",       pagina:"paginaPerfiles"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
@@ -2094,7 +2361,7 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); mostrarPerfiles(); refrescarDropdownsPlanilla();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); mostrarPerfiles(); mostrarPrecios(); _poblarDatalistProductos(); refrescarDropdownsPlanilla();
 }
 
 // Refresca solo los selects de engrasador de las planillas abiertas (sin re-renderizar toda la planilla)
@@ -2213,6 +2480,13 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="configuracion"){
       if(!ev.configuracion) return;
       negocio.configuracion=Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFECTO)),ev.configuracion||{});
+      return;
+    }
+    if (ev.tipoRegistro==="productos"){
+      if(!Array.isArray(ev.productos)) return;
+      negocio.productos=ev.productos;
+      if(Array.isArray(ev.categorias)&&ev.categorias.length) negocio.categoriasProductos=ev.categorias;
+      else if(!negocio.categoriasProductos||!negocio.categoriasProductos.length) negocio.categoriasProductos=["General"];
       return;
     }
     if (ev.tipoRegistro==="creditos"){
@@ -2465,7 +2739,7 @@ function renderPlanillaActiva() {
     <div class="seccion-grasa-planilla">
       <div><label>🛢️ Grasa antes (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGA_${pl.id}" value="${pl.grasaAntes?fmtMiles(pl.grasaAntes):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaAntes',Number(this.value.replace(/\\./g,''))||0)" placeholder="5.000"></div>
       <div><label>🛢️ Grasa que quedó (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGQ_${pl.id}" value="${pl.grasaQuedo?fmtMiles(pl.grasaQuedo):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaQuedo',Number(this.value.replace(/\\./g,''))||0)" placeholder="2.000"></div>
-      <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
+      <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;color:#243044;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
       <button class="btn-verde btn-sm" onclick="agregarFilaPlanilla('${pl.id}', document.getElementById('cantFila_${pl.id}').value)">＋ Fila</button>
@@ -2605,6 +2879,12 @@ function _empresaCreditoDeFila(v){
 }
 function _filaCreditoHTML(id,i,v,disabled){
   const emp=_empresaCreditoDeFila(v);
+  const bloqueProductoBD=(negocio.productos||[]).length?`<div style="width:170px;">
+          <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">+ Producto guardado</label>
+          <input type="text" id="adProd_${id}_${i}" list="dlProductos" placeholder="Nombre..." autocomplete="off" ${disabled}
+            style="width:100%;"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();_agregarProductoACredito('${id}',${i});}">
+        </div>`:'';
   return `<tr id="filaCred_${id}_${i}" class="fila-credito">
     <td colspan="9">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding:8px 4px;">
@@ -2625,8 +2905,9 @@ function _filaCreditoHTML(id,i,v,disabled){
         </div>
         <div style="width:150px;">
           <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Total crédito</label>
-          <div id="credTotalFila_${id}_${i}" style="padding:8px 10px;background:#fff;border-radius:8px;font-weight:700;font-size:13px;border:1px solid #f0d998;">$${fmtMiles((v.valor||0)+(v.adicionalValor||0))||'0'}</div>
+          <div id="credTotalFila_${id}_${i}" style="padding:8px 10px;background:#fff;color:#243044;border-radius:8px;font-weight:700;font-size:13px;border:1px solid #f0d998;">$${fmtMiles((v.valor||0)+(v.adicionalValor||0))||'0'}</div>
         </div>
+        ${bloqueProductoBD}
       </div>
     </td>
   </tr>`;
@@ -2661,6 +2942,35 @@ function actualizarAdicionalValorFila(id,i,raw){
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].adicionalValorRaw=raw; pl.vehiculos[i].adicionalValor=isNaN(valor)?0:valor;
   _actualizarTotalCreditoFila(id,i);
+  _programarAutoguardarPlanilla(id);
+}
+// Agrega un producto de la base de precios al "Valor adicional" de una fila de
+// crédito, sin reemplazar lo que ya haya (manual o de otros productos) — se suma.
+function _agregarProductoACredito(id,i){
+  const inp=document.getElementById(`adProd_${id}_${i}`); if(!inp) return;
+  const nombre=(inp.value||"").trim();
+  if(!nombre) return;
+  const prod=(negocio.productos||[]).find(p=>p.nombre.toLowerCase()===nombre.toLowerCase());
+  if(!prod){ toast(`No se encontró "${sanitizarTexto(nombre)}" en la lista de precios`,"error"); return; }
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  const v=pl.vehiculos[i];
+  const precio=Number(prod.precioVenta||0);
+  v.adicionalValor=Number(v.adicionalValor||0)+precio;
+  v.adicionalValorRaw=String(v.adicionalValor);
+  const desc=`${prod.nombre} ($${fmtMiles(precio)||'0'})`;
+  v.adicionalDesc=v.adicionalDesc?`${v.adicionalDesc}, ${desc}`:desc;
+  const taDesc=document.getElementById(`adDesc_${id}_${i}`);
+  if(taDesc){ taDesc.value=v.adicionalDesc; taDesc.style.height='auto'; taDesc.style.height=taDesc.scrollHeight+'px'; }
+  const inVal=document.getElementById(`adVal_${id}_${i}`);
+  if(inVal) inVal.value=fmtMiles(v.adicionalValor)||'';
+  inp.value="";
+  _actualizarTotalCreditoFila(id,i);
+  guardar(); _programarAutoguardarPlanilla(id);
+  toast(`${cap(sanitizarTexto(prod.nombre))} agregado ✅ ($${fmtMiles(precio)||'0'})`,"ok");
+}
+function _poblarDatalistProductos(){
+  const dl=document.getElementById("dlProductos"); if(!dl) return;
+  dl.innerHTML=(negocio?.productos||[]).map(p=>`<option value="${sanitizarTexto(p.nombre)}"></option>`).join("");
 }
 
 function renderFilasPlanilla(id) {
