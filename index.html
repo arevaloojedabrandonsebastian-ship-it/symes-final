@@ -2662,7 +2662,7 @@ function nuevaPlanilla() {
   const ahora=new Date();
   const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
   const mes=mesActual();
-  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",creditoCobrado:false,creditoCobroId:null});
+  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",adicionalProductos:[],creditoCobrado:false,creditoCobroId:null});
   const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",carcamos:[],grasaAntes:0,grasaQuedo:0,total:0,liquidada:false,creadoPor:perfilActivo()};
   if(!negocio.planillas) negocio.planillas=[];
   negocio.planillas.unshift(planilla);
@@ -2884,6 +2884,28 @@ function _empresaCreditoDeFila(v){
   const empresas=negocio?.creditos?.empresas||[];
   return empresas.find(e=>e.toLowerCase()===obs)||null;
 }
+// Suma de los productos de la base de precios agregados a esta fila (cada uno
+// queda como una etiqueta removible, independiente del texto libre y del valor
+// manual — así se puede quitar uno sin afectar los demás).
+function _totalAdicionalProductos(v){
+  return (v.adicionalProductos||[]).reduce((s,pr)=>s+Number(pr.precio||0),0);
+}
+// Única fuente de verdad para el total de una fila de crédito: servicio + valor
+// manual + productos agregados. TODO el resto del código (la caja "Total crédito",
+// el listado de pendientes por empresa, el Excel y el cobro) pasa por aquí, para
+// que no se vuelva a desincronizar como pasó antes.
+function _totalCreditoFila(v){
+  return Number(v.valor||0)+Number(v.adicionalValor||0)+_totalAdicionalProductos(v);
+}
+function _descripcionAdicionalCompleta(v){
+  const nombresProductos=(v.adicionalProductos||[]).map(pr=>pr.nombre).join(", ");
+  return [v.adicionalDesc,nombresProductos].filter(Boolean).join(", ");
+}
+function _renderTagsProductosCredito(id,i,v,disabled){
+  const items=v.adicionalProductos||[];
+  if(!items.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">`+items.map(pr=>`<span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #f0d998;border-radius:999px;padding:4px 6px 4px 12px;font-size:12px;font-weight:700;color:#243044;">${sanitizarTexto(pr.nombre)} · $${fmtMiles(pr.precio)||'0'}${disabled?'':` <button onclick="_eliminarProductoDeCredito('${id}',${i},'${pr.id}')" title="Quitar" style="background:#fca5a5;color:#7f1d1d;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:800;cursor:pointer;padding:0;line-height:1;margin:0;">✕</button>`}</span>`).join('')+`</div>`;
+}
 function _filaCreditoHTML(id,i,v,disabled){
   const emp=_empresaCreditoDeFila(v);
   const bloqueProductoBD=(negocio.productos||[]).length?`<div style="width:170px;">
@@ -2913,9 +2935,10 @@ function _filaCreditoHTML(id,i,v,disabled){
         </div>
         <div style="width:150px;">
           <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Total crédito</label>
-          <div id="credTotalFila_${id}_${i}" style="padding:8px 10px;background:#fff;color:#243044;border-radius:8px;font-weight:700;font-size:13px;border:1px solid #f0d998;">$${fmtMiles((v.valor||0)+(v.adicionalValor||0))||'0'}</div>
+          <div id="credTotalFila_${id}_${i}" style="padding:8px 10px;background:#fff;color:#243044;border-radius:8px;font-weight:700;font-size:13px;border:1px solid #f0d998;">$${fmtMiles(_totalCreditoFila(v))||'0'}</div>
         </div>
         ${bloqueProductoBD}
+        <div id="prodTags_${id}_${i}" style="width:100%;">${_renderTagsProductosCredito(id,i,v,disabled)}</div>
       </div>
     </td>
   </tr>`;
@@ -2942,7 +2965,7 @@ function _actualizarVisibilidadCreditoFila(id,i){
 function _actualizarTotalCreditoFila(id,i){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const el=document.getElementById(`credTotalFila_${id}_${i}`);
-  if(el) el.textContent="$"+(fmtMiles((pl.vehiculos[i].valor||0)+(pl.vehiculos[i].adicionalValor||0))||'0');
+  if(el) el.textContent="$"+(fmtMiles(_totalCreditoFila(pl.vehiculos[i]))||'0');
 }
 // El valor adicional NUNCA entra a recalcularTotal()/pl.total: no afecta la
 // liquidación de los engrasadores, solo se suma al crédito de la empresa.
@@ -2963,19 +2986,27 @@ function _agregarProductoACredito(id,i){
   if(!prod){ toast(`No se encontró "${sanitizarTexto(nombre)}" en la lista de precios`,"error"); return; }
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const v=pl.vehiculos[i];
+  if(!v.adicionalProductos) v.adicionalProductos=[];
   const precio=Number(prod.precioVenta||0);
-  v.adicionalValor=Number(v.adicionalValor||0)+precio;
-  v.adicionalValorRaw=String(v.adicionalValor);
-  const desc=`${cap(prod.nombre)} ($${fmtMiles(precio)||'0'})`;
-  v.adicionalDesc=v.adicionalDesc?`${v.adicionalDesc}, ${desc}`:desc;
-  const taDesc=document.getElementById(`adDesc_${id}_${i}`);
-  if(taDesc){ taDesc.value=v.adicionalDesc; taDesc.style.height='auto'; taDesc.style.height=taDesc.scrollHeight+'px'; }
-  const inVal=document.getElementById(`adVal_${id}_${i}`);
-  if(inVal) inVal.value=fmtMiles(v.adicionalValor)||'';
+  v.adicionalProductos.push({id:generarId(),nombre:prod.nombre,precio});
   inp.value="";
+  const tagsCont=document.getElementById(`prodTags_${id}_${i}`);
+  if(tagsCont) tagsCont.innerHTML=_renderTagsProductosCredito(id,i,v,pl.liquidada?"disabled":"");
   _actualizarTotalCreditoFila(id,i);
   guardar(); _programarAutoguardarPlanilla(id);
   toast(`${cap(sanitizarTexto(prod.nombre))} agregado ✅ ($${fmtMiles(precio)||'0'})`,"ok");
+}
+// Quita un producto agregado (su etiqueta) de una fila de crédito y ajusta el total.
+function _eliminarProductoDeCredito(id,i,prodId){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  const v=pl.vehiculos[i];
+  if(!v.adicionalProductos||!v.adicionalProductos.length) return;
+  v.adicionalProductos=v.adicionalProductos.filter(pr=>pr.id!==prodId);
+  const tagsCont=document.getElementById(`prodTags_${id}_${i}`);
+  if(tagsCont) tagsCont.innerHTML=_renderTagsProductosCredito(id,i,v,pl.liquidada?"disabled":"");
+  _actualizarTotalCreditoFila(id,i);
+  guardar(); _programarAutoguardarPlanilla(id);
+  toast("Producto quitado del crédito","ok");
 }
 function _poblarDatalistProductos(){
   const dl=document.getElementById("dlProductos"); if(!dl) return;
@@ -3086,7 +3117,7 @@ function agregarFilaPlanilla(id, cantidad){
   if(n>50) n=50; // límite razonable para evitar agregar cientos de filas por error
   const filaInicial=pl.vehiculos.length;
   for(let k=0;k<n;k++){
-    pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",creditoCobrado:false,creditoCobroId:null});
+    pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",adicionalProductos:[],creditoCobrado:false,creditoCobroId:null});
   }
   renderFilasPlanilla(id);
   setTimeout(()=>{
@@ -3099,7 +3130,7 @@ function eliminarFilaPlanilla(id,i){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   const v=pl.vehiculos[i];
   const emp=v?_empresaCreditoDeFila(v):null;
-  const totalCred=v?(Number(v.valor||0)+Number(v.adicionalValor||0)):0;
+  const totalCred=v?_totalCreditoFila(v):0;
   const borrar=()=>{ pl.vehiculos.splice(i,1); renderFilasPlanilla(id); _autoguardarPlanilla(id); };
   if(emp&&!v.creditoCobrado&&totalCred>0){
     confirmar("Eliminar servicio a crédito",`Este servicio está pendiente de cobro a ${cap(sanitizarTexto(emp))} por $${fmtMiles(totalCred)||'0'}. Si lo eliminas, también se quita de lo pendiente por cobrar. ¿Eliminar de todos modos?`,borrar);
@@ -3129,7 +3160,7 @@ async function guardarPlanilla(id){
 }
 function eliminarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id);
-  const pendienteCredito=pl?(pl.vehiculos||[]).filter(v=>{const e=_empresaCreditoDeFila(v);return e&&!v.creditoCobrado;}).reduce((s,v)=>s+Number(v.valor||0)+Number(v.adicionalValor||0),0):0;
+  const pendienteCredito=pl?(pl.vehiculos||[]).filter(v=>{const e=_empresaCreditoDeFila(v);return e&&!v.creditoCobrado;}).reduce((s,v)=>s+_totalCreditoFila(v),0):0;
   const msgEliminar=pendienteCredito>0?`¿Eliminar esta planilla? Tiene $${fmtMiles(pendienteCredito)||'0'} en servicios a crédito pendientes de cobro que también se eliminarán.`:"¿Eliminar esta planilla?";
   confirmar("Eliminar planilla",msgEliminar,async()=>{
     negocio.planillas=(negocio.planillas||[]).filter(p=>p.id!==id);
@@ -3193,12 +3224,12 @@ function _serviciosPendientesCredito(empresa){
     (pl.vehiculos||[]).forEach((v,i)=>{
       const emp=_empresaCreditoDeFila(v);
       if(emp&&emp.toLowerCase()===String(empresa).toLowerCase()&&!v.creditoCobrado){
-        const total=Number(v.valor||0)+Number(v.adicionalValor||0);
+        const total=_totalCreditoFila(v);
         if(total>0){
           items.push({
             clave:pl.id+"|"+i, planillaId:pl.id, indice:i,
             fecha:pl.fecha, placa:formatPlaca(v.placa)||"—",
-            descripcion:[v.descripcion,v.adicionalDesc].filter(Boolean).join(", ")||"—",
+            descripcion:[v.descripcion,_descripcionAdicionalCompleta(v)].filter(Boolean).join(", ")||"—",
             total
           });
         }
