@@ -886,7 +886,7 @@ body.oscuro .stat-box { opacity:.9; }
       <label>Engrasador:</label>
       <select id="selAdelanto"></select>
       <label>Valor:</label>
-      <input type="number" id="valAdelanto">
+      <input type="text" inputmode="numeric" autocomplete="off" id="valAdelanto" oninput="_formatearValorEnVivo(this)">
       <label>Nota:</label>
       <div class="ac-wrap"><input type="text" id="notaAdelanto" placeholder="Ej: Adelanto quincena" autocomplete="off"></div>
       <button class="btn-verde" onclick="registrarAdelanto()">Registrar adelanto</button>
@@ -942,7 +942,7 @@ body.oscuro .stat-box { opacity:.9; }
       <div class="config-grid">
         <div>
           <label>Precio de la grasa ($/kg): <span class="info" data-tip="Valor en pesos por kilogramo de grasa. Por defecto 11500.">!</span></label>
-          <input type="number" id="cfgPrecioGrasa">
+          <input type="text" inputmode="numeric" autocomplete="off" id="cfgPrecioGrasa" oninput="_formatearValorEnVivo(this)">
         </div>
         <div>
           <label>Porcentaje mixtos (%): <span class="info" data-tip="% que ganan los engrasadores de los mixtos. Por defecto 25%.">!</span></label>
@@ -954,11 +954,11 @@ body.oscuro .stat-box { opacity:.9; }
         </div>
         <div>
           <label>Descuento Seguridad 1ª Quincena ($): <span class="info" data-tip="Monto fijo a descontar por engrasador en la primera quincena.">!</span></label>
-          <input type="number" id="cfgSegQ1" min="0">
+          <input type="text" inputmode="numeric" autocomplete="off" id="cfgSegQ1" oninput="_formatearValorEnVivo(this)">
         </div>
         <div>
           <label>Descuento Seguridad 2ª Quincena ($): <span class="info" data-tip="Monto fijo a descontar por engrasador en la segunda quincena.">!</span></label>
-          <input type="number" id="cfgSegQ2" min="0">
+          <input type="text" inputmode="numeric" autocomplete="off" id="cfgSegQ2" oninput="_formatearValorEnVivo(this)">
         </div>
 
       </div>
@@ -967,8 +967,8 @@ body.oscuro .stat-box { opacity:.9; }
     <div class="seccion">
       <h2>Reglas de rebaja para mixtos <span class="info" data-tip="Ejemplo: cuando cobran 45.000, solo cuenta 40.000.">!</span></h2>
       <div class="fila">
-        <div><label>Valor cobrado:</label><input type="number" id="reglaOrig" placeholder="45000"></div>
-        <div><label>Valor que cuenta:</label><input type="number" id="reglaReb" placeholder="40000"></div>
+        <div><label>Valor cobrado:</label><input type="text" inputmode="numeric" autocomplete="off" id="reglaOrig" oninput="_formatearValorEnVivo(this)" placeholder="45.000"></div>
+        <div><label>Valor que cuenta:</label><input type="text" inputmode="numeric" autocomplete="off" id="reglaReb" oninput="_formatearValorEnVivo(this)" placeholder="40.000"></div>
         <div style="flex:0;align-self:flex-end;"><button class="btn-verde" onclick="agregarRegla()">Agregar</button></div>
       </div>
       <div id="listaReglas" style="margin-top:10px;"></div>
@@ -1503,6 +1503,28 @@ function fmtMiles(n){
   var x = (typeof n === "number") ? Math.round(n) : Math.round(Number(String(n).replace(/\./g,'').replace(/,/g,''))||0);
   return x>0?x.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''
 }
+// Reformatea un <input> con puntos de miles MIENTRAS se escribe, preservando
+// la posición del cursor (cuenta dígitos antes del cursor y los reubica tras
+// reformatear). Solo toca dígitos — cualquier otro caracter se descarta.
+function _formatearValorEnVivo(el){
+  const cursorOrig=el.selectionStart==null?el.value.length:el.selectionStart;
+  const digitosAntes=(el.value.slice(0,cursorOrig).match(/\d/g)||[]).length;
+  const soloDigitos=el.value.replace(/\D/g,'');
+  const formateado=fmtMiles(soloDigitos?Number(soloDigitos):0);
+  el.value=formateado;
+  if(!digitosAntes){ el.setSelectionRange(0,0); return; }
+  let contados=0,pos=formateado.length;
+  for(let k=0;k<formateado.length;k++){
+    if(/\d/.test(formateado[k])) contados++;
+    if(contados===digitosAntes){ pos=k+1; break; }
+  }
+  el.setSelectionRange(pos,pos);
+}
+function _leerNum(id){
+  const el=document.getElementById(id); if(!el) return 0;
+  const n=Number(String(el.value||'').replace(/\./g,'').replace(/,/g,''));
+  return isNaN(n)?0:n;
+}
 function labelEngrase(e){ return e==="azul"?"Azul":e==="mixto_r"?"Mixto":"Sintético"; }
 function sanitizarTexto(str) {
   if (typeof str !== "string") return "";
@@ -1935,7 +1957,7 @@ async function cargarTrabajadores() {
   // Construir lista desde D1 conservando pagos/adelantos locales
   const d1List=r.data.map(t=>{
     const l=loc.find(tl=>tl.nombre.toLowerCase()===t.nombre.toLowerCase()||tl.id===t.id);
-    return {id:t.id,nombre:t.nombre,porcentaje:t.porcentaje||50,pagos:l?.pagos||{},adelantos:l?.adelantos||{}};
+    return {id:t.id,nombre:t.nombre,porcentaje:t.porcentaje||50,pagos:l?.pagos||{},adelantos:l?.adelantos||{},sinSeguridad:l?.sinSeguridad||false};
   });
   // Preservar trabajadores locales que D1 aún no tiene (recién agregados, sync pendiente)
   const d1Nombres=new Set(d1List.map(t=>t.nombre.toLowerCase()));
@@ -2003,6 +2025,17 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="configuracion"){
       if(!ev.configuracion) return;
       negocio.configuracion=Object.assign(JSON.parse(JSON.stringify(CONFIG_DEFECTO)),ev.configuracion||{});
+      return;
+    }
+    if (ev.tipoRegistro==="creditos"){
+      if(!ev.creditos) return;
+      negocio.creditos={empresas:ev.creditos.empresas||[],historial:ev.creditos.historial||[]};
+      return;
+    }
+    if (ev.tipoRegistro==="trabajadorFlags"){
+      if(!ev.nombre) return;
+      const t=getTrabPorNombre(ev.nombre);
+      if(t) t.sinSeguridad=!!ev.sinSeguridad;
       return;
     }
     if (ev.tipoRegistro==="cierreMes"){ if(!ev.mes) return; if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[ev.mes]=ev.estado||"Pendiente"; return; }
@@ -2237,8 +2270,8 @@ function renderPlanillaActiva() {
       </div>
     </div>
     <div class="seccion-grasa-planilla">
-      <div><label>🛢️ Grasa antes (g):</label><input type="number" id="planGA_${pl.id}" value="${pl.grasaAntes||''}" oninput="actualizarDatoPlanilla('${pl.id}','grasaAntes',+this.value)" placeholder="5000"></div>
-      <div><label>🛢️ Grasa que quedó (g):</label><input type="number" id="planGQ_${pl.id}" value="${pl.grasaQuedo||''}" oninput="actualizarDatoPlanilla('${pl.id}','grasaQuedo',+this.value)" placeholder="2000"></div>
+      <div><label>🛢️ Grasa antes (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGA_${pl.id}" value="${pl.grasaAntes?fmtMiles(pl.grasaAntes):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaAntes',Number(this.value.replace(/\./g,''))||0)" placeholder="5.000"></div>
+      <div><label>🛢️ Grasa que quedó (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGQ_${pl.id}" value="${pl.grasaQuedo?fmtMiles(pl.grasaQuedo):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaQuedo',Number(this.value.replace(/\./g,''))||0)" placeholder="2.000"></div>
       <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -2388,7 +2421,7 @@ function _filaCreditoHTML(id,i,v,disabled){
         <div style="width:150px;">
           <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Valor adicional</label>
           <input type="text" inputmode="numeric" id="adVal_${id}_${i}" value="${v.adicionalValor>0?fmtMiles(v.adicionalValor):(v.adicionalValorRaw?fmtMiles(Number(String(v.adicionalValorRaw).replace(/\./g,'').replace(/,/g,''))):'')}" ${disabled} autocomplete="off"
-            oninput="actualizarAdicionalValorFila('${id}',${i},this.value)"
+            oninput="_formatearValorEnVivo(this);actualizarAdicionalValorFila('${id}',${i},this.value.replace(/\./g,''))"
             onfocus="if(this.value)this.select()"
             onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
             placeholder="0" style="width:100%;">
@@ -2552,7 +2585,7 @@ function eliminarFilaPlanilla(id,i){
   if(emp&&!v.creditoCobrado&&totalCred>0){
     confirmar("Eliminar servicio a crédito",`Este servicio está pendiente de cobro a ${cap(sanitizarTexto(emp))} por $${fmtMiles(totalCred)||'0'}. Si lo eliminas, también se quita de lo pendiente por cobrar. ¿Eliminar de todos modos?`,borrar);
   } else {
-    borrar();
+    confirmar("Eliminar fila","¿Eliminar esta fila de la planilla?",borrar);
   }
 }
 async function guardarPlanilla(id){
@@ -2597,6 +2630,7 @@ function agregarEmpresaCredito(){
   input.value="";
   guardar(); actualizarTodo();
   toast("Empresa agregada ✅ — ya aparece en Observaciones","ok");
+  guardarEvento({tipoRegistro:"creditos",creditos:negocio.creditos});
 }
 function eliminarEmpresaCredito(idx){
   const emp=(negocio.creditos?.empresas||[])[idx]; if(emp==null) return;
@@ -2610,6 +2644,7 @@ function eliminarEmpresaCredito(idx){
     if(_empresaCreditoExpandida===emp) _empresaCreditoExpandida=null;
     guardar(); actualizarTodo();
     toast("Empresa eliminada","ok");
+    guardarEvento({tipoRegistro:"creditos",creditos:negocio.creditos});
   });
 }
 function toggleEmpresaCredito(idx){
@@ -2656,37 +2691,62 @@ function toggleSeleccionarTodosCredito(checked){
   _seleccionCredito=new Set(checked?items.map(it=>it.clave):[]);
   mostrarCreditos();
 }
-function cobrarSeleccionCredito(){
+// Paso 1: genera y descarga el Excel de los servicios seleccionados PARA COBRAR.
+// No cambia nada del estado — los servicios siguen apareciendo como pendientes
+// hasta que se confirme que la empresa efectivamente pagó (ver confirmarCobroCredito).
+function generarExcelPendienteCredito(){
   const empresa=_empresaCreditoExpandida; if(!empresa) return;
   const items=_serviciosPendientesCredito(empresa).filter(it=>_seleccionCredito.has(it.clave));
   if(!items.length){toast("Selecciona al menos un servicio","error");return;}
   const total=items.reduce((s,it)=>s+it.total,0);
-  const idCobro=generarId();
-  items.forEach(it=>{
-    const pl=negocio.planillas.find(p=>p.id===it.planillaId);
-    const v=pl?.vehiculos?.[it.indice]; if(!v) return;
-    v.creditoCobrado=true; v.creditoCobroId=idCobro;
-  });
   const registro={
-    id:idCobro, empresa, fecha:new Date().toLocaleString(),
+    empresa, fecha:new Date().toLocaleString(),
     servicios:items.map(({fecha,placa,descripcion,total})=>({fecha,placa,descripcion,total})),
     total
   };
-  if(!negocio.creditos.historial) negocio.creditos.historial=[];
-  negocio.creditos.historial.unshift(registro);
-  _seleccionCredito=new Set();
-  guardar(); actualizarTodo();
-  toast(`Cobro registrado: $${fmtMiles(total)||'0'} — ${cap(sanitizarTexto(empresa))}`,"ok");
   _descargarExcelCredito(registro);
+  toast(`Excel generado — ${cap(sanitizarTexto(empresa))}: $${fmtMiles(total)||'0'}. Siguen pendientes hasta confirmar el pago.`,"ok");
+}
+// Paso 2: se usa DESPUÉS de que la empresa ya pagó. Recién ahí se marcan los
+// servicios como cobrados, se archivan en el historial y salen de pendientes.
+function confirmarCobroCredito(){
+  const empresa=_empresaCreditoExpandida; if(!empresa) return;
+  const items=_serviciosPendientesCredito(empresa).filter(it=>_seleccionCredito.has(it.clave));
+  if(!items.length){toast("Selecciona al menos un servicio","error");return;}
+  const total=items.reduce((s,it)=>s+it.total,0);
+  confirmar("Confirmar cobro",`¿Confirmas que ${cap(sanitizarTexto(empresa))} ya pagó $${fmtMiles(total)||'0'}? Estos ${items.length} servicio(s) se archivarán como cobrados y dejarán de aparecer como pendientes.`,()=>{
+    const idCobro=generarId();
+    items.forEach(it=>{
+      const pl=negocio.planillas.find(p=>p.id===it.planillaId);
+      const v=pl?.vehiculos?.[it.indice]; if(!v) return;
+      v.creditoCobrado=true; v.creditoCobroId=idCobro;
+    });
+    const registro={
+      id:idCobro, empresa, fecha:new Date().toLocaleString(),
+      servicios:items.map(({fecha,placa,descripcion,total})=>({fecha,placa,descripcion,total})),
+      total
+    };
+    if(!negocio.creditos.historial) negocio.creditos.historial=[];
+    negocio.creditos.historial.unshift(registro);
+    _seleccionCredito=new Set();
+    guardar(); actualizarTodo();
+    toast(`Cobro confirmado: $${fmtMiles(total)||'0'} — ${cap(sanitizarTexto(empresa))}`,"ok");
+    const planillasAfectadas=new Set(items.map(it=>it.planillaId));
+    planillasAfectadas.forEach(pid=>{
+      const pl=negocio.planillas.find(p=>p.id===pid);
+      if(pl) guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+    });
+    guardarEvento({tipoRegistro:"creditos",creditos:negocio.creditos});
+  });
 }
 // Genera un .xls (tabla HTML que Excel abre con colores, negrilla y bordes,
-// igual que la planilla manual) — no depende de ninguna librería externa.
+// con membrete de EL DIAMANTE) — no depende de ninguna librería externa.
 function _htmlExcelCredito(empresa, servicios, total, fechaCobro){
-  const filas=servicios.map(s=>`<tr>
-    <td>${sanitizarTexto(s.fecha||'')}</td>
-    <td>${sanitizarTexto(s.placa||'')}</td>
+  const filas=servicios.map((s,i)=>`<tr style="${i%2? 'background:#F7F7F7;':''}">
+    <td class="c">${sanitizarTexto(s.fecha||'')}</td>
+    <td class="c" style="font-weight:bold;">${sanitizarTexto(s.placa||'')}</td>
     <td>${sanitizarTexto(s.descripcion||'')}</td>
-    <td style="text-align:right;">$${fmtMiles(s.total)||'0'}</td>
+    <td class="der">$${fmtMiles(s.total)||'0'}</td>
   </tr>`).join("");
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
@@ -2694,20 +2754,33 @@ function _htmlExcelCredito(empresa, servicios, total, fechaCobro){
 <x:Name>${sanitizarTexto(empresa).slice(0,30)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
 </x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
 <style>
-table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:12px;}
-th,td{border:1px solid #000;padding:5px 8px;}
-th{background:#FFFF00;font-weight:bold;text-align:center;}
-.tit{font-size:16px;font-weight:bold;}
-.totrow td{background:#FCE4B6;font-weight:bold;}
+table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:13px;}
+col.a{width:130px;} col.b{width:110px;} col.c{width:340px;} col.d{width:130px;}
+td,th{border:1px solid #444;padding:7px 10px;}
+.marca{background:#111827;color:#FFFFFF;font-size:24px;font-weight:bold;padding:14px 10px;letter-spacing:1px;border:1px solid #111827;}
+.sub{background:#111827;color:#F3B62A;font-size:12px;font-weight:bold;padding:2px 10px 10px;border:1px solid #111827;border-top:none;}
+.etq{font-weight:bold;background:#EDEDED;width:150px;}
+.dato{font-size:13px;}
+th{background:#F3B62A;font-weight:bold;text-align:center;color:#111827;font-size:13px;}
+.der{text-align:right;}
+.c{text-align:center;}
+.totrow td{background:#111827;color:#FFFFFF;font-weight:bold;font-size:14px;border:1px solid #111827;}
+.nota{font-size:11px;color:#666;border:none;padding-top:10px;}
 </style></head>
 <body>
 <table>
-<tr><td colspan="4" class="tit">${sanitizarTexto(empresa)} — Servicios a cobrar</td></tr>
-<tr><td colspan="4">Fecha de cobro: ${sanitizarTexto(fechaCobro||new Date().toLocaleString())}</td></tr>
-<tr><td colspan="4"></td></tr>
-<tr><th>FECHA</th><th>PLACA</th><th>DESCRIPCION</th><th>TOTAL</th></tr>
+<col class="a"><col class="b"><col class="c"><col class="d">
+<tr><td colspan="4" class="marca">EL DIAMANTE</td></tr>
+<tr><td colspan="4" class="sub">CUENTA DE COBRO — SERVICIOS A CRÉDITO</td></tr>
+<tr><td colspan="4" style="border:none;padding:6px 0;"></td></tr>
+<tr><td class="etq">Cliente</td><td colspan="3" class="dato" style="font-weight:bold;font-size:15px;">${sanitizarTexto(empresa)}</td></tr>
+<tr><td class="etq">Fecha de cobro</td><td colspan="3" class="dato">${sanitizarTexto(fechaCobro||new Date().toLocaleString())}</td></tr>
+<tr><td class="etq">N.º de servicios</td><td colspan="3" class="dato">${servicios.length}</td></tr>
+<tr><td colspan="4" style="border:none;padding:6px 0;"></td></tr>
+<tr><th>FECHA</th><th>PLACA</th><th>DESCRIPCIÓN</th><th>TOTAL</th></tr>
 ${filas}
-<tr class="totrow"><td colspan="3">TOTAL</td><td style="text-align:right;">$${fmtMiles(total)||'0'}</td></tr>
+<tr class="totrow"><td colspan="3" class="der">TOTAL A PAGAR</td><td class="der">$${fmtMiles(total)||'0'}</td></tr>
+<tr><td colspan="4" class="nota">Generado automáticamente por el sistema de EL DIAMANTE — ${sanitizarTexto(new Date().toLocaleString())}</td></tr>
 </table>
 </body></html>`;
 }
@@ -2762,7 +2835,8 @@ function mostrarCreditos(){
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:10px;">
             <span>Seleccionado: <strong id="totalSeleccionCredito">$${fmtMiles(totalSeleccionado)||'0'}</strong></span>
-            <button class="btn-verde btn-sm" onclick="cobrarSeleccionCredito()">💰 Cobrar seleccionados y generar Excel</button>
+            <button class="btn-sm" onclick="generarExcelPendienteCredito()">📄 Generar Excel para cobrar</button>
+            <button class="btn-verde btn-sm" onclick="confirmarCobroCredito()">✅ Confirmar cobro recibido</button>
           </div>`:`<p style="color:var(--gris);">Sin servicios pendientes.</p>`}
         </div>`:"";
       return `<div class="item" style="margin-bottom:10px;">
@@ -3264,7 +3338,7 @@ function reiniciarCalculo(){
 // ══ ADELANTOS ══
 async function registrarAdelanto(){
   const mes=getMes(), idx=document.getElementById("selAdelanto").value;
-  const valor=Number(document.getElementById("valAdelanto").value);
+  const valor=_leerNum("valAdelanto");
   const nota=document.getElementById("notaAdelanto").value.trim();
   if(idx===""){toast("Selecciona un engrasador","error");return;}
   if(!valor||valor<=0){toast("Ingresa un valor válido mayor a cero","error");return;}
@@ -3410,6 +3484,7 @@ function toggleSeguridadTrabajador(idx){
   t.sinSeguridad=!t.sinSeguridad;
   guardar(); mostrarPanelPagos();
   toast(t.sinSeguridad?`Seguridad desactivada para ${cap(sanitizarTexto(t.nombre))}`:`Seguridad reactivada para ${cap(sanitizarTexto(t.nombre))}`,"ok");
+  guardarEvento({tipoRegistro:"trabajadorFlags",nombre:t.nombre,sinSeguridad:t.sinSeguridad});
 }
 function pagarTodos(){ reiniciarPagosMes(); }
 
@@ -3601,13 +3676,14 @@ async function borrarHistorialMes(){
 function cargarConfigEnPantalla(){
   const c=negocio?.configuracion; if(!c) return;
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
-  set("cfgPrecioGrasa",c.precioGrasa); set("cfgPctMixtos",c.porcentajeMixtos); set("cfgPctAzules",c.porcentajeAzules);
-  set("cfgSegQ1",c.seguridadQ1||0); set("cfgSegQ2",c.seguridadQ2||0);
+  const setMiles=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v?fmtMiles(v):''; };
+  setMiles("cfgPrecioGrasa",c.precioGrasa); set("cfgPctMixtos",c.porcentajeMixtos); set("cfgPctAzules",c.porcentajeAzules);
+  setMiles("cfgSegQ1",c.seguridadQ1||0); setMiles("cfgSegQ2",c.seguridadQ2||0);
 
   mostrarReglas();
 }
 async function guardarConfig(){
-  const get=id=>Number(document.getElementById(id)?.value||0);
+  const get=id=>_leerNum(id);
   const precioGrasa=get("cfgPrecioGrasa");
   const pctMixtos=get("cfgPctMixtos");
   const pctAzules=get("cfgPctAzules");
@@ -3624,8 +3700,8 @@ async function guardarConfig(){
   toast(r.ok?"Configuración guardada ✅":"Guardada localmente",r.ok?"ok":"aviso");
 }
 function agregarRegla(){
-  const orig=convertirValor(document.getElementById("reglaOrig").value);
-  const reb=convertirValor(document.getElementById("reglaReb").value);
+  const orig=convertirValor(_leerNum("reglaOrig"));
+  const reb=convertirValor(_leerNum("reglaReb"));
   if(orig<=0||reb<=0){toast("Ingresa valores válidos mayores a cero","error");return;}
   if(reb>orig){toast("El valor rebajado no puede ser mayor al original","error");return;}
   if(negocio.configuracion.reglasMixtos.some(r=>Number(r.original)===orig)){toast("Ya existe una regla para ese valor","aviso");return;}
@@ -3635,7 +3711,7 @@ function agregarRegla(){
   guardar(); mostrarReglas(); toast("Regla agregada","ok");
 }
 function mostrarReglas(){ const el=document.getElementById("listaReglas"); if(!el) return; const r=negocio?.configuracion?.reglasMixtos||[]; el.innerHTML=!r.length?"<p style='color:var(--gris);'>Sin reglas.</p>":r.map((rr,i)=>`<div class="item" style="display:flex;justify-content:space-between;align-items:center;"><span>$${Number(rr.original).toLocaleString()} → $${Number(rr.rebajado).toLocaleString()}</span><button class="btn-rojo btn-sm" onclick="eliminarRegla(${i})">Eliminar</button></div>`).join(""); }
-function eliminarRegla(i){ negocio.configuracion.reglasMixtos.splice(i,1); guardar(); mostrarReglas(); }
+function eliminarRegla(i){ confirmar("Eliminar regla","¿Eliminar esta regla?",()=>{ negocio.configuracion.reglasMixtos.splice(i,1); guardar(); mostrarReglas(); }); }
 
 // ══ PLANES ══
 function mostrarSolicitudPago(){ document.getElementById("panelSolicitudPago").classList.toggle("oculto"); }
