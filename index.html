@@ -1242,7 +1242,7 @@ function semillarMemoria(){
   };
   limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO,["mixto","azul","sintetico"]);
   limpiarYSembrar("descripciones",DESCRIPCIONES,["mixto","azul","sintetico","carro","mula","camion","volqueta","moto"]);
-  limpiarYSembrar("observaciones",["Efectivo","Transferencia"],[]);
+  limpiarYSembrar("observaciones",["Efectivo","Transferencia","Bricai","Volketsa","Robayo"],[]);
   // Limpiar placas: eliminar entradas cortas (teclas sueltas, no placas reales)
   try{
     const rawPl=localStorage.getItem(_memKey("placas"));
@@ -2360,7 +2360,7 @@ function renderFilasPlanilla(id) {
       if(plEl) setupAC(plEl,[], val=>{ actualizarFila(id,i,'placa',val); agregarMemoria('placas',val); }, 'placas', 7);
       if(tvEl) setupAC(tvEl,[], val=>{ actualizarFila(id,i,'tipoVehiculo',val); agregarMemoria('tipos_vehiculo',val); }, 'tipos_vehiculo');
       if(deEl) setupAC(deEl,[], val=>{ actualizarFila(id,i,'descripcion',val); agregarMemoria('descripciones',val); }, 'descripciones');
-      if(obEl) setupAC(obEl,["Efectivo","Transferencia"], val=>{ actualizarFila(id,i,'observaciones',val); }, null);
+      if(obEl) setupAC(obEl,["Efectivo","Transferencia","Bricai","Volketsa","Robayo"], val=>{ actualizarFila(id,i,'observaciones',val); }, null);
       const vlEl=document.getElementById(`vl_${id}_${i}`);
       if(vlEl) setupAC(vlEl,[], val=>{ actualizarValorFila(id,i,val); }, 'precios');
     });
