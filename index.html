@@ -524,6 +524,23 @@ body.oscuro .pass-toggle { color:#6b7280; }
 body.oscuro .pass-toggle:hover { color:#60a5fa; }
 body.oscuro :root { --texto:#e2e8f0; --borde:#374151; --gris:#9ca3af; }
 
+.badge-perfil {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: #eef2ff;
+  border: 1.5px solid rgba(31,60,136,.18);
+  color: #1f3c88;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+body.oscuro .badge-perfil { background:rgba(96,165,250,.12); border-color:rgba(96,165,250,.3); color:#93c5fd; }
+
 /* ══ TOGGLE MODO OSCURO — botón ícono ══ */
 .modo-toggle {
   margin-left: auto;
@@ -679,6 +696,7 @@ body.oscuro .stat-box { opacity:.9; }
       <span class="modo-ico">🌙</span>
     </div>
   </div>
+  <div id="badgePerfil" class="badge-perfil" onclick="_abrirModalPerfil()" title="Cambiar perfil" style="display:none;"></div>
   <div id="menuDerecha" class="menu-derecha">
     <button class="boton-menu" onclick="toggleMenu()">☰</button>
   </div>
@@ -915,6 +933,22 @@ body.oscuro .stat-box { opacity:.9; }
     <div class="seccion" style="margin-top:16px;">
       <h3 style="margin-top:0;">📄 Historial de cobros</h3>
       <div id="listaHistorialCredito"></div>
+    </div>
+  </div>
+
+  <!-- PERFILES -->
+  <div id="paginaPerfiles" class="pagina oculto">
+    <div class="seccion">
+      <h2>👤 Perfiles</h2>
+      <p style="color:var(--gris);font-size:12px;margin-top:-6px;">Quién está usando el sistema. Queda registrado en las planillas, adelantos y cobros que se hagan. En los cambios de turno (6am / 6pm) el sistema pide elegir de nuevo.</p>
+      <div class="fila" style="align-items:flex-end;gap:10px;margin-top:10px;">
+        <div style="flex:1;">
+          <label>Nuevo perfil</label>
+          <div class="ac-wrap"><input type="text" id="nombrePerfilNuevo" placeholder="Ej: Secretaria 1" autocomplete="off" onkeydown="if(event.key==='Enter'){agregarPerfil();}"></div>
+        </div>
+        <button class="btn-verde" onclick="agregarPerfil()" style="padding:11px 20px;white-space:nowrap;">➕ Agregar</button>
+      </div>
+      <div id="listaPerfiles" style="margin-top:18px;"></div>
     </div>
   </div>
 
@@ -1157,6 +1191,15 @@ body.oscuro .stat-box { opacity:.9; }
       <button class="btn-rojo" id="modalConfirmOk">Confirmar</button>
       <button class="btn-gris" onclick="cerrarModal('modalConfirm')">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL PERFIL ACTIVO (obligatorio, sin botón cancelar) -->
+<div class="modal-overlay" id="modalPerfil">
+  <div class="modal" style="max-width:420px;">
+    <h2>👤 ¿Quién está en turno?</h2>
+    <p style="margin:6px 0 14px;color:var(--gris);">Selecciona tu perfil para continuar. Queda registrado en las planillas, adelantos y cobros que hagas.</p>
+    <div id="listaPerfilesModal" style="display:flex;flex-direction:column;gap:8px;"></div>
   </div>
 </div>
 
@@ -1446,6 +1489,89 @@ function setupAC(input, _fuente, onSelect, claveMem, minGuardar) {
 // ══════════════════════════════════════════════════════════
 //  MODAL CONFIRMACIÓN
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  PERFILES — quién está usando el sistema (para trazabilidad, no login).
+//  El perfil activo se guarda POR DISPOSITIVO (localStorage), no en la nube:
+//  es "quién está sentado en este computador ahora mismo".
+// ══════════════════════════════════════════════════════════
+function _turnoActual(){
+  const d=new Date();
+  const h=d.getHours();
+  const fmt=(dt)=>dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  if(h>=6 && h<18) return fmt(d)+'_dia';
+  const base=new Date(d);
+  if(h<6) base.setDate(base.getDate()-1); // antes de las 6am = sigue siendo el turno noche que empezó ayer
+  return fmt(base)+'_noche';
+}
+function _perfilStorageKey(){ return `symes_perfil_${negocio?.id||cuentaAct||'x'}`; }
+function _perfilGuardado(){
+  try{ const raw=localStorage.getItem(_perfilStorageKey()); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+}
+function perfilActivo(){ return _perfilGuardado()?.nombre || null; }
+function _guardarPerfilActivo(nombre){
+  localStorage.setItem(_perfilStorageKey(), JSON.stringify({nombre, turno:_turnoActual()}));
+}
+function _actualizarBadgePerfil(){
+  const el=document.getElementById("badgePerfil"); if(!el) return;
+  if(!negocio?.perfiles?.length){ el.style.display="none"; return; }
+  const nombre=perfilActivo();
+  el.style.display="inline-flex";
+  el.innerHTML=`👤 ${cap(sanitizarTexto(nombre||"Sin perfil"))}`;
+}
+function _revisarPerfilActivo(){
+  if(!negocio) return;
+  if(!negocio.perfiles || !negocio.perfiles.length) return; // nadie configuró perfiles todavía, no forzar nada
+  const g=_perfilGuardado();
+  if(!g || g.turno!==_turnoActual()) _abrirModalPerfil();
+}
+function _abrirModalPerfil(){
+  const cont=document.getElementById("listaPerfilesModal"); if(!cont) return;
+  const perfiles=negocio.perfiles||[];
+  if(!perfiles.length) return;
+  cont.innerHTML=perfiles.map((p,i)=>`<button class="btn-verde" style="width:100%;text-align:left;padding:12px 16px;margin:0;" onclick="_elegirPerfil(${i})">${cap(sanitizarTexto(p))}</button>`).join("");
+  document.getElementById("modalPerfil").classList.add("abierto");
+}
+function _elegirPerfil(i){
+  const nombre=(negocio.perfiles||[])[i]; if(!nombre) return;
+  _guardarPerfilActivo(nombre);
+  cerrarModal("modalPerfil");
+  _actualizarBadgePerfil();
+  toast(`Perfil activo: ${cap(sanitizarTexto(nombre))}`,"ok");
+}
+function agregarPerfil(){
+  const input=document.getElementById("nombrePerfilNuevo");
+  const nombre=(input?.value||"").trim();
+  if(!nombre){toast("Escribe el nombre del perfil","error");return;}
+  if(nombre.length>40){toast("El nombre es demasiado largo (máx 40 caracteres)","error");return;}
+  if(!negocio.perfiles) negocio.perfiles=[];
+  const nombreNorm=nombre.toLowerCase();
+  if(negocio.perfiles.some(p=>p.toLowerCase()===nombreNorm)){toast("Ya existe un perfil con ese nombre","error");return;}
+  negocio.perfiles.push(nombre);
+  input.value="";
+  guardar(); mostrarPerfiles(); _actualizarBadgePerfil();
+  toast("Perfil agregado ✅","ok");
+  guardarEvento({tipoRegistro:"perfiles",perfiles:negocio.perfiles});
+}
+function eliminarPerfil(idx){
+  const nombre=(negocio.perfiles||[])[idx]; if(nombre==null) return;
+  confirmar("Eliminar perfil",`¿Eliminar el perfil "${cap(sanitizarTexto(nombre))}"? Las planillas, adelantos y cobros ya registrados a su nombre no cambian, solo deja de estar disponible para elegir.`,()=>{
+    negocio.perfiles=negocio.perfiles.filter((p,i)=>i!==idx);
+    guardar(); mostrarPerfiles(); _actualizarBadgePerfil();
+    toast("Perfil eliminado","ok");
+    guardarEvento({tipoRegistro:"perfiles",perfiles:negocio.perfiles});
+  });
+}
+function mostrarPerfiles(){
+  const cont=document.getElementById("listaPerfiles"); if(!cont) return;
+  const perfiles=negocio?.perfiles||[];
+  if(!perfiles.length){ cont.innerHTML="<p style='color:var(--gris);'>No hay perfiles registrados.</p>"; return; }
+  const activo=perfilActivo();
+  cont.innerHTML=perfiles.map((p,idx)=>`<div class="item" style="display:flex;align-items:center;justify-content:space-between;">
+    <span>${cap(sanitizarTexto(p))}${activo===p?' <strong style="color:var(--verde);font-size:12px;">(activo en este dispositivo)</strong>':''}</span>
+    <button class="btn-rojo btn-sm" onclick="eliminarPerfil(${idx})">🗑️</button>
+  </div>`).join("");
+}
+
 function confirmar(titulo, msg, cb) {
   document.getElementById("modalConfirmTitulo").innerText = titulo;
   document.getElementById("modalConfirmMsg").innerText    = msg;
@@ -1744,6 +1870,7 @@ function prepararDatos() {
   if (!negocio.configuracion) negocio.configuracion = JSON.parse(JSON.stringify(CONFIG_DEFECTO));
   if (!negocio.cierresMes)    negocio.cierresMes    = {};
   if (!negocio.creditos)      negocio.creditos      = {empresas:["Bricai","Volketsa","Robayo"], historial:[]};
+  if (!negocio.perfiles)      negocio.perfiles      = ["Admin"];
   negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
   guardar();
 }
@@ -1777,6 +1904,7 @@ function entrarSistema() {
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
     {id:"paginaCreditos",     icono:"💳", titulo:"Créditos",         desc:"Servicios a crédito por empresa, para cobrar después."},
+    {id:"paginaPerfiles",     icono:"👤", titulo:"Perfiles",         desc:"Quién usa el sistema — queda registrado en planillas, adelantos y cobros."},
     {id:"paginaHistorial",    icono:"📂", titulo:"Historial",        desc:"Liquidaciones guardadas por mes."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
@@ -1794,6 +1922,7 @@ function entrarSistema() {
     {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
     {icono:"💳",label:"Créditos",      pagina:"paginaCreditos"},
+    {icono:"👤",label:"Perfiles",       pagina:"paginaPerfiles"},
     {icono:"📂",label:"Historial",     pagina:"paginaHistorial"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
@@ -1823,6 +1952,14 @@ function entrarSistema() {
   history.replaceState({ pagina: "paginaInicio" }, "", urlBase + "?p=paginaInicio");
   mostrarPagina("paginaInicio", true);
   setTimeout(iniciarNotificaciones, 3000);
+
+  // Perfiles: badge + verificación obligatoria de turno (6am / 6pm)
+  _actualizarBadgePerfil();
+  _revisarPerfilActivo();
+  if(!window._perfilIntervaloListo){
+    window._perfilIntervaloListo=true;
+    setInterval(_revisarPerfilActivo, 60000);
+  }
 
   // AC en adelantos
   setTimeout(() => {
@@ -1917,7 +2054,7 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); refrescarDropdownsPlanilla();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); mostrarPerfiles(); refrescarDropdownsPlanilla();
 }
 
 // Refresca solo los selects de engrasador de las planillas abiertas (sin re-renderizar toda la planilla)
@@ -2019,7 +2156,7 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="adelanto"){
       if(!ev.trabajadorNombre||!ev.mes) return;
       const t=getTrabPorNombre(ev.trabajadorNombre);
-      if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||""});}
+      if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});}
       return;
     }
     if (ev.tipoRegistro==="configuracion"){
@@ -2030,6 +2167,11 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="creditos"){
       if(!ev.creditos) return;
       negocio.creditos={empresas:ev.creditos.empresas||[],historial:ev.creditos.historial||[]};
+      return;
+    }
+    if (ev.tipoRegistro==="perfiles"){
+      if(!ev.perfiles) return;
+      negocio.perfiles=Array.isArray(ev.perfiles)?ev.perfiles:[];
       return;
     }
     if (ev.tipoRegistro==="trabajadorFlags"){
@@ -2189,7 +2331,7 @@ function nuevaPlanilla() {
   const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
   const mes=mesActual();
   const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",creditoCobrado:false,creditoCobroId:null});
-  const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",carcamos:[],grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
+  const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",carcamos:[],grasaAntes:0,grasaQuedo:0,total:0,liquidada:false,creadoPor:perfilActivo()};
   if(!negocio.planillas) negocio.planillas=[];
   negocio.planillas.unshift(planilla);
   guardar();
@@ -2724,7 +2866,7 @@ function confirmarCobroCredito(){
     const registro={
       id:idCobro, empresa, fecha:new Date().toLocaleString(),
       servicios:items.map(({fecha,placa,descripcion,total})=>({fecha,placa,descripcion,total})),
-      total
+      total, creadoPor:perfilActivo()
     };
     if(!negocio.creditos.historial) negocio.creditos.historial=[];
     negocio.creditos.historial.unshift(registro);
@@ -3031,7 +3173,7 @@ function mostrarCreditos(){
     histCont.innerHTML=historial.map(r=>`<div class="item" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div>
         <strong>${cap(sanitizarTexto(r.empresa))}</strong>
-        <p style="margin:2px 0 0;color:var(--gris);font-size:12px;">${sanitizarTexto(r.fecha)} — ${r.servicios.length} servicio(s)</p>
+        <p style="margin:2px 0 0;color:var(--gris);font-size:12px;">${sanitizarTexto(r.fecha)} — ${r.servicios.length} servicio(s)${r.creadoPor?' — 👤 '+sanitizarTexto(r.creadoPor):''}</p>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         <strong>$${fmtMiles(r.total)||'0'}</strong>
@@ -3115,6 +3257,7 @@ function mostrarListaPlanillas(){
             <span>${engrsSafe}</span>
             <span>🚗 ${nVeh} servicio(s)</span>
             <span style="font-weight:700;color:var(--verde);">$${fmtMiles(total)}</span>
+            ${p.creadoPor?`<span>👤 ${sanitizarTexto(p.creadoPor)}</span>`:''}
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
@@ -3514,13 +3657,13 @@ async function registrarAdelanto(){
   const t=negocio.trabajadores[idx];
   if(!t.adelantos) t.adelantos={};
   if(!t.adelantos[mes]) t.adelantos[mes]=[];
-  const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now()};
+  const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now(),creadoPor:perfilActivo()};
   t.adelantos[mes].push(adelanto);
   agregarMemoria("notas_adelanto", nota);
   ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("selAdelanto").value="";
   guardar(); actualizarTodo();
-  const r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha},valor,0);
+  const r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha,ts:adelanto.ts,creadoPor:adelanto.creadoPor},valor,0);
   toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
 }
 let _filtroEngrasadorAdelanto = "";
@@ -3573,7 +3716,10 @@ function mostrarAdelantos(){
     const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
     const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
     btn.addEventListener("click",()=>eliminarAdelanto(iT,iA));
-    div.append(h3,p1,p2,p3,btn); el.appendChild(div);
+    const nodos=[h3,p1,p2,p3];
+    if(a.creadoPor){ const p4=document.createElement("p"); p4.innerHTML="<strong>Registrado por:</strong> "+sanitizarTexto(a.creadoPor); nodos.push(p4); }
+    nodos.push(btn);
+    div.append(...nodos); el.appendChild(div);
   });
 }
 function eliminarAdelanto(iT,iA){
@@ -3702,7 +3848,7 @@ function calcularResumenQuincena(mes, q){
     const adelantos=Math.round((t.adelantos?.[mes]||[])
       .filter(a=>_enQuincena(a.fecha,q))
       .reduce((s,a)=>s+Number(a.valor||0),0));
-    const segDesc=Math.round(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):q==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
+    const segDesc=(t.sinSeguridad||ganado<=0)?0:Math.round(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):q==='q2'?Number(negocio.configuracion?.seguridadQ2||0):Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
     const neto=Math.round(ganado-adelantos-segDesc);
     tG+=ganado;tA+=adelantos;tP+=neto;
     return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
@@ -3725,7 +3871,7 @@ function calcularResumenMes(mes){
         return s;
       },0));
     const adelantos=Math.round((t.adelantos?.[mes]||[]).reduce((s,a)=>s+Number(a.valor||0),0));
-    const segDesc=Math.round(Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
+    const segDesc=(t.sinSeguridad||ganado<=0)?0:Math.round(Number(negocio.configuracion?.seguridadQ1||0)+Number(negocio.configuracion?.seguridadQ2||0));
     const neto=Math.round(ganado-adelantos-segDesc);
     tG+=ganado;tA+=adelantos;tP+=neto;
     return{nombre:t.nombre,ganado,adelantos,seguridad:segDesc,totalPagar:neto};
@@ -3753,7 +3899,7 @@ function mostrarCierreMes(){
         <div class="cierre-stat"><span>Adelantos</span><strong>$${t.adelantos.toLocaleString()}</strong></div>
 
         ${t.seguridad>0?`<div class="cierre-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${t.seguridad.toLocaleString()}</strong></div>`:""}
-        <div class="cierre-stat neto"><span>A pagar</span><strong>$${t.totalPagar.toLocaleString()}</strong></div>
+        <div class="cierre-stat neto" style="grid-column:3;text-align:right;"><span>A pagar</span><strong style="font-size:17px;">$${t.totalPagar.toLocaleString()}</strong></div>
       </div>
     </div>`;
   }).join("");
