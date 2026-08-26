@@ -2898,7 +2898,13 @@ function _totalCreditoFila(v){
   return Number(v.valor||0)+Number(v.adicionalValor||0)+_totalAdicionalProductos(v);
 }
 function _descripcionAdicionalCompleta(v){
-  const nombresProductos=(v.adicionalProductos||[]).map(pr=>pr.nombre).join(", ");
+  const items=v.adicionalProductos||[];
+  const conteo={}; const orden=[];
+  items.forEach(pr=>{
+    if(!(pr.nombre in conteo)){ conteo[pr.nombre]=0; orden.push(pr.nombre); }
+    conteo[pr.nombre]++;
+  });
+  const nombresProductos=orden.map(n=>conteo[n]>1?`(${conteo[n]}) ${n}`:n).join(", ");
   return [v.adicionalDesc,nombresProductos].filter(Boolean).join(", ");
 }
 function _renderTagsProductosCredito(id,i,v,disabled){
