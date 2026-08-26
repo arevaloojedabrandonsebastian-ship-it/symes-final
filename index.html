@@ -1628,6 +1628,17 @@ function _perfilGuardado(){
   try{ const raw=localStorage.getItem(_perfilStorageKey()); return raw?JSON.parse(raw):null; }catch(e){ return null; }
 }
 function perfilActivo(){ return _perfilGuardado()?.nombre || null; }
+// Restringe el acceso a ciertas páginas solo a perfiles concretos. Si el negocio
+// no tiene sistema de perfiles activo (nadie eligió uno), no restringe nada.
+function _perfilTienePermiso(...nombresPermitidos){
+  const activo=perfilActivo();
+  if(!activo) return true;
+  const norm=activo.trim().toLowerCase();
+  return nombresPermitidos.some(n=>n.toLowerCase()===norm);
+}
+function _puedeVerCreditosPrecios(){
+  return _perfilTienePermiso("Admin","Loren");
+}
 function _guardarPerfilActivo(nombre){
   localStorage.setItem(_perfilStorageKey(), JSON.stringify({nombre, turno:_turnoActual()}));
 }
@@ -1656,6 +1667,12 @@ function _elegirPerfil(i){
   _guardarPerfilActivo(nombre);
   cerrarModal("modalPerfil");
   _actualizarBadgePerfil();
+  _renderMenuInicio();
+  // Si el perfil elegido ya no tiene permiso para la página en la que está, sacarlo a Inicio
+  const paginaActual=document.querySelector(".pagina:not(.oculto)");
+  if(paginaActual && (paginaActual.id==="paginaCreditos"||paginaActual.id==="paginaPrecios") && !_puedeVerCreditosPrecios()){
+    mostrarPagina("paginaInicio");
+  }
   toast(`Perfil activo: ${cap(sanitizarTexto(nombre))}`,"ok");
 }
 function agregarPerfil(){
@@ -2188,26 +2205,10 @@ function prepararDatos() {
   guardar();
 }
 
-function entrarSistema() {
-  prepararDatos();
-  ["menuInicial","vistaRegistro","vistaLogin"].forEach(id => document.getElementById(id).classList.add("oculto"));
-  document.getElementById("sistema").classList.remove("oculto");
-  document.getElementById("menuDerecha").style.display = "block";
-  if(window.innerWidth >= 769){ const st=document.getElementById("sidebarTrigger"); if(st) st.style.display="flex"; }
-  document.getElementById("tituloCuenta").innerText = cap(negocio.nombreNegocio||"");
-  document.getElementById("descInicio").innerText   = "Sistema de liquidaciones — Panel principal";
-
+function _renderMenuInicio() {
   const esAdmin = negocio.esAdmin;
-
-  // Panel admin automático para administradores
-  if(negocio.esAdmin){
-    const adminBtn = {
-      id:"paginaAdmin",
-      icono:"Admin",
-      titulo:"Panel Administrador",
-      desc:"Gestiona solicitudes del plan PRO."
-    };
-  }
+  const PAGINAS_RESTRINGIDAS = ["paginaCreditos","paginaPrecios"];
+  const puedeCreditosPrecios = _puedeVerCreditosPrecios();
 
   const tarjetas = [
     {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
@@ -2222,7 +2223,7 @@ function entrarSistema() {
     {id:"paginaPerfiles",     icono:"👤", titulo:"Perfiles",         desc:"Quién usa el sistema — queda registrado en planillas, adelantos y cobros."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
-  ];
+  ].filter(t => puedeCreditosPrecios || !PAGINAS_RESTRINGIDAS.includes(t.id));
   document.getElementById("tarjetasInicio").innerHTML = tarjetas.map(t =>
     `<div class="tarjeta" onclick="mostrarPagina('${t.id}')"><h3>${t.icono} ${t.titulo}</h3></div>`
   ).join("");
@@ -2240,10 +2241,22 @@ function entrarSistema() {
     {icono:"👤",label:"Perfiles",       pagina:"paginaPerfiles"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
-  ];
+  ].filter(m => puedeCreditosPrecios || !PAGINAS_RESTRINGIDAS.includes(m.pagina));
   document.getElementById("contenidoMenu").innerHTML =
     menuItems.map(m=>`<button onclick="mostrarPagina('${m.pagina}')">${m.icono} ${m.label}</button>`).join("") +
     `<div class="divisor-menu"></div><button class="rojo-menu" onclick="cerrarSesion()">🚪 Cerrar sesión</button>`;
+}
+
+function entrarSistema() {
+  prepararDatos();
+  ["menuInicial","vistaRegistro","vistaLogin"].forEach(id => document.getElementById(id).classList.add("oculto"));
+  document.getElementById("sistema").classList.remove("oculto");
+  document.getElementById("menuDerecha").style.display = "block";
+  if(window.innerWidth >= 769){ const st=document.getElementById("sidebarTrigger"); if(st) st.style.display="flex"; }
+  document.getElementById("tituloCuenta").innerText = cap(negocio.nombreNegocio||"");
+  document.getElementById("descInicio").innerText   = "Sistema de liquidaciones — Panel principal";
+
+  _renderMenuInicio();
 
   const navItems = [
     {icono:"🏠",label:"Inicio",   pagina:"paginaInicio"},
@@ -2332,6 +2345,11 @@ let _navegandoAtras = false;
 function mostrarPagina(id, sinHistorial=false) {
   // Route guard: si no hay sesión activa, redirigir al login
   if (!negocio) { mostrarLogin(); return; }
+  // Route guard: Créditos y Precios solo para perfiles autorizados
+  if ((id==="paginaCreditos" || id==="paginaPrecios") && !_puedeVerCreditosPrecios()) {
+    toast("No tienes permiso para acceder a esta sección","error");
+    id="paginaInicio";
+  }
   document.querySelectorAll(".pagina").forEach(p=>p.classList.add("oculto"));
   const el=document.getElementById(id); if(el) el.classList.remove("oculto");
   document.getElementById("contenidoMenu").classList.remove("sidebar-abierto");
