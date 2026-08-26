@@ -249,6 +249,9 @@ button:active{transform:scale(.98);}
 
 /* GRASA SECCIÓN EN PLANILLA */
 .seccion-grasa-planilla{background:#f0f6ff;border:1px solid rgba(31,60,136,.15);border-radius:12px;padding:12px;margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.chip-carcamo{display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid #dce3f0;border-radius:10px;cursor:pointer;background:#fff;font-size:13px;font-weight:600;transition:border-color .15s,background .15s;}
+.chip-carcamo input{width:16px;height:16px;margin:0;accent-color:var(--azul);}
+.chip-carcamo.activo{border-color:var(--azul);background:#eef4ff;color:var(--azul);}
 .seccion-grasa-planilla label{margin-top:0;font-size:12px;}
 .seccion-grasa-planilla input{margin-top:3px;padding:8px 10px;font-size:13px;}
 
@@ -497,6 +500,8 @@ body.oscuro .plan-card { background:#1f2937; border-color:#374151; }
 body.oscuro .plan-card.pro { background:linear-gradient(160deg,#292524,#1c1917); border-color:#b45309; }
 body.oscuro .plan-precio { color:#60a5fa; }
 body.oscuro .seccion-grasa-planilla { background:#1e3a8a22; border-color:#1e3a8a55; }
+body.oscuro .chip-carcamo{background:transparent;border-color:#374151;color:#e2e8f0;}
+body.oscuro .chip-carcamo.activo{border-color:#3b82f6;background:#1e3a8a33;color:#60a5fa;}
 body.oscuro .planilla-total-bar { background:linear-gradient(135deg,#1e3a8a,#14532d); }
 body.oscuro .pago-card { background:#1e2a3a;border-color:#2d3f55; }
 body.oscuro .pago-card-nombre { color:#7dd3fc; }
@@ -2124,7 +2129,7 @@ function nuevaPlanilla() {
   const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
   const mes=mesActual();
   const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
-  const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
+  const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",carcamos:[],grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
   if(!negocio.planillas) negocio.planillas=[];
   negocio.planillas.unshift(planilla);
   guardar();
@@ -2193,6 +2198,15 @@ function renderPlanillaActiva() {
       </div>
       <div><label>Engrasador 4 (opcional):</label>
         <select id="planE4_${pl.id}" onchange="actualizarDatoPlanilla('${pl.id}','engrasador4',this.value);actualizarNombrePlanilla('${pl.id}',null)">${optsE}</select>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="display:block;margin-bottom:6px;">Cárcamo(s) en uso:</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${[1,2,3,4].map(n=>`<label class="chip-carcamo ${(pl.carcamos||[]).includes(n)?'activo':''}">
+          <input type="checkbox" ${(pl.carcamos||[]).includes(n)?'checked':''} onchange="this.parentElement.classList.toggle('activo',this.checked);toggleCarcamoPlanilla('${pl.id}',${n},this.checked)">
+          Cárcamo ${n}
+        </label>`).join("")}
       </div>
     </div>
     <div class="seccion-grasa-planilla">
@@ -2273,6 +2287,14 @@ function actualizarNombrePlanilla(id, nuevo) {
   }
   const tab=pestaniasAbiertas.find(p=>p.id===id); if(tab) tab.nombre=pl.nombre;
   renderTabsPlanillas();
+}
+function toggleCarcamoPlanilla(id, num, checked){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  if(!pl.carcamos) pl.carcamos=[];
+  if(checked){ if(!pl.carcamos.includes(num)) pl.carcamos.push(num); }
+  else { pl.carcamos=pl.carcamos.filter(n=>n!==num); }
+  pl.carcamos.sort((a,b)=>a-b);
+  guardar();
 }
 function actualizarDatoPlanilla(id, campo, valor) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -2807,6 +2829,7 @@ function imprimirPlanilla(id){
   <div class="hdr"><h1>SYMES</h1><p>Planilla de servicios — ${negocio.nombreNegocio}</p></div>
   <p><strong>Planilla:</strong> ${pl.nombre||pl.fecha} <span class="liq-badge">${pl.liquidada?"LIQUIDADA":"⏳ Pendiente"}</span> &nbsp; <strong>Fecha:</strong> ${pl.fecha} &nbsp; <strong>Mes:</strong> ${pl.mes}</p>
   <p><strong>Engrasador(es):</strong> ${[pl.engrasador1,pl.engrasador2,pl.engrasador3,pl.engrasador4].filter(Boolean).join(" & ")||"—"}</p>
+  <p><strong>Cárcamo(s):</strong> ${(pl.carcamos&&pl.carcamos.length)?pl.carcamos.slice().sort((a,b)=>a-b).map(n=>"Cárcamo "+n).join(" & "):"—"}</p>
   <div class="grasa">🛢️ <strong>Grasa antes:</strong> ${(pl.grasaAntes||0).toLocaleString()} g &nbsp;|&nbsp; <strong>Grasa quedó:</strong> ${(pl.grasaQuedo||0).toLocaleString()} g &nbsp;|&nbsp; <strong>Gastada:</strong> ${gG.toLocaleString()} g</div>
   <table><thead><tr><th>#</th><th>Placa</th><th>Tipo</th><th>Descripción</th><th>Engrase</th><th>Valor</th><th>Engrasador</th><th>Obs.</th></tr></thead><tbody>${filas}</tbody></table>
   <div class="total"><span>Total planilla:</span><span>$${total.toLocaleString()}</span></div>
