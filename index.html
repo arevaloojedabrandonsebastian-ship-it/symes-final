@@ -137,8 +137,17 @@ button:active{transform:scale(.98);}
 .item-stat span{display:block;font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .item-stat strong{font-size:14px;font-weight:700;color:#243044;}
 .item-stat.neto strong{color:var(--verde);}
-.badge-categoria-precio{display:inline-block;margin-top:2px;font-size:11px;font-weight:700;color:var(--azul);}
+.badge-categoria-precio{display:inline-block;font-size:11px;font-weight:700;color:var(--azul);background:rgba(31,60,136,.08);border-radius:8px;padding:2px 9px;white-space:nowrap;}
 .item-acciones{display:flex;gap:8px;}
+#listaPrecios .item{display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;padding:11px 16px;margin:7px 0;}
+#listaPrecios .fp-nombre{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;flex:1 1 200px;min-width:160px;}
+#listaPrecios .fp-nombre-txt{font-size:15px;font-weight:700;color:var(--azul);}
+#listaPrecios .fp-unidad{font-size:12px;color:var(--gris);font-weight:500;}
+#listaPrecios .fp-cifras{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--gris);font-weight:600;}
+#listaPrecios .fp-cifras b{color:var(--texto);font-size:14px;font-weight:800;margin-left:4px;}
+#listaPrecios .fp-ganancia b{color:var(--verde);}
+#listaPrecios .fp-acciones{display:flex;gap:6px;flex-shrink:0;margin-left:auto;}
+#listaPrecios .fp-acciones button{margin:0;}
 .resumen-pago{background:#e8f1ff;padding:11px;border-radius:12px;line-height:1.7;border-left:4px solid var(--azul);}
 .cierre-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
 .cierre-estado-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:30px;font-weight:700;font-size:14px;}
@@ -467,7 +476,7 @@ body.oscuro .item { background:#1e2a3a; border-color:#2d3f55; }
 body.oscuro .item-nombre { color:#7dd3fc; }
 body.oscuro .item h3 { color:#e2e8f0; }
 body.oscuro .item p { color:#9ca3af; }
-body.oscuro .badge-categoria-precio { color:#7dd3fc; }
+body.oscuro .badge-categoria-precio { color:#7dd3fc; background:rgba(125,211,252,.12); }
 body.oscuro .item-stat { background:rgba(255,255,255,.04); }
 body.oscuro .item-stat span { color:#6b7280; }
 body.oscuro .item-stat strong { color:#e2e8f0; }
@@ -1791,13 +1800,13 @@ function _poblarSelectCategorias(){
   const sel=document.getElementById("prodCategoria"); if(!sel) return;
   const cats=_categoriasProductoActuales();
   const actual=sel.value;
-  sel.innerHTML=cats.map(c=>`<option value="${sanitizarTexto(c)}">${sanitizarTexto(c)}</option>`).join("");
+  sel.innerHTML=cats.map(c=>`<option value="${sanitizarTexto(c)}">${cap(sanitizarTexto(c))}</option>`).join("");
   sel.value=cats.includes(actual)?actual:cats[0];
 }
 function _poblarFiltroCategoriasPrecio(){
   const sel=document.getElementById("selFiltroCategoriaPrecio"); if(!sel) return;
   const cats=_categoriasProductoActuales();
-  sel.innerHTML=`<option value="">🏷️ Todas</option>`+cats.map(c=>`<option value="${sanitizarTexto(c)}" ${_filtroCategoriaProducto===c?'selected':''}>${sanitizarTexto(c)}</option>`).join("");
+  sel.innerHTML=`<option value="">🏷️ Todas</option>`+cats.map(c=>`<option value="${sanitizarTexto(c)}" ${_filtroCategoriaProducto===c?'selected':''}>${cap(sanitizarTexto(c))}</option>`).join("");
 }
 async function agregarCategoriaProducto(){
   const input=document.getElementById("nombreCategoriaProducto");
@@ -1838,7 +1847,7 @@ function mostrarPrecios(){
   const catCont=document.getElementById("listaCategoriasProducto");
   if(catCont){
     catCont.innerHTML=negocio.categoriasProductos.map((c,i)=>`<div class="item" style="display:flex;align-items:center;gap:8px;margin:0;padding:8px 14px;">
-      <span>${sanitizarTexto(c)}</span>
+      <span>${cap(sanitizarTexto(c))}</span>
       <button class="btn-rojo btn-sm" onclick="eliminarCategoriaProducto(${i})">🗑️</button>
     </div>`).join("");
   }
@@ -1855,22 +1864,20 @@ function mostrarPrecios(){
   cont.innerHTML=productos.map(p=>{
     const ganancia=Number(p.precioVenta||0)-Number(p.precioCompra||0);
     const gananciaPct=p.precioCompra>0?(ganancia/p.precioCompra*100):0;
-    const nomSafe=sanitizarTexto(p.nombre)+(p.unidad?` <span style="font-weight:500;color:var(--gris);font-size:12px;">(${sanitizarTexto(p.unidad)})</span>`:"");
     return `<div class="item">
-      <div class="item-header">
-        <div>
-          <div class="item-nombre">${nomSafe}</div>
-          <span class="badge-categoria-precio">🏷️ ${sanitizarTexto(p.categoria||"General")}</span>
-        </div>
+      <div class="fp-nombre">
+        <span class="fp-nombre-txt">${cap(sanitizarTexto(p.nombre))}</span>
+        ${p.unidad?`<span class="fp-unidad">(${sanitizarTexto(p.unidad)})</span>`:""}
+        <span class="badge-categoria-precio">🏷️ ${cap(sanitizarTexto(p.categoria||"General"))}</span>
       </div>
-      <div class="item-stats">
-        <div class="item-stat"><span>Compra</span><strong>$${fmtMiles(p.precioCompra)||'0'}</strong></div>
-        <div class="item-stat"><span>Venta</span><strong>$${fmtMiles(p.precioVenta)||'0'}</strong></div>
-        <div class="item-stat neto"><span>Ganancia</span><strong>$${fmtMiles(ganancia)||'0'} (${gananciaPct.toFixed(0)}%)</strong></div>
+      <div class="fp-cifras">
+        <span>Compra <b>$${fmtMiles(p.precioCompra)||'0'}</b></span>
+        <span>Venta <b>$${fmtMiles(p.precioVenta)||'0'}</b></span>
+        <span class="fp-ganancia">Ganancia <b>$${fmtMiles(ganancia)||'0'} (${gananciaPct.toFixed(0)}%)</b></span>
       </div>
-      <div class="item-acciones">
-        <button onclick="editarProducto('${p.id}')">✏️ Editar</button>
-        <button class="btn-rojo" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
+      <div class="fp-acciones">
+        <button class="btn-sm" onclick="editarProducto('${p.id}')">✏️ Editar</button>
+        <button class="btn-rojo btn-sm" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
       </div>
     </div>`;
   }).join("");
@@ -2883,7 +2890,8 @@ function _filaCreditoHTML(id,i,v,disabled){
           <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">+ Producto guardado</label>
           <input type="text" id="adProd_${id}_${i}" list="dlProductos" placeholder="Nombre..." autocomplete="off" ${disabled}
             style="width:100%;"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();_agregarProductoACredito('${id}',${i});}">
+            onkeydown="if(event.key==='Enter'){event.preventDefault();_agregarProductoACredito('${id}',${i});}"
+            onchange="_agregarProductoACredito('${id}',${i})">
         </div>`:'';
   return `<tr id="filaCred_${id}_${i}" class="fila-credito">
     <td colspan="9">
@@ -2928,6 +2936,7 @@ function _actualizarVisibilidadCreditoFila(id,i){
   } else if(emp&&filaCred){
     const badge=document.getElementById(`filaCredBadge_${id}_${i}`);
     if(badge) badge.textContent='💳 Crédito — '+cap(sanitizarTexto(emp));
+    _actualizarTotalCreditoFila(id,i);
   }
 }
 function _actualizarTotalCreditoFila(id,i){
@@ -2957,7 +2966,7 @@ function _agregarProductoACredito(id,i){
   const precio=Number(prod.precioVenta||0);
   v.adicionalValor=Number(v.adicionalValor||0)+precio;
   v.adicionalValorRaw=String(v.adicionalValor);
-  const desc=`${prod.nombre} ($${fmtMiles(precio)||'0'})`;
+  const desc=`${cap(prod.nombre)} ($${fmtMiles(precio)||'0'})`;
   v.adicionalDesc=v.adicionalDesc?`${v.adicionalDesc}, ${desc}`:desc;
   const taDesc=document.getElementById(`adDesc_${id}_${i}`);
   if(taDesc){ taDesc.value=v.adicionalDesc; taDesc.style.height='auto'; taDesc.style.height=taDesc.scrollHeight+'px'; }
@@ -2970,7 +2979,7 @@ function _agregarProductoACredito(id,i){
 }
 function _poblarDatalistProductos(){
   const dl=document.getElementById("dlProductos"); if(!dl) return;
-  dl.innerHTML=(negocio?.productos||[]).map(p=>`<option value="${sanitizarTexto(p.nombre)}"></option>`).join("");
+  dl.innerHTML=(negocio?.productos||[]).map(p=>`<option value="${cap(sanitizarTexto(p.nombre))}"></option>`).join("");
 }
 
 function renderFilasPlanilla(id) {
@@ -3059,6 +3068,7 @@ function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
+  _actualizarTotalCreditoFila(id,i);
   if(raw&&raw.trim()&&valor>0) agregarMemoria("precios",fmtMiles(valor));
   _programarAutoguardarPlanilla(id);
 }
