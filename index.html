@@ -2986,7 +2986,9 @@ function mostrarPanelPagos(){
   const cards = negocio.trabajadores.map((t,idx)=>{
     const ganado=Math.round(getPago(t,mes)), adelantos=Math.round(getAdelantos(t,mes));
     const _hoyDia=new Date().getDate();
-    const seguridad=Math.round(_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
+    const exentoSeguridad=!!t.sinSeguridad;
+    const seguridadBase=Math.round(_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
+    const seguridad=exentoSeguridad?0:seguridadBase;
     const neto=Math.round(ganado-adelantos-seguridad);
     totalGeneral += neto;
     const nomPago = cap(sanitizarTexto(t.nombre));
@@ -3000,7 +3002,11 @@ function mostrarPanelPagos(){
         <div class="pago-card-stats">
           <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
           ${adelantos>0?`<div class="pago-stat"><span>Adelantos</span><strong style="color:var(--rojo)">-$${fmtMiles(adelantos)}</strong></div>`:`<div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>`}
-          ${seguridad>0?`<div class="pago-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${fmtMiles(seguridad)}</strong></div>`:""}
+          <div class="pago-stat">
+            <span>Seguridad</span>
+            <strong style="${seguridad>0?'color:var(--rojo)':''}">${seguridad>0?'-$'+fmtMiles(seguridad):'$0'}</strong>
+            <button class="btn-sm ${exentoSeguridad?'btn-verde':'btn-rojo'}" style="margin-top:4px;padding:3px 8px;font-size:10px;white-space:nowrap;" onclick="toggleSeguridadTrabajador(${idx})" title="${exentoSeguridad?'Reactivar el cobro de seguridad a este engrasador':'Omitir el cobro de seguridad a este engrasador'}">${exentoSeguridad?'🔓 Sin cobro':'🔒 Cobrando'}</button>
+          </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:8px;">
           <div class="pago-total">
@@ -3034,6 +3040,12 @@ async function pagarTrabajador(idx){
     await guardarEvento({tipoRegistro:"pagoTrabajador",trabajador:t.nombre,mes,fecha:new Date().toLocaleString()},1,0);
     toast("Pago registrado para "+nom,"ok");
   });
+}
+function toggleSeguridadTrabajador(idx){
+  const t=negocio.trabajadores[idx]; if(!t) return;
+  t.sinSeguridad=!t.sinSeguridad;
+  guardar(); mostrarPanelPagos();
+  toast(t.sinSeguridad?`Seguridad desactivada para ${cap(sanitizarTexto(t.nombre))}`:`Seguridad reactivada para ${cap(sanitizarTexto(t.nombre))}`,"ok");
 }
 function pagarTodos(){ reiniciarPagosMes(); }
 
