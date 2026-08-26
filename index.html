@@ -176,7 +176,7 @@ button:active{transform:scale(.98);}
 
 /* AUTOCOMPLETE */
 .ac-wrap{position:relative;}
-.ac-lista{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:9000;background:#fff;border:1.5px solid rgba(31,60,136,.2);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.16);max-height:220px;overflow-y:auto;margin-top:0;display:none;animation:acFadeIn .12s ease;}
+.ac-lista{position:fixed;z-index:9000;background:#fff;border:1.5px solid rgba(31,60,136,.2);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.16);max-height:220px;overflow-y:auto;margin-top:0;display:none;animation:acFadeIn .12s ease;}
 @keyframes acFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 .ac-item{padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9;transition:background .1s;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ac-item:last-child{border-bottom:none;}
@@ -1300,6 +1300,27 @@ const NOTAS_ADELANTO   = ["Adelanto quincena","Préstamo","Descuento uniforme","
 // ══════════════════════════════════════════════════════════
 //  AUTOCOMPLETE MEJORADO CON FLECHAS
 // ══════════════════════════════════════════════════════════
+// El desplegable se posiciona con position:fixed calculado desde las coordenadas
+// reales del input, así no queda recortado por contenedores con scroll (ej: la
+// tabla de la planilla, que tiene overflow-x:auto). Se usa un único listener
+// global de scroll/resize (no uno por input) para no acumular listeners cada
+// vez que se re-renderizan las filas.
+let _acAbierto=null; // {input,lista} del autocomplete visible actualmente
+function _acPosicionar(input,lista){
+  const r=input.getBoundingClientRect();
+  const espacioAbajo=window.innerHeight-r.bottom;
+  const ponerArriba=espacioAbajo<160 && r.top>espacioAbajo;
+  lista.style.left=r.left+'px';
+  lista.style.width=r.width+'px';
+  if(ponerArriba){ lista.style.top='auto'; lista.style.bottom=(window.innerHeight-r.top+3)+'px'; }
+  else { lista.style.bottom='auto'; lista.style.top=(r.bottom+3)+'px'; }
+}
+if(!window._acListenersListos){
+  window._acListenersListos=true;
+  const _acReposicionarSiAbierto=()=>{ if(_acAbierto) _acPosicionar(_acAbierto.input,_acAbierto.lista); };
+  window.addEventListener('scroll',_acReposicionarSiAbierto,true);
+  window.addEventListener('resize',_acReposicionarSiAbierto);
+}
 function setupAC(input, _fuente, onSelect, claveMem, minGuardar) {
   if(minGuardar===undefined) minGuardar=3;
   if (!input.parentElement.classList.contains('ac-wrap')) {
@@ -1323,7 +1344,7 @@ function setupAC(input, _fuente, onSelect, claveMem, minGuardar) {
     }catch(e){return [];}
   };
 
-  const cerrar=()=>{lista.style.display='none';sel=-1;};
+  const cerrar=()=>{lista.style.display='none';sel=-1;if(_acAbierto&&_acAbierto.lista===lista)_acAbierto=null;};
 
   const mostrar=()=>{
     const val=input.value.trim();
@@ -1343,6 +1364,8 @@ function setupAC(input, _fuente, onSelect, claveMem, minGuardar) {
     lista.innerHTML=res.map(t=>
       '<div class="ac-item" data-val="'+t.replace(/"/g,'&quot;')+'">'+t+'</div>'
     ).join('');
+    _acAbierto={input,lista};
+    _acPosicionar(input,lista);
     lista.style.display='block';
     lista.querySelectorAll('.ac-item').forEach(item=>{
       item.addEventListener('mousedown',e=>{
@@ -2178,7 +2201,8 @@ function renderPlanillaActiva() {
       <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <button class="btn-verde btn-sm" onclick="agregarFilaPlanilla('${pl.id}')">＋ Fila</button>
+      <button class="btn-verde btn-sm" onclick="agregarFilaPlanilla('${pl.id}', document.getElementById('cantFila_${pl.id}').value)">＋ Fila</button>
+      <input type="number" id="cantFila_${pl.id}" value="1" min="1" max="50" title="Cantidad de filas a agregar" style="width:56px;padding:8px 6px;margin:0;text-align:center;" onkeydown="if(event.key==='Enter'){event.preventDefault();agregarFilaPlanilla('${pl.id}', this.value);}">
       <span style="color:var(--gris);font-size:11px;">Enter = nueva fila · Tab = siguiente columna</span>
     </div>
     <div class="planilla-wrap" id="wrapTabla_${pl.id}">
@@ -2373,12 +2397,22 @@ function recalcularTotal(id){
   pl.total=total;
   const el=document.getElementById(`totalNum_${id}`); if(el) el.innerText="$"+total.toLocaleString();
 }
-function agregarFilaPlanilla(id){
+function agregarFilaPlanilla(id, cantidad){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||pl.liquidada) return;
   if(!pl.vehiculos) pl.vehiculos=[];
-  pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  let n=Math.floor(Number(cantidad));
+  if(!Number.isFinite(n)||n<1) n=1;
+  if(n>50) n=50; // límite razonable para evitar agregar cientos de filas por error
+  const filaInicial=pl.vehiculos.length;
+  for(let k=0;k<n;k++){
+    pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  }
   renderFilasPlanilla(id);
-  setTimeout(()=>{ const tbody=document.getElementById(`tbody_${id}`); if(tbody?.lastElementChild){ const inp=tbody.lastElementChild.querySelector("input"); if(inp) inp.focus(); } },50);
+  setTimeout(()=>{
+    const primeraNueva=document.getElementById(`fila_${id}_${filaInicial}`);
+    const inp=primeraNueva?.querySelector("input");
+    if(inp) inp.focus();
+  },50);
 }
 function eliminarFilaPlanilla(id,i){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
