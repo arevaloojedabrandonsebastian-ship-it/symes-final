@@ -201,6 +201,8 @@ button:active{transform:scale(.98);}
 .tabla-excel tbody tr.fila-resaltada td{background:#dcfce7!important;}
 .tabla-excel tbody tr.fila-resaltada:hover{background:#bbf7d0!important;}
 .tabla-excel tbody tr.fila-resaltada:hover td{background:#bbf7d0!important;}
+.tabla-excel tbody tr.fila-credito{background:#fff9ec;}
+.tabla-excel tbody tr.fila-credito td{background:#fff9ec;border-top:none;}
 .num-fila{color:#94a3b8;font-size:11px;text-align:center;width:26px;font-weight:700;background:#f8faff!important;}
 .planilla-total-bar{background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;padding:12px 18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-weight:700;font-size:16px;}
 .pago-card{background:#fff;border:1px solid rgba(203,213,225,.7);border-radius:18px;padding:16px 18px;margin:10px 0;box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s,box-shadow .15s;}
@@ -481,6 +483,8 @@ body.oscuro .tabla-excel td input:hover, body.oscuro .tabla-excel td select:hove
 body.oscuro .tabla-excel td input:focus, body.oscuro .tabla-excel td select:focus { background:#0d1117; }
 body.oscuro .tabla-excel tbody tr.fila-resaltada { background:#14532d!important; }
 body.oscuro .tabla-excel tbody tr.fila-resaltada td { background:#14532d!important; }
+body.oscuro .tabla-excel tbody tr.fila-credito { background:#3b2f0f; }
+body.oscuro .tabla-excel tbody tr.fila-credito td { background:#3b2f0f; }
 body.oscuro .num-fila { background:#111827!important; color:#6b7280; }
 body.oscuro .admin-card { background:#1f2937; border-color:#374151; }
 body.oscuro .admin-login-box { background:#1f2937; border-color:#374151; }
@@ -894,6 +898,26 @@ body.oscuro .stat-box { opacity:.9; }
     </div>
   </div>
 
+  <!-- CREDITOS -->
+  <div id="paginaCreditos" class="pagina oculto">
+    <div class="seccion">
+      <h2>💳 Créditos por empresa</h2>
+      <p style="color:var(--gris);font-size:12px;margin-top:-6px;">Cuando en Observaciones de un servicio pones el nombre de una de estas empresas, ese servicio se suma automáticamente a su crédito pendiente.</p>
+      <div class="fila" style="align-items:flex-end;gap:10px;margin-top:10px;">
+        <div style="flex:1;">
+          <label>Nueva empresa de crédito</label>
+          <div class="ac-wrap"><input type="text" id="nombreEmpresaCredito" placeholder="Ej: Coordinadora" autocomplete="off" onkeydown="if(event.key==='Enter'){agregarEmpresaCredito();}"></div>
+        </div>
+        <button class="btn-verde" onclick="agregarEmpresaCredito()" style="padding:11px 20px;white-space:nowrap;">➕ Agregar</button>
+      </div>
+      <div id="listaEmpresasCredito" style="margin-top:18px;"></div>
+    </div>
+    <div class="seccion" style="margin-top:16px;">
+      <h3 style="margin-top:0;">📄 Historial de cobros</h3>
+      <div id="listaHistorialCredito"></div>
+    </div>
+  </div>
+
   <!-- HISTORIAL -->
   <div id="paginaHistorial" class="pagina oculto">
     <div class="seccion">
@@ -1247,7 +1271,7 @@ function semillarMemoria(){
   };
   limpiarYSembrar("tipos_vehiculo",TIPOS_VEHICULO,["mixto","azul","sintetico"]);
   limpiarYSembrar("descripciones",DESCRIPCIONES,["mixto","azul","sintetico","carro","mula","camion","volqueta","moto"]);
-  limpiarYSembrar("observaciones",["Efectivo","Transferencia","Bricai","Volketsa","Robayo"],[]);
+  limpiarYSembrar("observaciones",["Efectivo","Transferencia",...(negocio?.creditos?.empresas||[])],[]);
   // Limpiar placas: eliminar entradas cortas (teclas sueltas, no placas reales)
   try{
     const rawPl=localStorage.getItem(_memKey("placas"));
@@ -1697,6 +1721,7 @@ function prepararDatos() {
   if (!negocio.planillas)     negocio.planillas     = [];
   if (!negocio.configuracion) negocio.configuracion = JSON.parse(JSON.stringify(CONFIG_DEFECTO));
   if (!negocio.cierresMes)    negocio.cierresMes    = {};
+  if (!negocio.creditos)      negocio.creditos      = {empresas:["Bricai","Volketsa","Robayo"], historial:[]};
   negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
   guardar();
 }
@@ -1729,6 +1754,7 @@ function entrarSistema() {
     {id:"paginaCierreMes",    icono:"📊", titulo:"Historial de pagos",    desc:"Consulta el historial de pagos del mes."},
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
+    {id:"paginaCreditos",     icono:"💳", titulo:"Créditos",         desc:"Servicios a crédito por empresa, para cobrar después."},
     {id:"paginaHistorial",    icono:"📂", titulo:"Historial",        desc:"Liquidaciones guardadas por mes."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
@@ -1745,6 +1771,7 @@ function entrarSistema() {
     {icono:"📊",label:"Historial de pagos", pagina:"paginaCierreMes"},
     {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
+    {icono:"💳",label:"Créditos",      pagina:"paginaCreditos"},
     {icono:"📂",label:"Historial",     pagina:"paginaHistorial"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
@@ -1868,7 +1895,7 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); refrescarDropdownsPlanilla();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); refrescarDropdownsPlanilla();
 }
 
 // Refresca solo los selects de engrasador de las planillas abiertas (sin re-renderizar toda la planilla)
@@ -2128,7 +2155,7 @@ function nuevaPlanilla() {
   const ahora=new Date();
   const fecha=ahora.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"});
   const mes=mesActual();
-  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+  const filaVacia=()=>({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",creditoCobrado:false,creditoCobroId:null});
   const planilla={id,fecha,mes,nombre:"Nueva planilla",vehiculos:Array.from({length:10},filaVacia),engrasador1:"",engrasador2:"",engrasador3:"",engrasador4:"",carcamos:[],grasaAntes:0,grasaQuedo:0,total:0,liquidada:false};
   if(!negocio.planillas) negocio.planillas=[];
   negocio.planillas.unshift(planilla);
@@ -2332,6 +2359,80 @@ function _refrescarFilasEngrasador(id){
   });
 }
 
+// ══════════════════════════════════════════════════════════
+//  CRÉDITOS POR EMPRESA (fila a fila) — Bricai, Volketsa, Robayo, y las que se agreguen
+// ══════════════════════════════════════════════════════════
+// Una fila de servicio es "de crédito" cuando su Observación coincide (sin
+// importar mayúsculas) con el nombre de una empresa registrada en Créditos.
+// No hay libro contable aparte: el crédito pendiente se calcula siempre en
+// vivo a partir de las filas de las planillas, así que editar o borrar una
+// fila actualiza o borra automáticamente su crédito.
+function _empresaCreditoDeFila(v){
+  const obs=String(v?.observaciones||"").trim().toLowerCase();
+  if(!obs) return null;
+  const empresas=negocio?.creditos?.empresas||[];
+  return empresas.find(e=>e.toLowerCase()===obs)||null;
+}
+function _filaCreditoHTML(id,i,v,disabled){
+  const emp=_empresaCreditoDeFila(v);
+  return `<tr id="filaCred_${id}_${i}" class="fila-credito">
+    <td colspan="9">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding:8px 4px;">
+        <span id="filaCredBadge_${id}_${i}" style="font-weight:700;font-size:12px;color:#9a6b00;white-space:nowrap;padding-top:8px;">${emp?('💳 Crédito — '+cap(sanitizarTexto(emp))):''}</span>
+        <div style="flex:1;min-width:220px;">
+          <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Adicional (frenos, productos, etc. — se suma al crédito, no a la liquidación)</label>
+          <textarea id="adDesc_${id}_${i}" ${disabled} rows="1" placeholder="Ej: 1 grasa de fibra, 1 tapón para candado"
+            style="width:100%;resize:none;overflow:hidden;padding:8px 10px;font-size:13px;line-height:1.4;"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';actualizarFila('${id}',${i},'adicionalDesc',this.value)">${sanitizarTexto(v.adicionalDesc||'')}</textarea>
+        </div>
+        <div style="width:150px;">
+          <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Valor adicional</label>
+          <input type="text" inputmode="numeric" id="adVal_${id}_${i}" value="${v.adicionalValor>0?fmtMiles(v.adicionalValor):(v.adicionalValorRaw?fmtMiles(Number(String(v.adicionalValorRaw).replace(/\./g,'').replace(/,/g,''))):'')}" ${disabled} autocomplete="off"
+            oninput="actualizarAdicionalValorFila('${id}',${i},this.value)"
+            onfocus="if(this.value)this.select()"
+            onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
+            placeholder="0" style="width:100%;">
+        </div>
+        <div style="width:150px;">
+          <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Total crédito</label>
+          <div id="credTotalFila_${id}_${i}" style="padding:8px 10px;background:#fff;border-radius:8px;font-weight:700;font-size:13px;border:1px solid #f0d998;">$${fmtMiles((v.valor||0)+(v.adicionalValor||0))||'0'}</div>
+        </div>
+      </div>
+    </td>
+  </tr>`;
+}
+// Inserta/quita la fila de "adicional" sin re-renderizar toda la tabla (se llama
+// cada vez que cambia el texto de Observaciones de una fila).
+function _actualizarVisibilidadCreditoFila(id,i){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  const v=pl.vehiculos[i]; if(!v) return;
+  const disabled=pl.liquidada?"disabled":"";
+  const emp=_empresaCreditoDeFila(v);
+  const filaPrincipal=document.getElementById(`fila_${id}_${i}`);
+  const filaCred=document.getElementById(`filaCred_${id}_${i}`);
+  if(emp&&!filaCred&&filaPrincipal){
+    filaPrincipal.insertAdjacentHTML('afterend', _filaCreditoHTML(id,i,v,disabled));
+  } else if(!emp&&filaCred){
+    filaCred.remove();
+  } else if(emp&&filaCred){
+    const badge=document.getElementById(`filaCredBadge_${id}_${i}`);
+    if(badge) badge.textContent='💳 Crédito — '+cap(sanitizarTexto(emp));
+  }
+}
+function _actualizarTotalCreditoFila(id,i){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  const el=document.getElementById(`credTotalFila_${id}_${i}`);
+  if(el) el.textContent="$"+(fmtMiles((pl.vehiculos[i].valor||0)+(pl.vehiculos[i].adicionalValor||0))||'0');
+}
+// El valor adicional NUNCA entra a recalcularTotal()/pl.total: no afecta la
+// liquidación de los engrasadores, solo se suma al crédito de la empresa.
+function actualizarAdicionalValorFila(id,i,raw){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
+  const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
+  pl.vehiculos[i].adicionalValorRaw=raw; pl.vehiculos[i].adicionalValor=isNaN(valor)?0:valor;
+  _actualizarTotalCreditoFila(id,i);
+}
+
 function renderFilasPlanilla(id) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   const tbody=document.getElementById(`tbody_${id}`); if(!tbody) return;
@@ -2340,7 +2441,8 @@ function renderFilasPlanilla(id) {
   const optsE=`<option value="">-</option>`+nombresE.map(n=>`<option value="${n}">${n}</option>`).join("");
   const disabled=pl.liquidada?"disabled":""
   const claseFila=v=>(v.tipoEngrase==='mixto'||v.tipoEngrase==='mixto_r')?'fila-resaltada':'';
-  tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>`<tr id="fila_${id}_${i}" class="${claseFila(v)}">
+  tbody.innerHTML=(pl.vehiculos||[]).map((v,i)=>{
+    const filaPrincipal=`<tr id="fila_${id}_${i}" class="${claseFila(v)}">
     <td class="num-fila">${i+1}</td>
     <td><input type="text" value="${formatPlaca(v.placa)}" ${disabled} autocomplete="off" oninput="const c=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');this.value=c.length>3?c.slice(0,3)+' '+c.slice(3):c;actualizarFila('${id}',${i},'placa',this.value)" id="pl_${id}_${i}" placeholder="ABC 123" style="width:100%;text-transform:uppercase;"></td>
     <td><input type="text" value="${capPrimera(v.tipoVehiculo||'')}" ${disabled} autocomplete="off" oninput="this.value=capPrimera(this.value);actualizarFila('${id}',${i},'tipoVehiculo',this.value)" id="tv_${id}_${i}" placeholder="Mula, Camión..." style="width:100%;"></td>
@@ -2361,9 +2463,12 @@ function renderFilasPlanilla(id) {
     <td><select id="rowE_${id}_${i}" ${disabled} onchange="actualizarFila('${id}',${i},'engrasador',this.value)">
       ${optsE.replace(`value="${v.engrasador}"`,`value="${v.engrasador}" selected`)}
     </select></td>
-    <td><input type="text" value="${capPrimera(v.observaciones||'')}" ${disabled} autocomplete="off" oninput="this.value=capPrimera(this.value);actualizarFila('${id}',${i},'observaciones',this.value)" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
+    <td><input type="text" value="${capPrimera(v.observaciones||'')}" ${disabled} autocomplete="off" oninput="this.value=capPrimera(this.value);actualizarFila('${id}',${i},'observaciones',this.value);_actualizarVisibilidadCreditoFila('${id}',${i})" id="ob_${id}_${i}" placeholder="Opcional" style="width:100%;"></td>
     <td class="col-del">${!pl.liquidada?`<button class="btn-rojo btn-icon" onclick="eliminarFilaPlanilla('${id}',${i})">✕</button>`:""}</td>
-  </tr>`).join("");
+  </tr>`;
+    const emp=_empresaCreditoDeFila(v);
+    return filaPrincipal+(emp?_filaCreditoHTML(id,i,v,disabled):'');
+  }).join("");
 
   // Forzar formato de miles SINCRONO (inmediato, antes de cualquier evento)
   (pl.vehiculos||[]).forEach((v,j)=>{
@@ -2382,7 +2487,7 @@ function renderFilasPlanilla(id) {
       if(plEl) setupAC(plEl,[], val=>{ actualizarFila(id,i,'placa',val); agregarMemoria('placas',val); }, 'placas', 7);
       if(tvEl) setupAC(tvEl,[], val=>{ actualizarFila(id,i,'tipoVehiculo',val); agregarMemoria('tipos_vehiculo',val); }, 'tipos_vehiculo');
       if(deEl) setupAC(deEl,[], val=>{ actualizarFila(id,i,'descripcion',val); agregarMemoria('descripciones',val); }, 'descripciones');
-      if(obEl) setupAC(obEl,["Efectivo","Transferencia","Bricai","Volketsa","Robayo"], val=>{ actualizarFila(id,i,'observaciones',val); }, null);
+      if(obEl) setupAC(obEl,["Efectivo","Transferencia",...(negocio.creditos?.empresas||[])], val=>{ actualizarFila(id,i,'observaciones',val); _actualizarVisibilidadCreditoFila(id,i); }, null);
       const vlEl=document.getElementById(`vl_${id}_${i}`);
       if(vlEl) setupAC(vlEl,[], val=>{ actualizarValorFila(id,i,val); }, 'precios');
     });
@@ -2397,6 +2502,8 @@ function renderFilasPlanilla(id) {
         const n=Number(s);
         if(!isNaN(n)&&n>0)el.value=fmtMiles(n<1000?n*1000:n);
       }
+      const ta=document.getElementById(`adDesc_${id}_${j}`);
+      if(ta){ ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
     });
   },0);
 }
@@ -2427,7 +2534,7 @@ function agregarFilaPlanilla(id, cantidad){
   if(n>50) n=50; // límite razonable para evitar agregar cientos de filas por error
   const filaInicial=pl.vehiculos.length;
   for(let k=0;k<n;k++){
-    pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:""});
+    pl.vehiculos.push({placa:"",tipoVehiculo:"",descripcion:"",tipoEngrase:"azul",valor:0,valorRaw:"",engrasador:"",observaciones:"",adicionalDesc:"",adicionalValor:0,adicionalValorRaw:"",creditoCobrado:false,creditoCobroId:null});
   }
   renderFilasPlanilla(id);
   setTimeout(()=>{
@@ -2438,7 +2545,15 @@ function agregarFilaPlanilla(id, cantidad){
 }
 function eliminarFilaPlanilla(id,i){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
-  pl.vehiculos.splice(i,1); renderFilasPlanilla(id);
+  const v=pl.vehiculos[i];
+  const emp=v?_empresaCreditoDeFila(v):null;
+  const totalCred=v?(Number(v.valor||0)+Number(v.adicionalValor||0)):0;
+  const borrar=()=>{ pl.vehiculos.splice(i,1); renderFilasPlanilla(id); };
+  if(emp&&!v.creditoCobrado&&totalCred>0){
+    confirmar("Eliminar servicio a crédito",`Este servicio está pendiente de cobro a ${cap(sanitizarTexto(emp))} por $${fmtMiles(totalCred)||'0'}. Si lo eliminas, también se quita de lo pendiente por cobrar. ¿Eliminar de todos modos?`,borrar);
+  } else {
+    borrar();
+  }
 }
 async function guardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -2448,7 +2563,10 @@ async function guardarPlanilla(id){
   toast(r.ok?"Planilla guardada ":"Guardada localmente (fallo nube)",r.ok?"ok":"aviso");
 }
 function eliminarPlanilla(id){
-  confirmar("Eliminar planilla","¿Eliminar esta planilla?",async()=>{
+  const pl=negocio.planillas.find(p=>p.id===id);
+  const pendienteCredito=pl?(pl.vehiculos||[]).filter(v=>{const e=_empresaCreditoDeFila(v);return e&&!v.creditoCobrado;}).reduce((s,v)=>s+Number(v.valor||0)+Number(v.adicionalValor||0),0):0;
+  const msgEliminar=pendienteCredito>0?`¿Eliminar esta planilla? Tiene $${fmtMiles(pendienteCredito)||'0'} en servicios a crédito pendientes de cobro que también se eliminarán.`:"¿Eliminar esta planilla?";
+  confirmar("Eliminar planilla",msgEliminar,async()=>{
     negocio.planillas=(negocio.planillas||[]).filter(p=>p.id!==id);
     // Respaldo local: guardar IDs eliminados para que no reaparezcan aunque falle la nube
     if(!negocio.planillasEliminadas) negocio.planillasEliminadas=[];
@@ -2457,6 +2575,229 @@ function eliminarPlanilla(id){
     const r=await guardarEvento({tipoRegistro:"eliminarPlanilla",planillaId:id});
     if(!r||!r.ok) toast("⚠️ Sin conexión: eliminación guardada localmente, pero no en la nube.","error");
   });
+}
+
+// ══════════════════════════════════════════════════════════
+//  CRÉDITOS — página (empresas, cobro y Excel para enviar)
+// ══════════════════════════════════════════════════════════
+let _empresaCreditoExpandida = null; // nombre de la empresa cuyo panel de pendientes está abierto
+let _seleccionCredito = new Set();   // claves "planillaId|indice" marcadas para cobrar
+
+function agregarEmpresaCredito(){
+  const input=document.getElementById("nombreEmpresaCredito");
+  const nombre=(input?.value||"").trim();
+  if(!nombre){toast("Escribe el nombre de la empresa","error");return;}
+  if(nombre.length>60){toast("El nombre es demasiado largo (máx 60 caracteres)","error");return;}
+  if(!negocio.creditos) negocio.creditos={empresas:[],historial:[]};
+  const nombreNorm=nombre.toLowerCase();
+  if(negocio.creditos.empresas.some(e=>e.toLowerCase()===nombreNorm)){
+    toast("Ya existe una empresa con ese nombre","error");return;
+  }
+  negocio.creditos.empresas.push(nombre);
+  input.value="";
+  guardar(); actualizarTodo();
+  toast("Empresa agregada ✅ — ya aparece en Observaciones","ok");
+}
+function eliminarEmpresaCredito(idx){
+  const emp=(negocio.creditos?.empresas||[])[idx]; if(emp==null) return;
+  const pendientes=_serviciosPendientesCredito(emp);
+  if(pendientes.length){
+    toast(`No puedes eliminar ${cap(sanitizarTexto(emp))}: tiene ${pendientes.length} servicio(s) pendiente(s) de cobro`,"error");
+    return;
+  }
+  confirmar("Eliminar empresa",`¿Eliminar a ${cap(sanitizarTexto(emp))} de las empresas de crédito? (No borra su historial de cobros ya hechos)`,()=>{
+    negocio.creditos.empresas=negocio.creditos.empresas.filter((e,i)=>i!==idx);
+    if(_empresaCreditoExpandida===emp) _empresaCreditoExpandida=null;
+    guardar(); actualizarTodo();
+    toast("Empresa eliminada","ok");
+  });
+}
+function toggleEmpresaCredito(idx){
+  const emp=(negocio.creditos?.empresas||[])[idx]; if(emp==null) return;
+  _empresaCreditoExpandida=(_empresaCreditoExpandida===emp)?null:emp;
+  _seleccionCredito=new Set();
+  mostrarCreditos();
+}
+// Recorre TODAS las planillas (no solo las pestañas abiertas) buscando filas
+// de esta empresa que aún no se hayan cobrado.
+function _serviciosPendientesCredito(empresa){
+  const items=[];
+  (negocio.planillas||[]).forEach(pl=>{
+    (pl.vehiculos||[]).forEach((v,i)=>{
+      const emp=_empresaCreditoDeFila(v);
+      if(emp&&emp.toLowerCase()===String(empresa).toLowerCase()&&!v.creditoCobrado){
+        const total=Number(v.valor||0)+Number(v.adicionalValor||0);
+        if(total>0){
+          items.push({
+            clave:pl.id+"|"+i, planillaId:pl.id, indice:i,
+            fecha:pl.fecha, placa:formatPlaca(v.placa)||"—",
+            descripcion:[v.descripcion,v.adicionalDesc].filter(Boolean).join(", ")||"—",
+            total
+          });
+        }
+      }
+    });
+  });
+  items.sort((a,b)=>_parseFechaPlanilla(b.fecha)-_parseFechaPlanilla(a.fecha));
+  return items;
+}
+function toggleSeleccionCredito(clave, checked){
+  if(checked) _seleccionCredito.add(clave); else _seleccionCredito.delete(clave);
+  const el=document.getElementById("totalSeleccionCredito");
+  if(el&&_empresaCreditoExpandida){
+    const items=_serviciosPendientesCredito(_empresaCreditoExpandida);
+    const total=items.filter(it=>_seleccionCredito.has(it.clave)).reduce((s,it)=>s+it.total,0);
+    el.textContent="$"+(fmtMiles(total)||'0');
+  }
+}
+function toggleSeleccionarTodosCredito(checked){
+  if(!_empresaCreditoExpandida) return;
+  const items=_serviciosPendientesCredito(_empresaCreditoExpandida);
+  _seleccionCredito=new Set(checked?items.map(it=>it.clave):[]);
+  mostrarCreditos();
+}
+function cobrarSeleccionCredito(){
+  const empresa=_empresaCreditoExpandida; if(!empresa) return;
+  const items=_serviciosPendientesCredito(empresa).filter(it=>_seleccionCredito.has(it.clave));
+  if(!items.length){toast("Selecciona al menos un servicio","error");return;}
+  const total=items.reduce((s,it)=>s+it.total,0);
+  const idCobro=generarId();
+  items.forEach(it=>{
+    const pl=negocio.planillas.find(p=>p.id===it.planillaId);
+    const v=pl?.vehiculos?.[it.indice]; if(!v) return;
+    v.creditoCobrado=true; v.creditoCobroId=idCobro;
+  });
+  const registro={
+    id:idCobro, empresa, fecha:new Date().toLocaleString(),
+    servicios:items.map(({fecha,placa,descripcion,total})=>({fecha,placa,descripcion,total})),
+    total
+  };
+  if(!negocio.creditos.historial) negocio.creditos.historial=[];
+  negocio.creditos.historial.unshift(registro);
+  _seleccionCredito=new Set();
+  guardar(); actualizarTodo();
+  toast(`Cobro registrado: $${fmtMiles(total)||'0'} — ${cap(sanitizarTexto(empresa))}`,"ok");
+  _descargarExcelCredito(registro);
+}
+// Genera un .xls (tabla HTML que Excel abre con colores, negrilla y bordes,
+// igual que la planilla manual) — no depende de ninguna librería externa.
+function _htmlExcelCredito(empresa, servicios, total, fechaCobro){
+  const filas=servicios.map(s=>`<tr>
+    <td>${sanitizarTexto(s.fecha||'')}</td>
+    <td>${sanitizarTexto(s.placa||'')}</td>
+    <td>${sanitizarTexto(s.descripcion||'')}</td>
+    <td style="text-align:right;">$${fmtMiles(s.total)||'0'}</td>
+  </tr>`).join("");
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>${sanitizarTexto(empresa).slice(0,30)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>
+table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:12px;}
+th,td{border:1px solid #000;padding:5px 8px;}
+th{background:#FFFF00;font-weight:bold;text-align:center;}
+.tit{font-size:16px;font-weight:bold;}
+.totrow td{background:#FCE4B6;font-weight:bold;}
+</style></head>
+<body>
+<table>
+<tr><td colspan="4" class="tit">${sanitizarTexto(empresa)} — Servicios a cobrar</td></tr>
+<tr><td colspan="4">Fecha de cobro: ${sanitizarTexto(fechaCobro||new Date().toLocaleString())}</td></tr>
+<tr><td colspan="4"></td></tr>
+<tr><th>FECHA</th><th>PLACA</th><th>DESCRIPCION</th><th>TOTAL</th></tr>
+${filas}
+<tr class="totrow"><td colspan="3">TOTAL</td><td style="text-align:right;">$${fmtMiles(total)||'0'}</td></tr>
+</table>
+</body></html>`;
+}
+function _descargarArchivoExcel(nombreArchivo, htmlContenido){
+  const blob=new Blob(['﻿'+htmlContenido],{type:'application/vnd.ms-excel'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=nombreArchivo;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function _descargarExcelCredito(registro){
+  const html=_htmlExcelCredito(registro.empresa, registro.servicios, registro.total, registro.fecha);
+  const nombreArchivo=`Credito_${String(registro.empresa).replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.xls`;
+  _descargarArchivoExcel(nombreArchivo, html);
+}
+function redescargarExcelCredito(idCobro){
+  const registro=(negocio.creditos?.historial||[]).find(r=>r.id===idCobro);
+  if(!registro){toast("No se encontró ese cobro","error");return;}
+  _descargarExcelCredito(registro);
+}
+function mostrarCreditos(){
+  const cont=document.getElementById("listaEmpresasCredito"); if(!cont) return;
+  if(!negocio.creditos) negocio.creditos={empresas:["Bricai","Volketsa","Robayo"],historial:[]};
+  const empresas=negocio.creditos.empresas||[];
+  if(!empresas.length){
+    cont.innerHTML="<p style='color:var(--gris);'>No hay empresas de crédito registradas.</p>";
+  } else {
+    cont.innerHTML=empresas.map((emp,idx)=>{
+      const pendientes=_serviciosPendientesCredito(emp);
+      const totalPend=pendientes.reduce((s,it)=>s+it.total,0);
+      const abierta=_empresaCreditoExpandida===emp;
+      const filasTabla=pendientes.map(it=>`<tr>
+        <td style="width:26px;"><input type="checkbox" ${_seleccionCredito.has(it.clave)?'checked':''} onchange="toggleSeleccionCredito('${it.clave}',this.checked)"></td>
+        <td>${sanitizarTexto(it.fecha)}</td>
+        <td>${sanitizarTexto(it.placa)}</td>
+        <td>${sanitizarTexto(it.descripcion)}</td>
+        <td style="text-align:right;">$${fmtMiles(it.total)||'0'}</td>
+      </tr>`).join("");
+      const totalSeleccionado=pendientes.filter(it=>_seleccionCredito.has(it.clave)).reduce((s,it)=>s+it.total,0);
+      const panel=abierta?`
+        <div style="margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px;">
+          ${pendientes.length?`
+          <div style="overflow-x:auto;">
+            <table style="width:100%;font-size:13px;">
+              <thead><tr>
+                <th style="width:26px;"><input type="checkbox" onchange="toggleSeleccionarTodosCredito(this.checked)" ${pendientes.every(it=>_seleccionCredito.has(it.clave))?'checked':''}></th>
+                <th>Fecha</th><th>Placa</th><th>Descripción</th><th>Total</th>
+              </tr></thead>
+              <tbody>${filasTabla}</tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:10px;">
+            <span>Seleccionado: <strong id="totalSeleccionCredito">$${fmtMiles(totalSeleccionado)||'0'}</strong></span>
+            <button class="btn-verde btn-sm" onclick="cobrarSeleccionCredito()">💰 Cobrar seleccionados y generar Excel</button>
+          </div>`:`<p style="color:var(--gris);">Sin servicios pendientes.</p>`}
+        </div>`:"";
+      return `<div class="item" style="margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div>
+            <h3 style="margin:0;">${cap(sanitizarTexto(emp))}</h3>
+            <p style="margin:2px 0 0;color:var(--gris);font-size:12px;">${pendientes.length} servicio(s) pendiente(s)</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <strong style="${totalPend>0?'color:var(--rojo);':''}">$${fmtMiles(totalPend)||'0'}</strong>
+            <button class="btn-sm" onclick="toggleEmpresaCredito(${idx})">${abierta?'▲ Ocultar':'👁️ Ver pendientes'}</button>
+            <button class="btn-rojo btn-sm" onclick="eliminarEmpresaCredito(${idx})">🗑️</button>
+          </div>
+        </div>
+        ${panel}
+      </div>`;
+    }).join("");
+  }
+
+  const histCont=document.getElementById("listaHistorialCredito"); if(!histCont) return;
+  const historial=negocio.creditos.historial||[];
+  if(!historial.length){
+    histCont.innerHTML="<p style='color:var(--gris);'>Sin cobros registrados todavía.</p>";
+  } else {
+    histCont.innerHTML=historial.map(r=>`<div class="item" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <strong>${cap(sanitizarTexto(r.empresa))}</strong>
+        <p style="margin:2px 0 0;color:var(--gris);font-size:12px;">${sanitizarTexto(r.fecha)} — ${r.servicios.length} servicio(s)</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <strong>$${fmtMiles(r.total)||'0'}</strong>
+        <button class="btn-sm" onclick="redescargarExcelCredito('${r.id}')">📊 Excel</button>
+      </div>
+    </div>`).join("");
+  }
 }
 
 // LISTA DE PLANILLAS GUARDADAS
