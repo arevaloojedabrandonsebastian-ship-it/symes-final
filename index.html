@@ -1138,7 +1138,7 @@ body.oscuro .stat-box { opacity:.9; }
         <p>Los presentes términos se rigen por las leyes de la República de Colombia, incluyendo la Ley 1581 de 2012 (Protección de Datos) y la Ley 1341 de 2009 (Sociedad de la Información).</p>
         <h3>10. Contacto</h3>
         <p>Para dudas, soporte o reclamaciones: WhatsApp 322-716-7031.</p>
-        <p style="margin-top:16px;color:var(--gris);font-size:12px;">Última actualización: Mayo 2025. Desarrollado por Brandon Sebastian Arevalo Ojeda.</p>
+        <p style="margin-top:16px;color:var(--gris);font-size:12px;">Última actualización: Mayo 2025. Desarrollado por Brandon Sebastian Arevalo Ojeda y Andrey Arévalo.</p>
       </div>
     </div>
   </div>
@@ -1146,7 +1146,7 @@ body.oscuro .stat-box { opacity:.9; }
 
 </div><!-- /sistema -->
 
-<div class="creditos" id="creditosFooter">SYMES V2.2 — Desarrollado por Brandon Sebastian Arevalo Ojeda</div>
+<div class="creditos" id="creditosFooter">SYMES V2.2 — Desarrollado por Brandon Sebastian Arevalo Ojeda y Andrey Arévalo</div>
 
 <!-- MODAL CONFIRMACIÓN -->
 <div class="modal-overlay" id="modalConfirm">
@@ -3170,7 +3170,7 @@ tr:nth-child(even) td{background:#f8faff;}
 <table><thead><tr><th>Fecha</th><th>Planilla</th><th>Engrasador(es)</th><th>Servicios</th><th>Total</th></tr></thead>
 <tbody>${filas}</tbody></table>
 <div class="total"><span>Total acumulado:</span><span>$${totalGen.toLocaleString()}</span></div>
-<div class="cred">SYMES — Brandon Sebastian Arevalo Ojeda</div>
+<div class="cred">SYMES — Brandon Sebastian Arevalo Ojeda y Andrey Arévalo</div>
 </body></html>`);
   ven.document.close();
 }
@@ -3416,7 +3416,7 @@ function imprimirPlanilla(id){
   <table><thead><tr><th>#</th><th>Placa</th><th>Tipo</th><th>Descripción</th><th>Engrase</th><th>Valor</th><th>Engrasador</th><th>Obs.</th></tr></thead><tbody>${filas}</tbody></table>
   <div class="total"><span>Total planilla:</span><span>$${total.toLocaleString()}</span></div>
   <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador</div></div>
-  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>
+  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda y Andrey Arévalo</div>
   <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`);
   ven.document.close();
 }
@@ -3796,7 +3796,7 @@ function imprimirResumen(){
   <tbody>${resumen.trabajadores.map(t=>`<tr><td>${t.nombre}</td><td>$${t.ganado.toLocaleString()}</td><td>$${t.adelantos.toLocaleString()}</td><td style="color:#c0392b">${(t.seguridad||0)>0?'-$'+(t.seguridad||0).toLocaleString():'$0'}</td><td>$${t.totalPagar.toLocaleString()}</td></tr>`).join("")}</tbody></table>
   <div class="total">Total ganado: $${resumen.totalGanado.toLocaleString()} | Adelantos: $${resumen.totalAdelantos.toLocaleString()} | Seguridad: -$${resumen.trabajadores.reduce((s,t)=>s+(t.seguridad||0),0).toLocaleString()} | <strong>A pagar: $${resumen.totalPagar.toLocaleString()}</strong></div>
   <div class="firma"><div class="linea">Firma encargado</div><div class="linea">Firma engrasador / recibido</div></div>
-  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda</div>
+  <div class="cred">SYMES V4.0 — Brandon Sebastian Arevalo Ojeda y Andrey Arévalo</div>
   <script>window.onload=function(){window.print();}<\/script><\/body><\/html>`);
   ven.document.close();
 }
