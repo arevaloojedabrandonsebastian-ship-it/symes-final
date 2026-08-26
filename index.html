@@ -2487,7 +2487,7 @@ function renderFilasPlanilla(id) {
     </select></td>
     <td>
       <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?fmtMiles(v.valor):(v.valorRaw?fmtMiles(Number(String(v.valorRaw).replace(/\./g,'').replace(/,/g,''))):''  )}" ${disabled} autocomplete="off"
-        oninput="actualizarValorFila('${id}',${i},this.value)"
+        oninput="_formatearValorEnVivo(this);actualizarValorFila('${id}',${i},this.value.replace(/\./g,''))"
         onfocus="if(this.value)this.select()"
         onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
         onkeydown="if(event.key==='Tab'){}"
@@ -2739,53 +2739,220 @@ function confirmarCobroCredito(){
     guardarEvento({tipoRegistro:"creditos",creditos:negocio.creditos});
   });
 }
-// Genera un .xls (tabla HTML que Excel abre con colores, negrilla y bordes,
-// con membrete de EL DIAMANTE) — no depende de ninguna librería externa.
-function _htmlExcelCredito(empresa, servicios, total, fechaCobro){
-  const filas=servicios.map((s,i)=>`<tr style="${i%2? 'background:#F7F7F7;':''}">
-    <td class="c">${sanitizarTexto(s.fecha||'')}</td>
-    <td class="c" style="font-weight:bold;">${sanitizarTexto(s.placa||'')}</td>
-    <td>${sanitizarTexto(s.descripcion||'')}</td>
-    <td class="der">$${fmtMiles(s.total)||'0'}</td>
-  </tr>`).join("");
-  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8">
-<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
-<x:Name>${sanitizarTexto(empresa).slice(0,30)}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-<style>
-table{border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:13px;}
-col.a{width:130px;} col.b{width:110px;} col.c{width:340px;} col.d{width:130px;}
-td,th{border:1px solid #444;padding:7px 10px;}
-.marca{background:#111827;color:#FFFFFF;font-size:24px;font-weight:bold;padding:14px 10px;letter-spacing:1px;border:1px solid #111827;}
-.sub{background:#111827;color:#F3B62A;font-size:12px;font-weight:bold;padding:2px 10px 10px;border:1px solid #111827;border-top:none;}
-.etq{font-weight:bold;background:#EDEDED;width:150px;}
-.dato{font-size:13px;}
-th{background:#F3B62A;font-weight:bold;text-align:center;color:#111827;font-size:13px;}
-.der{text-align:right;}
-.c{text-align:center;}
-.totrow td{background:#111827;color:#FFFFFF;font-weight:bold;font-size:14px;border:1px solid #111827;}
-.nota{font-size:11px;color:#666;border:none;padding-top:10px;}
-</style></head>
-<body>
-<table>
-<col class="a"><col class="b"><col class="c"><col class="d">
-<tr><td colspan="4" class="marca">EL DIAMANTE</td></tr>
-<tr><td colspan="4" class="sub">CUENTA DE COBRO — SERVICIOS A CRÉDITO</td></tr>
-<tr><td colspan="4" style="border:none;padding:6px 0;"></td></tr>
-<tr><td class="etq">Cliente</td><td colspan="3" class="dato" style="font-weight:bold;font-size:15px;">${sanitizarTexto(empresa)}</td></tr>
-<tr><td class="etq">Fecha de cobro</td><td colspan="3" class="dato">${sanitizarTexto(fechaCobro||new Date().toLocaleString())}</td></tr>
-<tr><td class="etq">N.º de servicios</td><td colspan="3" class="dato">${servicios.length}</td></tr>
-<tr><td colspan="4" style="border:none;padding:6px 0;"></td></tr>
-<tr><th>FECHA</th><th>PLACA</th><th>DESCRIPCIÓN</th><th>TOTAL</th></tr>
-${filas}
-<tr class="totrow"><td colspan="3" class="der">TOTAL A PAGAR</td><td class="der">$${fmtMiles(total)||'0'}</td></tr>
-<tr><td colspan="4" class="nota">Generado automáticamente por el sistema de EL DIAMANTE — ${sanitizarTexto(new Date().toLocaleString())}</td></tr>
-</table>
-</body></html>`;
+// ══════════════════════════════════════════════════════════
+//  Generador de .xlsx real (OOXML) sin librerías externas.
+//  Construye el ZIP a mano (método STORE, sin compresión) — mismo código
+//  que se copia literal al navegador dentro de index.html.
+// ══════════════════════════════════════════════════════════
+const _crcTabla = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function _crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = _crcTabla[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
 }
-function _descargarArchivoExcel(nombreArchivo, htmlContenido){
-  const blob=new Blob(['﻿'+htmlContenido],{type:'application/vnd.ms-excel'});
+function _u16(n){ return [n & 0xFF, (n >>> 8) & 0xFF]; }
+function _u32(n){ return [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF]; }
+function _concatBytes(arrs){
+  let total = 0; arrs.forEach(a => total += a.length);
+  const out = new Uint8Array(total); let o = 0;
+  arrs.forEach(a => { out.set(a, o); o += a.length; });
+  return out;
+}
+// files: [{name:'xl/workbook.xml', data:Uint8Array}]  -> Uint8Array del .zip completo (sin compresión)
+function _crearZip(files){
+  const enc = new TextEncoder();
+  const dosTime = 0, dosDate = 0x0021; // fecha fija, no relevante para Excel
+  const locales = [], centrales = [];
+  let offset = 0;
+  files.forEach(f => {
+    const nombre = enc.encode(f.name);
+    const datos = f.data;
+    const crc = _crc32(datos), tam = datos.length;
+    const cabeceraLocal = new Uint8Array([
+      ..._u32(0x04034b50), ..._u16(20), ..._u16(0), ..._u16(0), ..._u16(dosTime), ..._u16(dosDate),
+      ..._u32(crc), ..._u32(tam), ..._u32(tam), ..._u16(nombre.length), ..._u16(0)
+    ]);
+    locales.push(_concatBytes([cabeceraLocal, nombre, datos]));
+    const cabeceraCentral = new Uint8Array([
+      ..._u32(0x02014b50), ..._u16(20), ..._u16(20), ..._u16(0), ..._u16(0), ..._u16(dosTime), ..._u16(dosDate),
+      ..._u32(crc), ..._u32(tam), ..._u32(tam), ..._u16(nombre.length), ..._u16(0), ..._u16(0),
+      ..._u16(0), ..._u16(0), ..._u32(0), ..._u32(offset)
+    ]);
+    centrales.push(_concatBytes([cabeceraCentral, nombre]));
+    offset += cabeceraLocal.length + nombre.length + datos.length;
+  });
+  const inicioCentral = offset;
+  let tamCentral = 0; centrales.forEach(c => tamCentral += c.length);
+  const eocd = new Uint8Array([
+    ..._u32(0x06054b50), ..._u16(0), ..._u16(0), ..._u16(files.length), ..._u16(files.length),
+    ..._u32(tamCentral), ..._u32(inicioCentral), ..._u16(0)
+  ]);
+  return _concatBytes([...locales, ...centrales, eocd]);
+}
+function _xmlEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _utf8Bytes(s){ const enc=new TextEncoder(); return enc.encode(s); }
+
+// ─── Construcción del libro de crédito ───────────────────────────────────
+const FUENTES = [
+  {sz:11,color:'FF1A1A1A'},                             // 0 normal
+  {sz:20,bold:1,color:'FFFFFFFF'},                       // 1 título
+  {sz:12,bold:1,color:'FFF3B62A'},                       // 2 subtítulo
+  {sz:11,bold:1,color:'FF111827'},                       // 3 etiqueta/encabezado
+  {sz:14,bold:1,color:'FF111827'},                       // 4 nombre empresa
+  {sz:13,bold:1,color:'FFFFFFFF'},                       // 5 total
+  {sz:9,italic:1,color:'FF808080'},                      // 6 nota
+];
+const RELLENOS = [
+  {tipo:'none'},                                         // 0 (reservado)
+  {tipo:'gray125'},                                      // 1 (reservado)
+  {tipo:'solid',color:'FF111827'},                       // 2 oscuro
+  {tipo:'solid',color:'FFF3B62A'},                       // 3 dorado
+  {tipo:'solid',color:'FFEDEDED'},                       // 4 gris etiqueta
+  {tipo:'solid',color:'FFF7F7F7'},                       // 5 cebra
+];
+const BORDES = [
+  {},                                                     // 0 sin borde
+  {todos:'FF444444'},                                    // 1 fino gris
+];
+const NUMFMT_MONEDA = 164;
+const CELLXFS = [
+  {f:0,r:0,b:0,align:'left',valign:'center'},                                   // 0 default
+  {f:1,r:2,b:0,align:'left',valign:'center'},                                   // 1 título
+  {f:2,r:2,b:0,align:'left',valign:'center'},                                   // 2 subtítulo
+  {f:3,r:4,b:0,align:'left',valign:'center'},                                   // 3 etiqueta
+  {f:0,r:0,b:0,align:'left',valign:'center'},                                   // 4 dato normal
+  {f:4,r:0,b:0,align:'left',valign:'center'},                                   // 5 empresa (dato grande)
+  {f:3,r:3,b:1,align:'center',valign:'center'},                                 // 6 encabezado tabla
+  {f:0,r:0,b:1,align:'center',valign:'center'},                                 // 7 celda centrada
+  {f:0,r:5,b:1,align:'center',valign:'center'},                                 // 8 celda centrada cebra
+  {f:0,r:0,b:1,align:'left',valign:'center',wrap:1},                            // 9 celda izquierda (desc)
+  {f:0,r:5,b:1,align:'left',valign:'center',wrap:1},                            // 10 celda izquierda cebra
+  {f:0,r:0,b:1,align:'right',valign:'center',numFmt:NUMFMT_MONEDA},             // 11 total fila
+  {f:0,r:5,b:1,align:'right',valign:'center',numFmt:NUMFMT_MONEDA},             // 12 total fila cebra
+  {f:5,r:2,b:1,align:'right',valign:'center'},                                  // 13 etiqueta TOTAL
+  {f:5,r:2,b:1,align:'right',valign:'center',numFmt:NUMFMT_MONEDA},             // 14 valor TOTAL
+  {f:6,r:0,b:0,align:'left',valign:'center'},                                   // 15 nota pie
+];
+function _stylesXml(){
+  const fontsXml = FUENTES.map(ft => `<font><sz val="${ft.sz}"/>${ft.bold?'<b/>':''}${ft.italic?'<i/>':''}<color rgb="${ft.color}"/><name val="Calibri"/></font>`).join('');
+  const fillsXml = RELLENOS.map(fl => fl.tipo==='solid'
+    ? `<fill><patternFill patternType="solid"><fgColor rgb="${fl.color}"/><bgColor indexed="64"/></patternFill></fill>`
+    : `<fill><patternFill patternType="${fl.tipo}"/></fill>`).join('');
+  const borderSide = c => c ? `<left style="thin"><color rgb="${c}"/></left><right style="thin"><color rgb="${c}"/></right><top style="thin"><color rgb="${c}"/></top><bottom style="thin"><color rgb="${c}"/></bottom>` : `<left/><right/><top/><bottom/>`;
+  const bordersXml = BORDES.map(b => `<border>${borderSide(b.todos)}<diagonal/></border>`).join('');
+  const cellXfsXml = CELLXFS.map(xf => {
+    const numFmtId = xf.numFmt || 0;
+    return `<xf numFmtId="${numFmtId}" fontId="${xf.f}" fillId="${xf.r}" borderId="${xf.b}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" ${numFmtId?'applyNumberFormat="1" ':''}applyAlignment="1"><alignment horizontal="${xf.align}" vertical="${xf.valign}" ${xf.wrap?'wrapText="1"':''}/></xf>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="1"><numFmt numFmtId="${NUMFMT_MONEDA}" formatCode="&quot;$&quot;#,##0"/></numFmts>
+<fonts count="${FUENTES.length}">${fontsXml}</fonts>
+<fills count="${RELLENOS.length}">${fillsXml}</fills>
+<borders count="${BORDES.length}">${bordersXml}</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="${CELLXFS.length}">${cellXfsXml}</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+function _celdaTxt(ref, s, texto){
+  return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${_xmlEsc(texto)}</t></is></c>`;
+}
+function _celdaNum(ref, s, num){
+  return `<c r="${ref}" s="${s}"><v>${Number(num)||0}</v></c>`;
+}
+function _hojaXml(empresa, servicios, total, fechaCobro){
+  const filas = [];
+  const merges = [];
+  let r = 1;
+  filas.push(`<row r="${r}" ht="34" customHeight="1">${_celdaTxt('A'+r,1,'EL DIAMANTE')}${['B','C','D'].map(c=>`<c r="${c}${r}" s="1"/>`).join('')}</row>`);
+  merges.push(`A${r}:D${r}`); r++;
+  filas.push(`<row r="${r}" ht="20" customHeight="1">${_celdaTxt('A'+r,2,'CUENTA DE COBRO — SERVICIOS A CRÉDITO')}${['B','C','D'].map(c=>`<c r="${c}${r}" s="2"/>`).join('')}</row>`);
+  merges.push(`A${r}:D${r}`); r++;
+  filas.push(`<row r="${r}" ht="8"></row>`); r++;
+  const filaEtiqueta=(etq,val,estiloVal)=>{
+    const rr=r;
+    const l=`<row r="${rr}" ht="20" customHeight="1">${_celdaTxt('A'+rr,3,etq)}${_celdaTxt('B'+rr,estiloVal,val)}${['C','D'].map(c=>`<c r="${c}${rr}" s="${estiloVal}"/>`).join('')}</row>`;
+    merges.push(`B${rr}:D${rr}`);
+    r++;
+    return l;
+  };
+  filas.push(filaEtiqueta('Cliente', empresa, 5));
+  filas.push(filaEtiqueta('Fecha de cobro', fechaCobro, 4));
+  filas.push(filaEtiqueta('N.º de servicios', String(servicios.length), 4));
+  filas.push(`<row r="${r}" ht="8"></row>`); r++;
+  const rEnc=r;
+  filas.push(`<row r="${rEnc}" ht="22" customHeight="1">${_celdaTxt('A'+rEnc,6,'FECHA')}${_celdaTxt('B'+rEnc,6,'PLACA')}${_celdaTxt('C'+rEnc,6,'DESCRIPCIÓN')}${_celdaTxt('D'+rEnc,6,'TOTAL')}</row>`);
+  r++;
+  servicios.forEach((s,i)=>{
+    const par=i%2===1;
+    const sA=par?8:7, sC=par?10:9, sD=par?12:11;
+    filas.push(`<row r="${r}">${_celdaTxt('A'+r,sA,s.fecha||'')}${_celdaTxt('B'+r,sA,s.placa||'')}${_celdaTxt('C'+r,sC,s.descripcion||'')}${_celdaNum('D'+r,sD,s.total||0)}</row>`);
+    r++;
+  });
+  const rTot=r;
+  filas.push(`<row r="${rTot}" ht="22" customHeight="1">${_celdaTxt('A'+rTot,13,'TOTAL A PAGAR')}${['B','C'].map(c=>`<c r="${c}${rTot}" s="13"/>`).join('')}${_celdaNum('D'+rTot,14,total)}</row>`);
+  merges.push(`A${rTot}:C${rTot}`); r++;
+  filas.push(`<row r="${r}">${_celdaTxt('A'+r,15,'Generado automáticamente por el sistema de EL DIAMANTE')}${['B','C','D'].map(c=>`<c r="${c}${r}" s="15"/>`).join('')}</row>`);
+  merges.push(`A${r}:D${r}`); r++;
+  const mergeXml = merges.length ? `<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+<cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="2" width="12" customWidth="1"/><col min="3" max="3" width="40" customWidth="1"/><col min="4" max="4" width="14" customWidth="1"/></cols>
+<sheetData>${filas.join('')}</sheetData>
+${mergeXml}
+<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>
+<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+</worksheet>`;
+}
+function _sheetNameSeguro(empresa){
+  return String(empresa||'Credito').replace(/[:\\\/\?\*\[\]]/g,' ').slice(0,31)||'Credito';
+}
+function _construirXlsxCredito(empresa, servicios, total, fechaCobro){
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+  const relsRoot = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+  const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+  const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="${_xmlEsc(_sheetNameSeguro(empresa))}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+  const styles = _stylesXml();
+  const sheet1 = _hojaXml(empresa, servicios, total, fechaCobro);
+  const files = [
+    {name:'[Content_Types].xml', data:_utf8Bytes(contentTypes)},
+    {name:'_rels/.rels', data:_utf8Bytes(relsRoot)},
+    {name:'xl/_rels/workbook.xml.rels', data:_utf8Bytes(workbookRels)},
+    {name:'xl/workbook.xml', data:_utf8Bytes(workbook)},
+    {name:'xl/styles.xml', data:_utf8Bytes(styles)},
+    {name:'xl/worksheets/sheet1.xml', data:_utf8Bytes(sheet1)},
+  ];
+  return _crearZip(files);
+}
+function _descargarArchivoBinario(nombreArchivo, bytes, mime){
+  const blob=new Blob([bytes],{type:mime});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download=nombreArchivo;
@@ -2793,9 +2960,9 @@ function _descargarArchivoExcel(nombreArchivo, htmlContenido){
   setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 function _descargarExcelCredito(registro){
-  const html=_htmlExcelCredito(registro.empresa, registro.servicios, registro.total, registro.fecha);
-  const nombreArchivo=`Credito_${String(registro.empresa).replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.xls`;
-  _descargarArchivoExcel(nombreArchivo, html);
+  const bytes=_construirXlsxCredito(registro.empresa, registro.servicios, registro.total, registro.fecha);
+  const nombreArchivo=`Credito_${String(registro.empresa).replace(/[^a-z0-9]+/gi,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  _descargarArchivoBinario(nombreArchivo, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 }
 function redescargarExcelCredito(idCobro){
   const registro=(negocio.creditos?.historial||[]).find(r=>r.id===idCobro);
