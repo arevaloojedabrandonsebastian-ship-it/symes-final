@@ -846,6 +846,39 @@ body.oscuro .stat-box { opacity:.9; }
       <div id="listaMixtos" style="display:none"></div>
       <div id="listaAzules" style="display:none"></div>
     </div>
+
+    <div class="seccion" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <h2 style="margin:0;">📂 Liquidaciones guardadas</h2>
+        <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()" style="width:auto;">
+      </div>
+      <div class="periodo-tabs" style="margin-bottom:10px;grid-template-columns:repeat(2,1fr);">
+        <button class="periodo-tab activo" id="btnModoQuincena" onclick="setModoPeriodoHistorial('quincena')">Por quincena</button>
+        <button class="periodo-tab" id="btnModoSemana" onclick="setModoPeriodoHistorial('semana')">Por semana</button>
+      </div>
+      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr);">
+        <button class="periodo-tab" onclick="setQuinHistorial('mes',this)">Mes completo</button>
+        <button class="periodo-tab activo" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
+        <button class="periodo-tab" onclick="setQuinHistorial('q2',this)">2ª Quincena</button>
+      </div>
+      <div class="periodo-tabs oculto" id="tabsSemanaHistorial" style="margin-bottom:10px;grid-template-columns:repeat(5,1fr);">
+        <button class="periodo-tab activo" onclick="setSemanaHistorial(1,this)">Sem. 1</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(2,this)">Sem. 2</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(3,this)">Sem. 3</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(4,this)">Sem. 4</button>
+        <button class="periodo-tab" onclick="setSemanaHistorial(5,this)">Sem. 5</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <select id="selFiltroEngrHistorial" onchange="_filtroEngrasadorHistorial=this.value;mostrarHistorial()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
+          <option value="">👷 Todos</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
+        <button class="btn-sm" id="btnLimpiarLiquidadas" style="background:#1f3c88;display:none;" onclick="archivarLiquidadas()">🗄️ Limpiar liquidaciones viejas</button>
+      </div>
+      <div id="historialContenido" style="margin-top:14px;"></div>
+    </div>
   </div>
 
   <!-- PAGOS -->
@@ -952,41 +985,6 @@ body.oscuro .stat-box { opacity:.9; }
     </div>
   </div>
 
-  <!-- HISTORIAL -->
-  <div id="paginaHistorial" class="pagina oculto">
-    <div class="seccion">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-        <h2 style="margin:0;">📂 Historial</h2>
-        <input type="month" id="mesHistorial" onchange="cambiarMesHistorial()" style="width:auto;">
-      </div>
-      <div class="periodo-tabs" style="margin-bottom:10px;grid-template-columns:repeat(2,1fr);">
-        <button class="periodo-tab activo" id="btnModoQuincena" onclick="setModoPeriodoHistorial('quincena')">Por quincena</button>
-        <button class="periodo-tab" id="btnModoSemana" onclick="setModoPeriodoHistorial('semana')">Por semana</button>
-      </div>
-      <div class="periodo-tabs" id="tabsQuinHistorial" style="margin-bottom:10px;grid-template-columns:repeat(3,1fr);">
-        <button class="periodo-tab" onclick="setQuinHistorial('mes',this)">Mes completo</button>
-        <button class="periodo-tab activo" onclick="setQuinHistorial('q1',this)">1ª Quincena</button>
-        <button class="periodo-tab" onclick="setQuinHistorial('q2',this)">2ª Quincena</button>
-      </div>
-      <div class="periodo-tabs oculto" id="tabsSemanaHistorial" style="margin-bottom:10px;grid-template-columns:repeat(5,1fr);">
-        <button class="periodo-tab activo" onclick="setSemanaHistorial(1,this)">Sem. 1</button>
-        <button class="periodo-tab" onclick="setSemanaHistorial(2,this)">Sem. 2</button>
-        <button class="periodo-tab" onclick="setSemanaHistorial(3,this)">Sem. 3</button>
-        <button class="periodo-tab" onclick="setSemanaHistorial(4,this)">Sem. 4</button>
-        <button class="periodo-tab" onclick="setSemanaHistorial(5,this)">Sem. 5</button>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
-        <select id="selFiltroEngrHistorial" onchange="_filtroEngrasadorHistorial=this.value;mostrarHistorial()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
-          <option value="">👷 Todos</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-rojo btn-sm" onclick="borrarHistorialMes()">🗑️ Borrar historial de este mes</button>
-        <button class="btn-sm" id="btnLimpiarLiquidadas" style="background:#1f3c88;display:none;" onclick="archivarLiquidadas()">🗄️ Limpiar liquidaciones viejas</button>
-      </div>
-      <div id="historialContenido" style="margin-top:14px;"></div>
-    </div>
-  </div>
 
   <!-- CONFIGURACIÓN -->
 
@@ -1918,6 +1916,7 @@ function entrarSistema() {
 
   const tarjetas = [
     {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
+    {id:"paginaLiquidacion",  icono:"🧾", titulo:"Liquidación",      desc:"Liquida planillas y consulta liquidaciones guardadas."},
 
     {id:"paginaPagos",        icono:"💵", titulo:"Pagos",            desc:"Pagos por día, quincena o mes completo."},
     {id:"paginaCierreMes",    icono:"📊", titulo:"Historial de pagos",    desc:"Consulta el historial de pagos del mes."},
@@ -1925,7 +1924,6 @@ function entrarSistema() {
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
     {id:"paginaCreditos",     icono:"💳", titulo:"Créditos",         desc:"Servicios a crédito por empresa, para cobrar después."},
     {id:"paginaPerfiles",     icono:"👤", titulo:"Perfiles",         desc:"Quién usa el sistema — queda registrado en planillas, adelantos y cobros."},
-    {id:"paginaHistorial",    icono:"📂", titulo:"Historial",        desc:"Liquidaciones guardadas por mes."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
   ];
@@ -1943,7 +1941,6 @@ function entrarSistema() {
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
     {icono:"💳",label:"Créditos",      pagina:"paginaCreditos"},
     {icono:"👤",label:"Perfiles",       pagina:"paginaPerfiles"},
-    {icono:"📂",label:"Historial",     pagina:"paginaHistorial"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
   ];
@@ -2043,7 +2040,7 @@ function mostrarPagina(id, sinHistorial=false) {
   document.getElementById("contenidoMenu").classList.remove("sidebar-abierto");
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
   if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
-  if (id==="paginaHistorial") sincronizarMeses();
+  if (id==="paginaLiquidacion") sincronizarMeses();
   if (id==="paginaConfiguracion") cargarConfigEnPantalla();
   if (id==="paginaPlanes") actualizarEstadoPlanes();
   if (id==="paginaAdmin" && negocio?.esAdmin) cargarSolicitudesAdmin();
@@ -4058,9 +4055,10 @@ function cargarConfigEnPantalla(){
 }
 async function guardarConfig(){
   const get=id=>_leerNum(id);
+  const getPct=id=>{ const el=document.getElementById(id); return el?Number(el.value||0):0; };
   const precioGrasa=get("cfgPrecioGrasa");
-  const pctMixtos=get("cfgPctMixtos");
-  const pctAzules=get("cfgPctAzules");
+  const pctMixtos=getPct("cfgPctMixtos");
+  const pctAzules=getPct("cfgPctAzules");
   if(precioGrasa<=0||precioGrasa>100000){toast("Precio de grasa inválido (debe ser positivo y menor a 100.000)","error");return;}
   if(pctMixtos<0||pctMixtos>100){toast("Porcentaje mixtos inválido (0-100)","error");return;}
   if(pctAzules<0||pctAzules>100){toast("Porcentaje azules inválido (0-100)","error");return;}
