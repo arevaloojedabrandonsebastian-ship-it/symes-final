@@ -1910,7 +1910,7 @@ function prepararDatos() {
   if (!negocio.planillas)     negocio.planillas     = [];
   if (!negocio.configuracion) negocio.configuracion = JSON.parse(JSON.stringify(CONFIG_DEFECTO));
   if (!negocio.cierresMes)    negocio.cierresMes    = {};
-  if (!negocio.creditos)      negocio.creditos      = {empresas:["Bricai","Volketsa","Robayo"], historial:[]};
+  if (!negocio.creditos)      negocio.creditos      = {empresas:[], historial:[]};
   if (!negocio.perfiles)      negocio.perfiles      = ["Admin"];
   negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
   guardar();
@@ -2463,8 +2463,8 @@ function renderPlanillaActiva() {
       </div>
     </div>
     <div class="seccion-grasa-planilla">
-      <div><label>🛢️ Grasa antes (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGA_${pl.id}" value="${pl.grasaAntes?fmtMiles(pl.grasaAntes):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaAntes',Number(this.value.replace(/\./g,''))||0)" placeholder="5.000"></div>
-      <div><label>🛢️ Grasa que quedó (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGQ_${pl.id}" value="${pl.grasaQuedo?fmtMiles(pl.grasaQuedo):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaQuedo',Number(this.value.replace(/\./g,''))||0)" placeholder="2.000"></div>
+      <div><label>🛢️ Grasa antes (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGA_${pl.id}" value="${pl.grasaAntes?fmtMiles(pl.grasaAntes):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaAntes',Number(this.value.replace(/\\./g,''))||0)" placeholder="5.000"></div>
+      <div><label>🛢️ Grasa que quedó (g):</label><input type="text" inputmode="numeric" autocomplete="off" id="planGQ_${pl.id}" value="${pl.grasaQuedo?fmtMiles(pl.grasaQuedo):''}" oninput="_formatearValorEnVivo(this);actualizarDatoPlanilla('${pl.id}','grasaQuedo',Number(this.value.replace(/\\./g,''))||0)" placeholder="2.000"></div>
       <div><label>Grasa gastada:</label><div id="planGG_${pl.id}" style="padding:9px 12px;background:#e8f1ff;border-radius:10px;font-weight:700;margin-top:4px;font-size:13px;">${((pl.grasaAntes||0)-(pl.grasaQuedo||0)).toLocaleString()} g</div></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -2539,6 +2539,7 @@ function actualizarNombrePlanilla(id, nuevo) {
     pl.nombre=partes.length?partes.join(" & "):("Planilla "+pl.fecha);
     const inp=document.getElementById(`planNombre_${id}`); if(inp) inp.value=pl.nombre;
   }
+  _programarAutoguardarPlanilla(id);
   const tab=pestaniasAbiertas.find(p=>p.id===id); if(tab) tab.nombre=pl.nombre;
   renderTabsPlanillas();
 }
@@ -2549,6 +2550,7 @@ function toggleCarcamoPlanilla(id, num, checked){
   else { pl.carcamos=pl.carcamos.filter(n=>n!==num); }
   pl.carcamos.sort((a,b)=>a-b);
   guardar();
+  _programarAutoguardarPlanilla(id);
 }
 function actualizarDatoPlanilla(id, campo, valor) {
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -2560,6 +2562,7 @@ function actualizarDatoPlanilla(id, campo, valor) {
   if(["engrasador1","engrasador2","engrasador3","engrasador4"].includes(campo)){
     _refrescarFilasEngrasador(id);
   }
+  _programarAutoguardarPlanilla(id);
 }
 function _actualizarColorFila(id,i,tipo){
   const tr=document.getElementById(`fila_${id}_${i}`); if(!tr) return;
@@ -2615,9 +2618,9 @@ function _filaCreditoHTML(id,i,v,disabled){
         <div style="width:150px;">
           <label style="font-size:11px;color:var(--gris);display:block;margin-bottom:3px;">Valor adicional</label>
           <input type="text" inputmode="numeric" id="adVal_${id}_${i}" value="${v.adicionalValor>0?fmtMiles(v.adicionalValor):(v.adicionalValorRaw?fmtMiles(Number(String(v.adicionalValorRaw).replace(/\./g,'').replace(/,/g,''))):'')}" ${disabled} autocomplete="off"
-            oninput="_formatearValorEnVivo(this);actualizarAdicionalValorFila('${id}',${i},this.value.replace(/\./g,''))"
+            oninput="_formatearValorEnVivo(this);actualizarAdicionalValorFila('${id}',${i},this.value.replace(/\\./g,''))"
             onfocus="if(this.value)this.select()"
-            onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
+            onblur="(function(el){if(el.value){var s=el.value.replace(/\\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
             placeholder="0" style="width:100%;">
         </div>
         <div style="width:150px;">
@@ -2681,9 +2684,9 @@ function renderFilasPlanilla(id) {
     </select></td>
     <td>
       <input type="text" inputmode="numeric" id="vl_${id}_${i}" value="${v.valor>0?fmtMiles(v.valor):(v.valorRaw?fmtMiles(Number(String(v.valorRaw).replace(/\./g,'').replace(/,/g,''))):''  )}" ${disabled} autocomplete="off"
-        oninput="_formatearValorEnVivo(this);actualizarValorFila('${id}',${i},this.value.replace(/\./g,''))"
+        oninput="_formatearValorEnVivo(this);actualizarValorFila('${id}',${i},this.value.replace(/\\./g,''))"
         onfocus="if(this.value)this.select()"
-        onblur="(function(el){if(el.value){var s=el.value.replace(/\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
+        onblur="(function(el){if(el.value){var s=el.value.replace(/\\./g,'').replace(/,/g,'');var n=Number(s);if(!isNaN(n)&&n>0){var v=n<1000?n*1000:n;el.value=fmtMiles(v);}}})(this)"
         onkeydown="if(event.key==='Tab'){}"
         placeholder="" style="width:100%;">
     </td>
@@ -2740,12 +2743,14 @@ function actualizarFila(id,i,campo,valor){
   if(campo==="placa") valor=formatPlaca(valor);
   pl.vehiculos[i][campo]=valor;
   // memoria se guarda en blur (setupAC), no en cada tecla
+  _programarAutoguardarPlanilla(id);
 }
 function actualizarValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
   const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
   pl.vehiculos[i].valorRaw=raw; pl.vehiculos[i].valor=valor; recalcularTotal(id);
   if(raw&&raw.trim()&&valor>0) agregarMemoria("precios",fmtMiles(valor));
+  _programarAutoguardarPlanilla(id);
 }
 function recalcularTotal(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -2775,12 +2780,25 @@ function eliminarFilaPlanilla(id,i){
   const v=pl.vehiculos[i];
   const emp=v?_empresaCreditoDeFila(v):null;
   const totalCred=v?(Number(v.valor||0)+Number(v.adicionalValor||0)):0;
-  const borrar=()=>{ pl.vehiculos.splice(i,1); renderFilasPlanilla(id); };
+  const borrar=()=>{ pl.vehiculos.splice(i,1); renderFilasPlanilla(id); _autoguardarPlanilla(id); };
   if(emp&&!v.creditoCobrado&&totalCred>0){
     confirmar("Eliminar servicio a crédito",`Este servicio está pendiente de cobro a ${cap(sanitizarTexto(emp))} por $${fmtMiles(totalCred)||'0'}. Si lo eliminas, también se quita de lo pendiente por cobrar. ¿Eliminar de todos modos?`,borrar);
   } else {
     confirmar("Eliminar fila","¿Eliminar esta fila de la planilla?",borrar);
   }
+}
+let _autosaveTimersPlanilla = {};
+function _programarAutoguardarPlanilla(id){
+  const pl=negocio.planillas.find(p=>p.id===id);
+  if(!pl||pl.liquidada) return; // no autoguardar planillas ya liquidadas
+  clearTimeout(_autosaveTimersPlanilla[id]);
+  _autosaveTimersPlanilla[id]=setTimeout(()=>_autoguardarPlanilla(id), 1200);
+}
+async function _autoguardarPlanilla(id){
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
+  recalcularTotal(id); guardar();
+  const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+  if(!r||!r.ok) toast("⚠️ Sin conexión: los cambios de la planilla se guardaron solo en este dispositivo","aviso");
 }
 async function guardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
@@ -3165,7 +3183,7 @@ function redescargarExcelCredito(idCobro){
 }
 function mostrarCreditos(){
   const cont=document.getElementById("listaEmpresasCredito"); if(!cont) return;
-  if(!negocio.creditos) negocio.creditos={empresas:["Bricai","Volketsa","Robayo"],historial:[]};
+  if(!negocio.creditos) negocio.creditos={empresas:[],historial:[]};
   const empresas=negocio.creditos.empresas||[];
   if(!empresas.length){
     cont.innerHTML="<p style='color:var(--gris);'>No hay empresas de crédito registradas.</p>";
