@@ -969,7 +969,7 @@ body.oscuro .stat-box { opacity:.9; }
   <div id="paginaAdelantos" class="pagina oculto">
     <div class="seccion">
       <h2>Adelantos y descuentos</h2>
-      <label>Engrasador / Perfil:</label>
+      <label>Engrasador:</label>
       <select id="selAdelanto"></select>
       <label>Valor:</label>
       <input type="text" inputmode="numeric" autocomplete="off" id="valAdelanto" oninput="_formatearValorEnVivo(this)">
@@ -1945,19 +1945,6 @@ function guardar() {
 }
 function validarPin(p) { return /^[0-9]{6}$/.test(p); }
 function mesActual() { const f=new Date(); return f.getFullYear()+"-"+String(f.getMonth()+1).padStart(2,"0"); }
-// Mes que se debe mostrar/pagar por defecto en Pagos, Historial y Cierre.
-// Los primeros dias del mes (1 a 3) todavia se paga la 2a quincena (16-fin) del
-// mes anterior, asi que por defecto mostramos ese mes anterior hasta que el
-// usuario cambie el selector manualmente. Evita que "Pagos" salga en $0 el 1 o 2.
-function _mesAnteriorA(mes){
-  const [y,m]=mes.split("-").map(Number);
-  const d=new Date(y, m-2, 1);
-  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-}
-function mesPagoSugerido(){
-  const dia=new Date().getDate();
-  return dia<=3 ? _mesAnteriorA(mesActual()) : mesActual();
-}
 function generarId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,5); }
 // Sanitiza texto de usuario para uso seguro en DOM (nunca usar en innerHTML)
 function cap(s){ return s ? s.replace(/(^|\s)\S/g, l => l.toUpperCase()) : (s||""); }
@@ -2212,7 +2199,6 @@ function prepararDatos() {
   if (!negocio.cierresMes)    negocio.cierresMes    = {};
   if (!negocio.creditos)      negocio.creditos      = {empresas:[], historial:[]};
   if (!negocio.perfiles)      negocio.perfiles      = ["Admin"];
-  if (!negocio.adelantosPerfiles) negocio.adelantosPerfiles = {}; // adelantos a perfiles (secretarias), no admin
   if (!negocio.productos)     negocio.productos     = [];
   if (!negocio.categoriasProductos) negocio.categoriasProductos = ["General"];
   negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
@@ -2285,7 +2271,7 @@ function entrarSistema() {
   document.getElementById("navInferior").style.display = "flex";
 
   actualizarBannerPlan();
-  const m = mesPagoSugerido();
+  const m = mesActual();
   ["mesTrabajo","mesHistorial","mesCierre"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=m; });
   cargarConfigEnPantalla();
   // Limpiar historial de navegación previo y poner inicio como base
@@ -2422,10 +2408,10 @@ function refrescarDropdownsPlanilla(){
 function sincronizarMeses() {
   const ids=["mesTrabajo","mesHistorial","mesCierre"];
   const vals=ids.map(id=>document.getElementById(id)?.value).filter(Boolean);
-  const base=vals[0]||mesPagoSugerido();
+  const base=vals[0]||mesActual();
   ids.forEach(id=>{ const el=document.getElementById(id); if(el&&!el.value) el.value=base; });
 }
-function getMes() { sincronizarMeses(); return document.getElementById("mesTrabajo")?.value||mesPagoSugerido(); }
+function getMes() { sincronizarMeses(); return document.getElementById("mesTrabajo")?.value||mesActual(); }
 function cambiarMesPagos()    { const m=document.getElementById("mesTrabajo").value; if(m){["mesHistorial","mesCierre"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
 function cambiarMesCierre()   { const m=document.getElementById("mesCierre").value;  if(m){["mesTrabajo","mesHistorial"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
 function cambiarMesHistorial(){ const m=document.getElementById("mesHistorial").value; if(m){["mesTrabajo","mesCierre"].forEach(id=>{const el=document.getElementById(id);if(el)el.value=m;}); } actualizarTodo(); }
@@ -2509,24 +2495,6 @@ function procesarEvento(ev) {
       if(!ev.trabajadorNombre||!ev.mes) return;
       const t=getTrabPorNombre(ev.trabajadorNombre);
       const lista=t?.adelantos?.[ev.mes];
-      if(!lista||!lista.length) return;
-      let idx=-1;
-      if(ev.ts) idx=lista.findIndex(a=>a.ts===ev.ts);
-      if(idx<0) idx=lista.findIndex(a=>Number(a.valor||0)===Number(ev.valor||0)&&(a.nota||"")===(ev.nota||"")&&(a.fecha||"")===(ev.fecha||""));
-      if(idx>=0) lista.splice(idx,1);
-      return;
-    }
-    if (ev.tipoRegistro==="adelantoPerfil"){
-      if(!ev.perfilNombre||!ev.mes) return;
-      if(!negocio.adelantosPerfiles) negocio.adelantosPerfiles={};
-      if(!negocio.adelantosPerfiles[ev.perfilNombre]) negocio.adelantosPerfiles[ev.perfilNombre]={};
-      if(!negocio.adelantosPerfiles[ev.perfilNombre][ev.mes]) negocio.adelantosPerfiles[ev.perfilNombre][ev.mes]=[];
-      negocio.adelantosPerfiles[ev.perfilNombre][ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});
-      return;
-    }
-    if (ev.tipoRegistro==="eliminarAdelantoPerfil"){
-      if(!ev.perfilNombre||!ev.mes) return;
-      const lista=negocio.adelantosPerfiles?.[ev.perfilNombre]?.[ev.mes];
       if(!lista||!lista.length) return;
       let idx=-1;
       if(ev.ts) idx=lista.findIndex(a=>a.ts===ev.ts);
@@ -2682,14 +2650,6 @@ function actualizarEngrasadores() {
     if(s4) s4.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
     if(sA) sA.innerHTML+=`<option value="${i}">${nomSafe}</option>`;
   });
-  // Perfiles (secretarias) tambien pueden recibir adelantos, excepto Admin
-  if(sA){
-    const perfilesSecretarias=(negocio.perfiles||[]).filter(p=>p.toLowerCase()!=="admin");
-    if(perfilesSecretarias.length){
-      sA.innerHTML+=`<option disabled>── Otros perfiles ──</option>`;
-      perfilesSecretarias.forEach(p=>{ sA.innerHTML+=`<option value="p:${sanitizarTexto(p)}">${sanitizarTexto(p)} (perfil)</option>`; });
-    }
-  }
 }
 function editarEngrasador(i){
   const t=negocio.trabajadores[i], n=prompt("Nuevo nombre:",t.nombre);
@@ -3826,7 +3786,7 @@ function calcularResultadoPlanilla(pl) {
   const findNom=(n,idx)=>idx>=0?negocio.trabajadores[idx].nombre:(n||"Engrasador");
   const idx1=findIdx(e1), idx2=findIdx(e2), idx3=findIdx(e3), idx4=findIdx(e4);
   return {
-    fecha:pl.fecha||new Date().toLocaleString(), mes, planillaId:pl.id,
+    fecha:new Date().toLocaleString(), mes, planillaId:pl.id,
     tipoTurno:String(numT),
     trabajadorIndex1:idx1, trabajadorNombre1:findNom(e1,idx1),
     trabajadorIndex2:e2?idx2:null, trabajadorNombre2:e2?findNom(e2,idx2):null,
@@ -4120,37 +4080,23 @@ function reiniciarCalculo(){
 
 // ══ ADELANTOS ══
 async function registrarAdelanto(){
-  const mes=getMes(), sel=document.getElementById("selAdelanto").value;
+  const mes=getMes(), idx=document.getElementById("selAdelanto").value;
   const valor=_leerNum("valAdelanto");
   const nota=document.getElementById("notaAdelanto").value.trim();
-  if(sel===""){toast("Selecciona un engrasador o perfil","error");return;}
+  if(idx===""){toast("Selecciona un engrasador","error");return;}
   if(!valor||valor<=0){toast("Ingresa un valor válido mayor a cero","error");return;}
   if(valor>10000000){toast("El valor parece muy alto, verifica","error");return;}
   if(nota.length>200){toast("La nota es muy larga (máx 200 caracteres)","error");return;}
+  const t=negocio.trabajadores[idx];
+  if(!t.adelantos) t.adelantos={};
+  if(!t.adelantos[mes]) t.adelantos[mes]=[];
   const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now(),creadoPor:perfilActivo()};
-  let r;
-  if(String(sel).startsWith("p:")){
-    // Adelanto a un perfil (secretaria) — nunca a Admin
-    const nombrePerfil=sel.slice(2);
-    if(nombrePerfil.toLowerCase()==="admin"){toast("No se pueden registrar adelantos al perfil Admin","error");return;}
-    if(!negocio.adelantosPerfiles) negocio.adelantosPerfiles={};
-    if(!negocio.adelantosPerfiles[nombrePerfil]) negocio.adelantosPerfiles[nombrePerfil]={};
-    if(!negocio.adelantosPerfiles[nombrePerfil][mes]) negocio.adelantosPerfiles[nombrePerfil][mes]=[];
-    negocio.adelantosPerfiles[nombrePerfil][mes].push(adelanto);
-    guardar(); actualizarTodo();
-    r=await guardarEvento({tipoRegistro:"adelantoPerfil",mes,perfilNombre:nombrePerfil,valor,nota,fecha:adelanto.fecha,ts:adelanto.ts,creadoPor:adelanto.creadoPor},valor,0);
-  } else {
-    const t=negocio.trabajadores[sel];
-    if(!t){toast("Engrasador no encontrado","error");return;}
-    if(!t.adelantos) t.adelantos={};
-    if(!t.adelantos[mes]) t.adelantos[mes]=[];
-    t.adelantos[mes].push(adelanto);
-    guardar(); actualizarTodo();
-    r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha,ts:adelanto.ts,creadoPor:adelanto.creadoPor},valor,0);
-  }
+  t.adelantos[mes].push(adelanto);
   agregarMemoria("notas_adelanto", nota);
   ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("selAdelanto").value="";
+  guardar(); actualizarTodo();
+  const r=await guardarEvento({tipoRegistro:"adelanto",mes,trabajadorNombre:t.nombre,valor,nota,fecha:adelanto.fecha,ts:adelanto.ts,creadoPor:adelanto.creadoPor},valor,0);
   toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
 }
 let _filtroEngrasadorAdelanto = "";
@@ -4167,24 +4113,19 @@ function mostrarAdelantos(){
   const el=document.getElementById("listaAdelantos"); if(!el) return;
   const mes=getMes();
 
-  // Filtro por engrasador / perfil
+  // Filtro por engrasador
   const filDiv=document.getElementById("filtrosAdelantos");
-  const perfilesSecretarias=(negocio.perfiles||[]).filter(p=>p.toLowerCase()!=="admin");
   if(filDiv){
     filDiv.innerHTML=`<select id="selFiltroEngrAdelanto" onchange="_filtroEngrasadorAdelanto=this.value;mostrarAdelantos()" style="width:auto;margin:0;padding:6px 10px;font-size:13px;">
       <option value="">👷 Todos</option>
       ${negocio.trabajadores.map(t=>`<option value="${t.nombre}" ${_filtroEngrasadorAdelanto===t.nombre?'selected':''}>${cap(sanitizarTexto(t.nombre))}</option>`).join("")}
-      ${perfilesSecretarias.map(p=>`<option value="${p}" ${_filtroEngrasadorAdelanto===p?'selected':''}>${cap(sanitizarTexto(p))} (perfil)</option>`).join("")}
     </select>`;
   }
 
   // Recolectar adelantos del mes conservando su índice original (para poder eliminarlos)
   let items=[];
   negocio.trabajadores.forEach((t,i)=>{
-    (t.adelantos?.[mes]||[]).forEach((a,j)=>{ items.push({tipo:"trabajador", iT:i, iA:j, nombre:t.nombre, adelanto:a}); });
-  });
-  Object.keys(negocio.adelantosPerfiles||{}).forEach(nombre=>{
-    (negocio.adelantosPerfiles[nombre]?.[mes]||[]).forEach((a,j)=>{ items.push({tipo:"perfil", iA:j, nombre, adelanto:a}); });
+    (t.adelantos?.[mes]||[]).forEach((a,j)=>{ items.push({iT:i, iA:j, nombre:t.nombre, adelanto:a}); });
   });
 
   if(_filtroEngrasadorAdelanto){
@@ -4200,14 +4141,14 @@ function mostrarAdelantos(){
 
   el.innerHTML="";
   if(!items.length){ el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>"; return; }
-  items.forEach(({tipo,iT,iA,nombre,adelanto:a})=>{
+  items.forEach(({iT,iA,nombre,adelanto:a})=>{
     const div=document.createElement("div"); div.className="item";
-    const h3=document.createElement("h3"); h3.textContent=cap(nombre)+(tipo==="perfil"?" (perfil)":"");
+    const h3=document.createElement("h3"); h3.textContent=cap(nombre);
     const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
     const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
     const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
     const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
-    btn.addEventListener("click",()=>tipo==="perfil"?eliminarAdelantoPerfil(nombre,iA):eliminarAdelanto(iT,iA));
+    btn.addEventListener("click",()=>eliminarAdelanto(iT,iA));
     const nodos=[h3,p1,p2,p3];
     if(a.creadoPor){ const p4=document.createElement("p"); p4.innerHTML="<strong>Registrado por:</strong> "+sanitizarTexto(a.creadoPor); nodos.push(p4); }
     nodos.push(btn);
@@ -4223,17 +4164,6 @@ function eliminarAdelanto(iT,iA){
     t.adelantos[mes].splice(iA,1);
     guardar(); actualizarTodo();
     const r=await guardarEvento({tipoRegistro:"eliminarAdelanto",trabajadorNombre:t.nombre,mes,ts:a.ts||null,valor:a.valor,nota:a.nota||"",fecha:a.fecha||""});
-    toast(r.ok?"Adelanto eliminado":"Eliminado localmente (sin conexión)",r.ok?"ok":"aviso");
-  });
-}
-function eliminarAdelantoPerfil(nombre,iA){
-  confirmar("Eliminar adelanto","¿Seguro?",async()=>{
-    const mes=getMes();
-    const a=negocio.adelantosPerfiles?.[nombre]?.[mes]?.[iA];
-    if(!a){toast("Adelanto no encontrado","error");return;}
-    negocio.adelantosPerfiles[nombre][mes].splice(iA,1);
-    guardar(); actualizarTodo();
-    const r=await guardarEvento({tipoRegistro:"eliminarAdelantoPerfil",perfilNombre:nombre,mes,ts:a.ts||null,valor:a.valor,nota:a.nota||"",fecha:a.fecha||""});
     toast(r.ok?"Adelanto eliminado":"Eliminado localmente (sin conexión)",r.ok?"ok":"aviso");
   });
 }
@@ -4418,7 +4348,7 @@ function calcularResumenMes(mes){
 function mostrarCierreMes(){
   const el=document.getElementById("resumenCierre"); if(!el) return;
   sincronizarMeses();
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
+  const mes=document.getElementById("mesCierre")?.value||mesActual();
   const estado=getEstadoCierre(mes), resumen=calcularResumenQuincena(mes,_quinCierre);
   const esPagado = estado==="Pagado";
   const badgeClass = esPagado ? "pagado" : "pendiente";
@@ -4445,8 +4375,8 @@ function mostrarCierreMes(){
     cards +
     `<div class="cierre-total-bar"><span>Total a pagar este mes</span><strong>$${resumen.totalPagar.toLocaleString()}</strong></div>`;
 }
-async function marcarMesPagado(){ const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pagado"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pagado",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pagado ","ok"); }
-async function marcarMesPendiente(){ const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pendiente"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pendiente",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pendiente","info"); }
+async function marcarMesPagado(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pagado"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pagado",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pagado ","ok"); }
+async function marcarMesPendiente(){ const mes=document.getElementById("mesCierre")?.value||mesActual(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pendiente"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pendiente",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pendiente","info"); }
 function _rangoQuincena(mes, q){
   const [y,m]=mes.split('-');
   const hoy=new Date();
@@ -4464,7 +4394,7 @@ function _rangoQuincena(mes, q){
   return `Mes completo`;
 }
 function imprimirResumen(){
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
+  const mes=document.getElementById("mesCierre")?.value||mesActual();
   const q=_quinCierre;
   const estado=getEstadoCierre(mes);
   const resumen=calcularResumenQuincena(mes,q);
@@ -4488,7 +4418,7 @@ function imprimirResumen(){
 function mostrarHistorial(){
   const el=document.getElementById("historialContenido"); if(!el) return;
   sincronizarMeses();
-  const mes=document.getElementById("mesHistorial")?.value||mesPagoSugerido();
+  const mes=document.getElementById("mesHistorial")?.value||mesActual();
 
   // ── Filtro por engrasador ──
   const selE=document.getElementById("selFiltroEngrHistorial");
@@ -4548,7 +4478,7 @@ function eliminarLiquidacion(i){
 }
 async function borrarHistorialMes(){
   confirmar("Borrar historial","¿Borrar todo el historial de este mes?",async()=>{
-    const mes=document.getElementById("mesHistorial")?.value||mesPagoSugerido();
+    const mes=document.getElementById("mesHistorial")?.value||mesActual();
     negocio.historial=(negocio.historial||[]).filter(c=>c.mes!==mes); guardar(); actualizarTodo();
     await guardarEvento({tipoRegistro:"borrarHistorialMes",mes,fecha:new Date().toLocaleString()},1,0);
     toast("Historial borrado","ok");
