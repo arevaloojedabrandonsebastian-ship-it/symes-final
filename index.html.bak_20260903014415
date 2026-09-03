@@ -960,8 +960,6 @@ body.oscuro .stat-box { opacity:.9; }
       <select id="selAdelanto"></select>
       <label>Valor:</label>
       <input type="text" inputmode="numeric" autocomplete="off" id="valAdelanto" oninput="_formatearValorEnVivo(this)">
-      <label>Fecha del adelanto:</label>
-      <input type="date" id="fechaAdelanto">
       <label>Nota:</label>
       <div class="ac-wrap"><input type="text" id="notaAdelanto" placeholder="Ej: Adelanto quincena" autocomplete="off"></div>
       <button class="btn-verde" onclick="registrarAdelanto()">Registrar adelanto</button>
@@ -2358,7 +2356,6 @@ function mostrarPagina(id, sinHistorial=false) {
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
   if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
   if (id==="paginaLiquidacion") sincronizarMeses();
-  if (id==="paginaAdelantos") { const fe=document.getElementById("fechaAdelanto"); if(fe) fe.value=new Date().toLocaleDateString("en-CA"); }
   if (id==="paginaConfiguracion") cargarConfigEnPantalla();
   if (id==="paginaPlanes") actualizarEstadoPlanes();
   if (id==="paginaAdmin" && negocio?.esAdmin) cargarSolicitudesAdmin();
@@ -4132,32 +4129,15 @@ function reiniciarCalculo(){
 }
 
 // ══ ADELANTOS ══
-// Arma la fecha del adelanto en el mismo formato "D/M/AAAA, HH:mm:ss" que ya
-// usa toda la app (ver _getDia/_enQuincena/_parseFechaHoraAdelanto), pero con
-// el DIA que el usuario eligio en el input de fecha en vez del dia de hoy —
-// asi un adelanto real del 31/ago cargado el 1/sep cae en la quincena/mes
-// correctos (agosto, 2a quincena) y no en los de la fecha de captura.
-function _construirFechaAdelanto(fechaISO){
-  const ahora=new Date();
-  let y=ahora.getFullYear(), m=ahora.getMonth()+1, d=ahora.getDate();
-  const mm=String(fechaISO||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(mm){ y=Number(mm[1]); m=Number(mm[2]); d=Number(mm[3]); }
-  const hh=String(ahora.getHours()).padStart(2,"0"), mi=String(ahora.getMinutes()).padStart(2,"0"), ss=String(ahora.getSeconds()).padStart(2,"0");
-  return `${d}/${m}/${y}, ${hh}:${mi}:${ss}`;
-}
 async function registrarAdelanto(){
-  const sel=document.getElementById("selAdelanto").value;
+  const mes=getMes(), sel=document.getElementById("selAdelanto").value;
   const valor=_leerNum("valAdelanto");
   const nota=document.getElementById("notaAdelanto").value.trim();
-  const fechaISO=document.getElementById("fechaAdelanto")?.value||new Date().toLocaleDateString("en-CA");
   if(sel===""){toast("Selecciona un engrasador o perfil","error");return;}
   if(!valor||valor<=0){toast("Ingresa un valor válido mayor a cero","error");return;}
   if(valor>10000000){toast("El valor parece muy alto, verifica","error");return;}
   if(nota.length>200){toast("La nota es muy larga (máx 200 caracteres)","error");return;}
-  // El mes del adelanto lo define su fecha real, no el mes que estés viendo en pantalla
-  // (igual que las planillas: pl.mes sale de pl.fecha, no de donde estés parado).
-  const mes=fechaISO.slice(0,7);
-  const adelanto={valor,nota,fecha:_construirFechaAdelanto(fechaISO),ts:Date.now(),creadoPor:perfilActivo()};
+  const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now(),creadoPor:perfilActivo()};
   let r;
   if(String(sel).startsWith("p:")){
     // Adelanto a un perfil (secretaria) — nunca a Admin
@@ -4181,7 +4161,6 @@ async function registrarAdelanto(){
   agregarMemoria("notas_adelanto", nota);
   ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("selAdelanto").value="";
-  const fechaEl=document.getElementById("fechaAdelanto"); if(fechaEl) fechaEl.value=new Date().toLocaleDateString("en-CA");
   toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
 }
 let _filtroEngrasadorAdelanto = "";

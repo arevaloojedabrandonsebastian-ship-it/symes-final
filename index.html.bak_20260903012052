@@ -917,16 +917,29 @@ body.oscuro .stat-box { opacity:.9; }
   </div>
 
   <!-- PAGOS -->
+  <div id="paginaPagos" class="pagina oculto">
+    <div class="seccion">
+      <div style="margin-bottom:16px;">
+        <h2 style="margin:0;">💵 Pagos pendientes</h2>
+      </div>
+      <div id="panelPagos"></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn-verde" onclick="pagarTodos()">✅ Pagar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CIERRE DE MES -->
   <div id="paginaCierreMes" class="pagina oculto">
     <div class="seccion">
       <div class="cierre-header">
-        <h2 style="margin:0;">💵 Pagos</h2>
+        <h2 style="margin:0;">📊 Historial de pagos</h2>
         <div style="display:flex;align-items:center;gap:10px;">
           <input type="month" id="mesCierre" onchange="cambiarMesCierre()" style="width:auto;">
         </div>
       </div>
       <div class="periodo-tabs" id="tabsQuinCierre" style="margin-bottom:12px;">
-        <button class="periodo-tab activo" onclick="setQuinCierre('mes',this)">📅 Todo lo que se debe</button>
+        <button class="periodo-tab activo" onclick="setQuinCierre('mes',this)">📅 Mes completo</button>
         <button class="periodo-tab" onclick="setQuinCierre('q1',this)">1ª Quincena</button>
         <button class="periodo-tab" onclick="setQuinCierre('q2',this)">2ª Quincena</button>
       </div>
@@ -960,8 +973,6 @@ body.oscuro .stat-box { opacity:.9; }
       <select id="selAdelanto"></select>
       <label>Valor:</label>
       <input type="text" inputmode="numeric" autocomplete="off" id="valAdelanto" oninput="_formatearValorEnVivo(this)">
-      <label>Fecha del adelanto:</label>
-      <input type="date" id="fechaAdelanto">
       <label>Nota:</label>
       <div class="ac-wrap"><input type="text" id="notaAdelanto" placeholder="Ej: Adelanto quincena" autocomplete="off"></div>
       <button class="btn-verde" onclick="registrarAdelanto()">Registrar adelanto</button>
@@ -1625,7 +1636,7 @@ function _perfilTienePermiso(...nombresPermitidos){
   const norm=activo.trim().toLowerCase();
   return nombresPermitidos.some(n=>n.toLowerCase()===norm);
 }
-function _puedeVerPaginasRestringidas(){
+function _puedeVerCreditosPrecios(){
   return _perfilTienePermiso("Admin","Loren");
 }
 function _guardarPerfilActivo(nombre){
@@ -1659,7 +1670,7 @@ function _elegirPerfil(i){
   _renderMenuInicio();
   // Si el perfil elegido ya no tiene permiso para la página en la que está, sacarlo a Inicio
   const paginaActual=document.querySelector(".pagina:not(.oculto)");
-  if(paginaActual && (paginaActual.id==="paginaCreditos"||paginaActual.id==="paginaPrecios"||paginaActual.id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()){
+  if(paginaActual && (paginaActual.id==="paginaCreditos"||paginaActual.id==="paginaPrecios") && !_puedeVerCreditosPrecios()){
     mostrarPagina("paginaInicio");
   }
   toast(`Perfil activo: ${cap(sanitizarTexto(nombre))}`,"ok");
@@ -2202,23 +2213,23 @@ function prepararDatos() {
   if (!negocio.creditos)      negocio.creditos      = {empresas:[], historial:[]};
   if (!negocio.perfiles)      negocio.perfiles      = ["Admin"];
   if (!negocio.adelantosPerfiles) negocio.adelantosPerfiles = {}; // adelantos a perfiles (secretarias), no admin
-  if (!negocio.pagosPerfiles) negocio.pagosPerfiles = {}; // valor manual + estado de pago por quincena, perfiles (secretarias)
   if (!negocio.productos)     negocio.productos     = [];
   if (!negocio.categoriasProductos) negocio.categoriasProductos = ["General"];
-  negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; if(!t.pagosQuincena) t.pagosQuincena={}; });
+  negocio.trabajadores.forEach(t => { if(!t.pagos) t.pagos={}; if(!t.adelantos) t.adelantos={}; });
   guardar();
 }
 
 function _renderMenuInicio() {
   const esAdmin = negocio.esAdmin;
-  const PAGINAS_RESTRINGIDAS = ["paginaCreditos","paginaPrecios","paginaCierreMes"];
-  const puedeVerRestringidas = _puedeVerPaginasRestringidas();
+  const PAGINAS_RESTRINGIDAS = ["paginaCreditos","paginaPrecios"];
+  const puedeCreditosPrecios = _puedeVerCreditosPrecios();
 
   const tarjetas = [
     {id:"paginaPlanillas",    icono:"📋", titulo:"Planillas",        desc:"Registra servicios y liquida automáticamente."},
     {id:"paginaLiquidacion",  icono:"🧾", titulo:"Liquidación",      desc:"Liquida planillas y consulta liquidaciones guardadas."},
 
-    {id:"paginaCierreMes",    icono:"💵", titulo:"Pagos",    desc:"Paga por quincena o todo lo que se debe — engrasadores y perfiles."},
+    {id:"paginaPagos",        icono:"💵", titulo:"Pagos",            desc:"Pagos por día, quincena o mes completo."},
+    {id:"paginaCierreMes",    icono:"📊", titulo:"Historial de pagos",    desc:"Consulta el historial de pagos del mes."},
     {id:"paginaTrabajadores", icono:"👷", titulo:"Engrasadores",     desc:"Registra los trabajadores del engrasadero."},
     {id:"paginaAdelantos",    icono:"➖", titulo:"Adelantos",        desc:"Registra descuentos o anticipos."},
     {id:"paginaCreditos",     icono:"💳", titulo:"Créditos",         desc:"Servicios a crédito por empresa, para cobrar después."},
@@ -2226,7 +2237,7 @@ function _renderMenuInicio() {
     {id:"paginaPerfiles",     icono:"👤", titulo:"Perfiles",         desc:"Quién usa el sistema — queda registrado en planillas, adelantos y cobros."},
     {id:"paginaConfiguracion",icono:"⚙️", titulo:"Configuración",   desc:"Precios, porcentajes y cambio de contraseña."},
     ...(esAdmin ? [{id:"paginaAdmin",icono:"👑",titulo:"Superadmin",desc:"Gestión de usuarios del sistema."}] : [])
-  ].filter(t => puedeVerRestringidas || !PAGINAS_RESTRINGIDAS.includes(t.id));
+  ].filter(t => puedeCreditosPrecios || !PAGINAS_RESTRINGIDAS.includes(t.id));
   document.getElementById("tarjetasInicio").innerHTML = tarjetas.map(t =>
     `<div class="tarjeta" onclick="mostrarPagina('${t.id}')"><h3>${t.icono} ${t.titulo}</h3></div>`
   ).join("");
@@ -2235,7 +2246,8 @@ function _renderMenuInicio() {
     {icono:"🏠",label:"Inicio",        pagina:"paginaInicio"},
     {icono:"📋",label:"Planillas",     pagina:"paginaPlanillas"},
     {icono:"🧾",label:"Liquidación",   pagina:"paginaLiquidacion"},
-    {icono:"💵",label:"Pagos",         pagina:"paginaCierreMes"},
+    {icono:"💵",label:"Pagos",         pagina:"paginaPagos"},
+    {icono:"📊",label:"Historial de pagos", pagina:"paginaCierreMes"},
     {icono:"👷",label:"Engrasadores",  pagina:"paginaTrabajadores"},
     {icono:"➖",label:"Adelantos",     pagina:"paginaAdelantos"},
     {icono:"💳",label:"Créditos",      pagina:"paginaCreditos"},
@@ -2243,7 +2255,7 @@ function _renderMenuInicio() {
     {icono:"👤",label:"Perfiles",       pagina:"paginaPerfiles"},
     {icono:"⚙️",label:"Configuración", pagina:"paginaConfiguracion"},
     ...(esAdmin ? [{icono:"👑",label:"Superadmin",pagina:"paginaAdmin"}] : [])
-  ].filter(m => puedeVerRestringidas || !PAGINAS_RESTRINGIDAS.includes(m.pagina));
+  ].filter(m => puedeCreditosPrecios || !PAGINAS_RESTRINGIDAS.includes(m.pagina));
   document.getElementById("contenidoMenu").innerHTML =
     menuItems.map(m=>`<button onclick="mostrarPagina('${m.pagina}')">${m.icono} ${m.label}</button>`).join("") +
     `<div class="divisor-menu"></div><button class="rojo-menu" onclick="cerrarSesion()">🚪 Cerrar sesión</button>`;
@@ -2264,7 +2276,7 @@ function entrarSistema() {
     {icono:"🏠",label:"Inicio",   pagina:"paginaInicio"},
     {icono:"📋",label:"Planillas",pagina:"paginaPlanillas"},
 
-    ...(_puedeVerPaginasRestringidas() ? [{icono:"💵",label:"Pagos",    pagina:"paginaCierreMes"}] : []),
+    {icono:"💵",label:"Pagos",    pagina:"paginaPagos"},
     {icono:"☰", label:"Menú",    accion:"menu"},
   ];
   document.getElementById("navInferior").innerHTML = navItems.map(n=>
@@ -2348,7 +2360,7 @@ function mostrarPagina(id, sinHistorial=false) {
   // Route guard: si no hay sesión activa, redirigir al login
   if (!negocio) { mostrarLogin(); return; }
   // Route guard: Créditos y Precios solo para perfiles autorizados
-  if ((id==="paginaCreditos" || id==="paginaPrecios" || id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()) {
+  if ((id==="paginaCreditos" || id==="paginaPrecios") && !_puedeVerCreditosPrecios()) {
     toast("No tienes permiso para acceder a esta sección","error");
     id="paginaInicio";
   }
@@ -2358,7 +2370,6 @@ function mostrarPagina(id, sinHistorial=false) {
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
   if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
   if (id==="paginaLiquidacion") sincronizarMeses();
-  if (id==="paginaAdelantos") { const fe=document.getElementById("fechaAdelanto"); if(fe) fe.value=new Date().toLocaleDateString("en-CA"); }
   if (id==="paginaConfiguracion") cargarConfigEnPantalla();
   if (id==="paginaPlanes") actualizarEstadoPlanes();
   if (id==="paginaAdmin" && negocio?.esAdmin) cargarSolicitudesAdmin();
@@ -2389,7 +2400,7 @@ window.addEventListener("popstate", function(e) {
 });
 function actualizarTodo() {
   if(!negocio) return;
-  semillarMemoria(); actualizarEngrasadores(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); mostrarPerfiles(); mostrarPrecios(); _poblarDatalistProductos(); refrescarDropdownsPlanilla();
+  semillarMemoria(); actualizarEngrasadores(); mostrarPanelPagos(); mostrarHistorial(); mostrarAdelantos(); mostrarReglas(); mostrarCierreMes(); mostrarListaPlanillas(); mostrarCreditos(); mostrarPerfiles(); mostrarPrecios(); _poblarDatalistProductos(); refrescarDropdownsPlanilla();
 }
 
 // Refresca solo los selects de engrasador de las planillas abiertas (sin re-renderizar toda la planilla)
@@ -2521,30 +2532,6 @@ function procesarEvento(ev) {
       if(ev.ts) idx=lista.findIndex(a=>a.ts===ev.ts);
       if(idx<0) idx=lista.findIndex(a=>Number(a.valor||0)===Number(ev.valor||0)&&(a.nota||"")===(ev.nota||"")&&(a.fecha||"")===(ev.fecha||""));
       if(idx>=0) lista.splice(idx,1);
-      return;
-    }
-    if (ev.tipoRegistro==="pagoQuincenaTrabajador"){
-      if(!ev.nombre||!ev.mes||!ev.q) return;
-      const t=getTrabPorNombre(ev.nombre);
-      if(t){ if(!t.pagosQuincena)t.pagosQuincena={}; if(!t.pagosQuincena[ev.mes])t.pagosQuincena[ev.mes]={}; t.pagosQuincena[ev.mes][ev.q]=!!ev.pagado; }
-      return;
-    }
-    if (ev.tipoRegistro==="valorQuincenaPerfil"){
-      if(!ev.perfilNombre||!ev.mes||!ev.q) return;
-      if(!negocio.pagosPerfiles) negocio.pagosPerfiles={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre]) negocio.pagosPerfiles[ev.perfilNombre]={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre][ev.mes]) negocio.pagosPerfiles[ev.perfilNombre][ev.mes]={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q]) negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q]={valor:0,pagado:false};
-      negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q].valor=Number(ev.valor||0);
-      return;
-    }
-    if (ev.tipoRegistro==="pagoQuincenaPerfil"){
-      if(!ev.perfilNombre||!ev.mes||!ev.q) return;
-      if(!negocio.pagosPerfiles) negocio.pagosPerfiles={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre]) negocio.pagosPerfiles[ev.perfilNombre]={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre][ev.mes]) negocio.pagosPerfiles[ev.perfilNombre][ev.mes]={};
-      if(!negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q]) negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q]={valor:0,pagado:false};
-      negocio.pagosPerfiles[ev.perfilNombre][ev.mes][ev.q].pagado=!!ev.pagado;
       return;
     }
     if (ev.tipoRegistro==="configuracion"){
@@ -4132,32 +4119,15 @@ function reiniciarCalculo(){
 }
 
 // ══ ADELANTOS ══
-// Arma la fecha del adelanto en el mismo formato "D/M/AAAA, HH:mm:ss" que ya
-// usa toda la app (ver _getDia/_enQuincena/_parseFechaHoraAdelanto), pero con
-// el DIA que el usuario eligio en el input de fecha en vez del dia de hoy —
-// asi un adelanto real del 31/ago cargado el 1/sep cae en la quincena/mes
-// correctos (agosto, 2a quincena) y no en los de la fecha de captura.
-function _construirFechaAdelanto(fechaISO){
-  const ahora=new Date();
-  let y=ahora.getFullYear(), m=ahora.getMonth()+1, d=ahora.getDate();
-  const mm=String(fechaISO||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(mm){ y=Number(mm[1]); m=Number(mm[2]); d=Number(mm[3]); }
-  const hh=String(ahora.getHours()).padStart(2,"0"), mi=String(ahora.getMinutes()).padStart(2,"0"), ss=String(ahora.getSeconds()).padStart(2,"0");
-  return `${d}/${m}/${y}, ${hh}:${mi}:${ss}`;
-}
 async function registrarAdelanto(){
-  const sel=document.getElementById("selAdelanto").value;
+  const mes=getMes(), sel=document.getElementById("selAdelanto").value;
   const valor=_leerNum("valAdelanto");
   const nota=document.getElementById("notaAdelanto").value.trim();
-  const fechaISO=document.getElementById("fechaAdelanto")?.value||new Date().toLocaleDateString("en-CA");
   if(sel===""){toast("Selecciona un engrasador o perfil","error");return;}
   if(!valor||valor<=0){toast("Ingresa un valor válido mayor a cero","error");return;}
   if(valor>10000000){toast("El valor parece muy alto, verifica","error");return;}
   if(nota.length>200){toast("La nota es muy larga (máx 200 caracteres)","error");return;}
-  // El mes del adelanto lo define su fecha real, no el mes que estés viendo en pantalla
-  // (igual que las planillas: pl.mes sale de pl.fecha, no de donde estés parado).
-  const mes=fechaISO.slice(0,7);
-  const adelanto={valor,nota,fecha:_construirFechaAdelanto(fechaISO),ts:Date.now(),creadoPor:perfilActivo()};
+  const adelanto={valor,nota,fecha:new Date().toLocaleString(),ts:Date.now(),creadoPor:perfilActivo()};
   let r;
   if(String(sel).startsWith("p:")){
     // Adelanto a un perfil (secretaria) — nunca a Admin
@@ -4181,7 +4151,6 @@ async function registrarAdelanto(){
   agregarMemoria("notas_adelanto", nota);
   ["valAdelanto","notaAdelanto"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("selAdelanto").value="";
-  const fechaEl=document.getElementById("fechaAdelanto"); if(fechaEl) fechaEl.value=new Date().toLocaleDateString("en-CA");
   toast(r.ok?"Adelanto registrado ":"Adelanto guardado localmente",r.ok?"ok":"aviso");
 }
 let _filtroEngrasadorAdelanto = "";
@@ -4269,14 +4238,78 @@ function eliminarAdelantoPerfil(nombre,iA){
   });
 }
 
-// ══ PAGOS ══ (fusionado con lo que era "Historial de pagos" — ver mostrarCierreMes)
+// ══ PAGOS ══
+function mostrarPanelPagos(){
+  const el=document.getElementById("panelPagos"); if(!el) return;
+  const mes=getMes();
+  if(!negocio.trabajadores.length){el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores.</p>";return;}
+  let totalGeneral = 0;
+  const cards = negocio.trabajadores.map((t,idx)=>{
+    const ganado=Math.round(getPago(t,mes)), adelantos=Math.round(getAdelantos(t,mes));
+    const _hoyDia=new Date().getDate();
+    const exentoSeguridad=!!t.sinSeguridad;
+    const seguridadBase=Math.round(_hoyDia<=15?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
+    const seguridad=(exentoSeguridad||ganado<=0)?0:seguridadBase;
+    const neto=Math.round(ganado-adelantos-seguridad);
+    totalGeneral += neto;
+    const nomPago = cap(sanitizarTexto(t.nombre));
+    const ini = nomPago.charAt(0).toUpperCase();
+    return `<div class="pago-card">
+      <div class="pago-card-header">
+        <div class="pago-card-avatar">${ini}</div>
+        <div class="pago-card-nombre">${nomPago}</div>
+      </div>
+      <div class="pago-card-body">
+        <div class="pago-card-stats">
+          <div class="pago-stat"><span>Ganado</span><strong>$${fmtMiles(ganado)}</strong></div>
+          ${adelantos>0?`<div class="pago-stat"><span>Adelantos</span><strong style="color:var(--rojo)">-$${fmtMiles(adelantos)}</strong></div>`:`<div class="pago-stat"><span>Adelantos</span><strong>$${fmtMiles(adelantos)}</strong></div>`}
+          <div class="pago-stat">
+            <span>Seguridad</span>
+            <strong style="${seguridad>0?'color:var(--rojo)':''}">${seguridad>0?'-$'+fmtMiles(seguridad):'$0'}</strong>
+            <button class="btn-sm ${exentoSeguridad?'btn-verde':'btn-rojo'}" style="margin-top:4px;padding:3px 8px;font-size:10px;white-space:nowrap;" onclick="toggleSeguridadTrabajador(${idx})" title="${exentoSeguridad?'Reactivar el cobro de seguridad a este engrasador':'Omitir el cobro de seguridad a este engrasador'}">${exentoSeguridad?'🔓 Sin cobro':'🔒 Cobrando'}</button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <div class="pago-total">
+            <span>A pagar</span>
+            <strong style="${neto<0?'color:var(--rojo);':''}">${neto<0?'-':''}$${fmtMiles(Math.abs(neto))||'0'}</strong>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn-verde btn-sm" onclick="pagarTrabajador(${idx})">💸 Pagar</button>
+      </div>
+    </div>`;
+  }).join("");
+  el.innerHTML = cards + `<div class="pagos-total-bar"><span>Total pendiente</span><strong>$${fmtMiles(totalGeneral)}</strong></div>`;
+}
+async function reiniciarPagosMes(){
+  confirmar("Reiniciar pagos","¿Borrar pagos y adelantos del mes? El historial NO se borra.",async()=>{
+    const mes=getMes(); negocio.trabajadores.forEach(t=>{if(t.pagos)t.pagos[mes]=0;if(t.adelantos)t.adelantos[mes]=[]; });
+    guardar(); actualizarTodo();
+    await guardarEvento({tipoRegistro:"reinicioMes",mes,fecha:new Date().toLocaleString()},1,0);
+    toast("Pagos del mes reiniciados","ok");
+  });
+}
+async function pagarTrabajador(idx){
+  const t=negocio.trabajadores[idx]; if(!t) return;
+  const mes=getMes();
+  const nom=cap(sanitizarTexto(t.nombre));
+  confirmar("Pagar a "+nom,"¿Registrar pago y reiniciar saldo de "+nom+"?",async()=>{
+    if(t.pagos)t.pagos[mes]=0; if(t.adelantos)t.adelantos[mes]=[];
+    guardar(); actualizarTodo();
+    await guardarEvento({tipoRegistro:"pagoTrabajador",trabajador:t.nombre,mes,fecha:new Date().toLocaleString()},1,0);
+    toast("Pago registrado para "+nom,"ok");
+  });
+}
 function toggleSeguridadTrabajador(idx){
   const t=negocio.trabajadores[idx]; if(!t) return;
   t.sinSeguridad=!t.sinSeguridad;
-  guardar(); mostrarCierreMes();
+  guardar(); mostrarPanelPagos();
   toast(t.sinSeguridad?`Seguridad desactivada para ${cap(sanitizarTexto(t.nombre))}`:`Seguridad reactivada para ${cap(sanitizarTexto(t.nombre))}`,"ok");
   guardarEvento({tipoRegistro:"trabajadorFlags",nombre:t.nombre,sinSeguridad:t.sinSeguridad});
 }
+function pagarTodos(){ reiniciarPagosMes(); }
 
 // ══ QUINCENA HELPERS ══
 let _quinHistorial = 'q1';
@@ -4361,130 +4394,6 @@ function calcularResumenQuincena(mes, q){
 }
 
 // ══ CIERRE ══
-// ══ PAGOS POR QUINCENA (trabajadores) ══
-// pagosQuincena vive en cada trabajador: { [mes]: {q1:bool, q2:bool} }. No se
-// borran ni se tocan historial/adelantos al pagar — solo se marca la bandera,
-// asi el reporte (calcularResumenQuincena) sigue siendo la fuente de verdad
-// de cuanto se gano, y esto solo dice si esa quincena ya se liquido en efectivo.
-function _estaPagadoQuincena(t, mes, q){
-  if(q==='mes') return _estaPagadoQuincena(t,mes,'q1') && _estaPagadoQuincena(t,mes,'q2');
-  return !!(t.pagosQuincena?.[mes]?.[q]);
-}
-function _montoPendienteTrabajador(t, mes, q, resumenQ1, resumenQ2){
-  const fila=(qq)=> (qq==='q1'?resumenQ1:resumenQ2).trabajadores.find(x=>x.nombre===t.nombre) || {totalPagar:0};
-  if(q==='mes'){
-    let total=0;
-    if(!_estaPagadoQuincena(t,mes,'q1')) total+=fila('q1').totalPagar;
-    if(!_estaPagadoQuincena(t,mes,'q2')) total+=fila('q2').totalPagar;
-    return Math.round(total);
-  }
-  return _estaPagadoQuincena(t,mes,q) ? 0 : Math.round(fila(q).totalPagar);
-}
-async function pagarQuincenaTrabajador(idx, q){
-  const t=negocio.trabajadores[idx]; if(!t) return;
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const qs = q==='mes' ? ['q1','q2'] : [q];
-  const nom=cap(sanitizarTexto(t.nombre));
-  confirmar("Pagar a "+nom, q==='mes'?"¿Marcar el mes completo como pagado?":`¿Marcar la ${q==='q1'?'1ª':'2ª'} quincena como pagada?`, async()=>{
-    if(!t.pagosQuincena) t.pagosQuincena={};
-    if(!t.pagosQuincena[mes]) t.pagosQuincena[mes]={};
-    for(const qq of qs){
-      t.pagosQuincena[mes][qq]=true;
-      await guardarEvento({tipoRegistro:"pagoQuincenaTrabajador",nombre:t.nombre,mes,q:qq,pagado:true},1,0);
-    }
-    guardar(); actualizarTodo();
-    toast("Pago registrado para "+nom,"ok");
-  });
-}
-async function revertirPagoQuincenaTrabajador(idx, q){
-  const t=negocio.trabajadores[idx]; if(!t) return;
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const qs = q==='mes' ? ['q1','q2'] : [q];
-  confirmar("Revertir pago","¿Volver a marcar como pendiente?",async()=>{
-    if(!t.pagosQuincena) t.pagosQuincena={};
-    if(!t.pagosQuincena[mes]) t.pagosQuincena[mes]={};
-    for(const qq of qs){
-      t.pagosQuincena[mes][qq]=false;
-      await guardarEvento({tipoRegistro:"pagoQuincenaTrabajador",nombre:t.nombre,mes,q:qq,pagado:false},1,0);
-    }
-    guardar(); actualizarTodo();
-    toast("Pago revertido","ok");
-  });
-}
-
-// ══ PAGOS POR QUINCENA (perfiles / secretarias, no Admin) ══
-// negocio.pagosPerfiles: { [nombrePerfil]: { [mes]: { q1:{valor,pagado}, q2:{valor,pagado} } } }
-// El valor se escribe a mano (las secretarias no tienen "ganado" por planillas);
-// se le restan sus adelantos de esa quincena (negocio.adelantosPerfiles) para el neto.
-function _adelantosPerfilQuincena(nombre, mes, q){
-  const lista=(negocio.adelantosPerfiles?.[nombre]?.[mes])||[];
-  const filtrada = q==='mes' ? lista : lista.filter(a=>_enQuincena(a.fecha,q));
-  return Math.round(filtrada.reduce((s,a)=>s+Number(a.valor||0),0));
-}
-function _valorQuincenaPerfil(nombre, mes, q){
-  if(q==='mes') return _valorQuincenaPerfil(nombre,mes,'q1') + _valorQuincenaPerfil(nombre,mes,'q2');
-  return Math.round(Number(negocio.pagosPerfiles?.[nombre]?.[mes]?.[q]?.valor||0));
-}
-function _estaPagadoQuincenaPerfil(nombre, mes, q){
-  if(q==='mes') return _estaPagadoQuincenaPerfil(nombre,mes,'q1') && _estaPagadoQuincenaPerfil(nombre,mes,'q2');
-  return !!(negocio.pagosPerfiles?.[nombre]?.[mes]?.[q]?.pagado);
-}
-function _montoPendientePerfil(nombre, mes, q){
-  const neto=(qq)=>Math.max(0,_valorQuincenaPerfil(nombre,mes,qq)-_adelantosPerfilQuincena(nombre,mes,qq));
-  if(q==='mes'){
-    let total=0;
-    if(!_estaPagadoQuincenaPerfil(nombre,mes,'q1')) total+=neto('q1');
-    if(!_estaPagadoQuincenaPerfil(nombre,mes,'q2')) total+=neto('q2');
-    return Math.round(total);
-  }
-  return _estaPagadoQuincenaPerfil(nombre,mes,q) ? 0 : Math.round(neto(q));
-}
-async function actualizarValorQuincenaPerfil(nombre, q, valorStr){
-  if(q!=='q1' && q!=='q2') return; // solo se edita por quincena especifica
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const valor=Math.max(0, Number(String(valorStr).replace(/[^\d]/g,""))||0);
-  if(!negocio.pagosPerfiles) negocio.pagosPerfiles={};
-  if(!negocio.pagosPerfiles[nombre]) negocio.pagosPerfiles[nombre]={};
-  if(!negocio.pagosPerfiles[nombre][mes]) negocio.pagosPerfiles[nombre][mes]={};
-  if(!negocio.pagosPerfiles[nombre][mes][q]) negocio.pagosPerfiles[nombre][mes][q]={valor:0,pagado:false};
-  negocio.pagosPerfiles[nombre][mes][q].valor=valor;
-  guardar();
-  await guardarEvento({tipoRegistro:"valorQuincenaPerfil",perfilNombre:nombre,mes,q,valor},valor,0);
-  mostrarCierreMes();
-}
-async function pagarQuincenaPerfil(nombre, q){
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const qs = q==='mes' ? ['q1','q2'] : [q];
-  confirmar("Pagar a "+cap(sanitizarTexto(nombre)), q==='mes'?"¿Marcar el mes completo como pagado?":`¿Marcar la ${q==='q1'?'1ª':'2ª'} quincena como pagada?`, async()=>{
-    if(!negocio.pagosPerfiles) negocio.pagosPerfiles={};
-    if(!negocio.pagosPerfiles[nombre]) negocio.pagosPerfiles[nombre]={};
-    if(!negocio.pagosPerfiles[nombre][mes]) negocio.pagosPerfiles[nombre][mes]={};
-    for(const qq of qs){
-      if(!negocio.pagosPerfiles[nombre][mes][qq]) negocio.pagosPerfiles[nombre][mes][qq]={valor:0,pagado:false};
-      negocio.pagosPerfiles[nombre][mes][qq].pagado=true;
-      await guardarEvento({tipoRegistro:"pagoQuincenaPerfil",perfilNombre:nombre,mes,q:qq,pagado:true},1,0);
-    }
-    guardar(); actualizarTodo();
-    toast("Pago registrado","ok");
-  });
-}
-async function revertirPagoQuincenaPerfil(nombre, q){
-  const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const qs = q==='mes' ? ['q1','q2'] : [q];
-  confirmar("Revertir pago","¿Volver a marcar como pendiente?",async()=>{
-    if(!negocio.pagosPerfiles) negocio.pagosPerfiles={};
-    if(!negocio.pagosPerfiles[nombre]) negocio.pagosPerfiles[nombre]={};
-    if(!negocio.pagosPerfiles[nombre][mes]) negocio.pagosPerfiles[nombre][mes]={};
-    for(const qq of qs){
-      if(!negocio.pagosPerfiles[nombre][mes][qq]) negocio.pagosPerfiles[nombre][mes][qq]={valor:0,pagado:false};
-      negocio.pagosPerfiles[nombre][mes][qq].pagado=false;
-      await guardarEvento({tipoRegistro:"pagoQuincenaPerfil",perfilNombre:nombre,mes,q:qq,pagado:false},1,0);
-    }
-    guardar(); actualizarTodo();
-    toast("Pago revertido","ok");
-  });
-}
-
 function getEstadoCierre(mes){ return negocio.cierresMes?.[mes]||"Pendiente"; }
 function calcularResumenMes(mes){
   let tG=0,tA=0,tP=0;
@@ -4510,87 +4419,31 @@ function mostrarCierreMes(){
   const el=document.getElementById("resumenCierre"); if(!el) return;
   sincronizarMeses();
   const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido();
-  const q=_quinCierre;
-  const resumenVista=calcularResumenQuincena(mes,q); // Ganado/Adelantos/Seguridad informativos, en el periodo elegido
-  const resumenQ1=q==='mes'?calcularResumenQuincena(mes,'q1'):(q==='q1'?resumenVista:calcularResumenQuincena(mes,'q1'));
-  const resumenQ2=q==='mes'?calcularResumenQuincena(mes,'q2'):(q==='q2'?resumenVista:calcularResumenQuincena(mes,'q2'));
-
-  if(!negocio.trabajadores.length && !(negocio.perfiles||[]).some(p=>p.toLowerCase()!=="admin")){
-    el.innerHTML="<p style='color:var(--gris);'>Sin engrasadores ni perfiles registrados.</p>";
-    return;
-  }
-
-  const cardsTrabajadores = negocio.trabajadores.map((t,idx)=>{
-    const fila=resumenVista.trabajadores.find(x=>x.nombre===t.nombre)||{ganado:0,adelantos:0,seguridad:0};
-    const pendiente=_montoPendienteTrabajador(t,mes,q,resumenQ1,resumenQ2);
-    const pagado=pendiente<=0 && _estaPagadoQuincena(t,mes,q);
+  const estado=getEstadoCierre(mes), resumen=calcularResumenQuincena(mes,_quinCierre);
+  const esPagado = estado==="Pagado";
+  const badgeClass = esPagado ? "pagado" : "pendiente";
+  const badgeIcon = esPagado ? "✅" : "⏳";
+  const cards = resumen.trabajadores.map(t=>{
     const nomCierre = cap(sanitizarTexto(t.nombre));
     const ini = nomCierre.charAt(0).toUpperCase();
-    const exentoSeguridad=!!t.sinSeguridad;
     return `<div class="cierre-card">
       <div class="cierre-card-header">
         <div class="cierre-card-avatar">${ini}</div>
         <div class="cierre-card-nombre">${nomCierre}</div>
-        ${pagado?'<span class="cierre-estado-badge pagado" style="margin-left:auto;padding:4px 12px;font-size:12px;">✅ Pagado</span>':''}
       </div>
       <div class="cierre-card-stats">
-        <div class="cierre-stat"><span>Ganado</span><strong>$${fila.ganado.toLocaleString()}</strong></div>
-        <div class="cierre-stat"><span>Adelantos</span><strong>$${fila.adelantos.toLocaleString()}</strong></div>
-        <div class="cierre-stat">
-          <span>Seguridad</span>
-          <strong style="${fila.seguridad>0?'color:var(--rojo)':''}">${fila.seguridad>0?'-$'+fila.seguridad.toLocaleString():'$0'}</strong>
-          <button class="btn-sm ${exentoSeguridad?'btn-verde':'btn-rojo'}" style="margin-top:4px;padding:3px 8px;font-size:10px;white-space:nowrap;" onclick="toggleSeguridadTrabajador(${idx})" title="${exentoSeguridad?'Reactivar el cobro de seguridad a este engrasador':'Omitir el cobro de seguridad a este engrasador'}">${exentoSeguridad?'🔓 Sin cobro':'🔒 Cobrando'}</button>
-        </div>
-        <div class="cierre-stat neto" style="grid-column:3;text-align:right;"><span>A pagar</span><strong style="font-size:17px;">$${pendiente.toLocaleString()}</strong></div>
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        ${pagado
-          ?`<button class="btn-gris btn-sm" onclick="revertirPagoQuincenaTrabajador(${idx},'${q}')">↩️ Revertir</button>`
-          :`<button class="btn-verde btn-sm" onclick="pagarQuincenaTrabajador(${idx},'${q}')">💸 Pagar</button>`}
+        <div class="cierre-stat"><span>Ganado</span><strong>$${t.ganado.toLocaleString()}</strong></div>
+        <div class="cierre-stat"><span>Adelantos</span><strong>$${t.adelantos.toLocaleString()}</strong></div>
+
+        ${t.seguridad>0?`<div class="cierre-stat"><span>Seguridad</span><strong style="color:var(--rojo)">-$${t.seguridad.toLocaleString()}</strong></div>`:""}
+        <div class="cierre-stat neto" style="grid-column:3;text-align:right;"><span>A pagar</span><strong style="font-size:17px;">$${t.totalPagar.toLocaleString()}</strong></div>
       </div>
     </div>`;
   }).join("");
-
-  const perfilesSecretarias=(negocio.perfiles||[]).filter(p=>p.toLowerCase()!=="admin");
-  const cardsPerfiles = perfilesSecretarias.map(nombre=>{
-    const pendiente=_montoPendientePerfil(nombre,mes,q);
-    const pagado=pendiente<=0 && _estaPagadoQuincenaPerfil(nombre,mes,q);
-    const adelantos=_adelantosPerfilQuincena(nombre,mes,q);
-    const valor=_valorQuincenaPerfil(nombre,mes,q);
-    const nomCierre = cap(sanitizarTexto(nombre));
-    const ini = nomCierre.charAt(0).toUpperCase();
-    const editable = (q==='q1'||q==='q2') && !pagado;
-    const nombreSafe = sanitizarTexto(nombre);
-    return `<div class="cierre-card">
-      <div class="cierre-card-header">
-        <div class="cierre-card-avatar">${ini}</div>
-        <div class="cierre-card-nombre">${nomCierre} <span style="font-size:11px;color:var(--gris);font-weight:400;">(perfil)</span></div>
-        ${pagado?'<span class="cierre-estado-badge pagado" style="margin-left:auto;padding:4px 12px;font-size:12px;">✅ Pagado</span>':''}
-      </div>
-      <div class="cierre-card-stats">
-        <div class="cierre-stat">
-          <span>Valor quincena</span>
-          ${editable
-            ?`<input type="text" inputmode="numeric" value="${valor||''}" placeholder="0" style="width:100%;padding:6px 8px;font-weight:700;" onchange="actualizarValorQuincenaPerfil('${nombreSafe}','${q}',this.value)">`
-            :`<strong>$${valor.toLocaleString()}</strong>`}
-        </div>
-        <div class="cierre-stat"><span>Adelantos</span><strong>$${adelantos.toLocaleString()}</strong></div>
-        <div class="cierre-stat neto" style="grid-column:3;text-align:right;"><span>A pagar</span><strong style="font-size:17px;">$${pendiente.toLocaleString()}</strong></div>
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        ${pagado
-          ?`<button class="btn-gris btn-sm" onclick="revertirPagoQuincenaPerfil('${nombreSafe}','${q}')">↩️ Revertir</button>`
-          :`<button class="btn-verde btn-sm" onclick="pagarQuincenaPerfil('${nombreSafe}','${q}')">💸 Pagar</button>`}
-      </div>
-    </div>`;
-  }).join("");
-
-  const totalPendiente =
-    negocio.trabajadores.reduce((s,t)=>s+_montoPendienteTrabajador(t,mes,q,resumenQ1,resumenQ2),0) +
-    perfilesSecretarias.reduce((s,nombre)=>s+_montoPendientePerfil(nombre,mes,q),0);
-
-  el.innerHTML = cardsTrabajadores + cardsPerfiles +
-    `<div class="cierre-total-bar"><span>Total pendiente</span><strong>$${totalPendiente.toLocaleString()}</strong></div>`;
+  el.innerHTML =
+    `<div class="cierre-estado-badge ${badgeClass}" style="margin-bottom:16px;">${badgeIcon} Estado ${mes}: ${estado}</div>` +
+    cards +
+    `<div class="cierre-total-bar"><span>Total a pagar este mes</span><strong>$${resumen.totalPagar.toLocaleString()}</strong></div>`;
 }
 async function marcarMesPagado(){ const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pagado"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pagado",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pagado ","ok"); }
 async function marcarMesPendiente(){ const mes=document.getElementById("mesCierre")?.value||mesPagoSugerido(); if(!negocio.cierresMes)negocio.cierresMes={}; negocio.cierresMes[mes]="Pendiente"; guardar(); actualizarTodo(); await guardarEvento({tipoRegistro:"cierreMes",mes,estado:"Pendiente",fecha:new Date().toLocaleString()},1,0); toast("Mes marcado como pendiente","info"); }
@@ -5030,6 +4883,43 @@ async function solicitarResetLogin() {
   } else {
     msgEl.innerHTML = `<div class='alerta alerta-rojo'>No se pudo procesar. Contacta al admin por WhatsApp: <strong>322-716-7031</strong></div>`;
   }
+}
+
+// PERIODOS DE PAGO
+let periodoPagoActual = "mes";
+function setPeriodoPago(periodo, btnEl) {
+  periodoPagoActual = periodo;
+  document.querySelectorAll(".periodo-tab").forEach(b => b.classList.remove("activo"));
+  if (btnEl) btnEl.classList.add("activo");
+  mostrarPanelPagos();
+}
+function getLabelPeriodo() {
+  const labels = { hoy:"Hoy", q1:"1a Quincena", q2:"2a Quincena", mes:"Mes completo" };
+  return labels[periodoPagoActual] || "Mes completo";
+}
+function calcularPagosPeriodo(trabajador, mes) {
+  if (periodoPagoActual === "mes") {
+    return { ganado: getPago(trabajador,mes), adelantos: getAdelantos(trabajador,mes), neto: getPago(trabajador,mes)-getAdelantos(trabajador,mes) };
+  }
+  const hoy = new Date();
+  const historial = negocio.historial || [];
+  let eventos = historial.filter(e => e.mes === mes);
+  if (periodoPagoActual === "hoy") {
+    const fh = hoy.toISOString().slice(0,10);
+    eventos = eventos.filter(e => (e.fecha||"").startsWith(fh));
+  } else if (periodoPagoActual === "q1") {
+    eventos = eventos.filter(e => { const d=parseInt((e.fecha||"").slice(8,10)); return d>=1&&d<=15; });
+  } else if (periodoPagoActual === "q2") {
+    eventos = eventos.filter(e => { const d=parseInt((e.fecha||"").slice(8,10)); return d>=16; });
+  }
+  let ganado = 0;
+  eventos.forEach(e => {
+    if (e.pagoTrabajador1&&(e.trabajadorNombre1===trabajador.nombre||e.trabajador===trabajador.nombre)) ganado+=Number(e.pagoTrabajador1||0);
+    if (e.pagoTrabajador2&&e.trabajadorNombre2===trabajador.nombre) ganado+=Number(e.pagoTrabajador2||0);
+    if (e.pagoTrabajador3&&e.trabajadorNombre3===trabajador.nombre) ganado+=Number(e.pagoTrabajador3||0);
+    if (e.pagoTrabajador4&&e.trabajadorNombre4===trabajador.nombre) ganado+=Number(e.pagoTrabajador4||0);
+  });
+  return { ganado, adelantos: 0, neto: ganado };
 }
 
 // CAMBIAR PASSWORD PROPIO
