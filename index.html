@@ -2480,6 +2480,7 @@ async function cargarLiquidaciones() {
 }
 function limpiarPagosLocales() {
   negocio.trabajadores?.forEach(t=>{t.pagos={};t.adelantos={};});
+  negocio.adelantosPerfiles={}; // evita duplicar adelantos de perfiles al re-sincronizar (bug: se acumulaban en cada carga)
   negocio.historial=[];
   negocio.planillas=[];
 }
