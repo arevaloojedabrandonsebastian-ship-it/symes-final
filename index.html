@@ -2025,9 +2025,36 @@ async function nubeGet(ep) {
     const r = await fetch(`${API_URL}/${ep}`,{signal:ctrl.signal}); clearTimeout(tid); const d = await r.json(); return {ok:r.ok,data:d};
   } catch(e) { return {ok:false,error:e.message}; }
 }
+async function _guardarEventoRemoto(ev, total, ganTrab) {
+  return nubePost("liquidaciones",{usuario_id:negocio.id,trabajador_id:null,descripcion:JSON.stringify(ev),total:Number(total)||1,ganancia_trabajador:Number(ganTrab)||0,ganancia_negocio:0});
+}
 async function guardarEvento(ev, total=1, ganTrab=0) {
   if (!negocio?.id) return {ok:false};
-  return nubePost("liquidaciones",{usuario_id:negocio.id,trabajador_id:null,descripcion:JSON.stringify(ev),total:Number(total)||1,ganancia_trabajador:Number(ganTrab)||0,ganancia_negocio:0});
+  const r = await _guardarEventoRemoto(ev, total, ganTrab);
+  if (!r.ok) {
+    // Conexión inestable: el cambio ya se aplicó en pantalla, pero no llegó a la nube.
+    // Se encola para reintentar en el próximo login/sincronización — si no se hiciera esto,
+    // el cambio quedaría "atrapado" en este equipo y nunca lo verían los demás.
+    if (!negocio.eventosPendientes) negocio.eventosPendientes = [];
+    negocio.eventosPendientes.push({ev, total, ganTrab});
+    guardar();
+  }
+  return r;
+}
+// Reintenta subir a la nube los eventos (adelantos, pagos, etc.) que quedaron guardados
+// solo en este equipo por una falla de conexión. Los que logran subir dejan de encolarse;
+// los que siguen fallando se re-aplican localmente para no desaparecer de la pantalla
+// mientras se recupera la conexión.
+async function _sincronizarEventosPendientes() {
+  const pendientes = negocio.eventosPendientes || [];
+  if (!pendientes.length) return;
+  const siguen = [];
+  for (const p of pendientes) {
+    const r = await _guardarEventoRemoto(p.ev, p.total, p.ganTrab);
+    if (!r.ok) { siguen.push(p); procesarEvento(p.ev); }
+  }
+  negocio.eventosPendientes = siguen;
+  guardar();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2183,6 +2210,7 @@ async function iniciarSesion() {
   agregarMemoria("neg_nombres", nombre);
   await cargarTrabajadores();
   await cargarLiquidaciones();
+  await _sincronizarEventosPendientes();
   await _sincronizarEliminaciones();
   guardar();
   document.getElementById("loginNombre").value = "";
@@ -4234,7 +4262,7 @@ function mostrarAdelantos(){
   if(!items.length){ el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>"; return; }
   items.forEach(({tipo,iT,iA,nombre,adelanto:a})=>{
     const div=document.createElement("div"); div.className="item";
-    const h3=document.createElement("h3"); h3.textContent=cap(nombre)+(tipo==="perfil"?" (perfil)":"");
+    const h3=document.createElement("h3"); h3.textContent=cap(nombre);
     const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
     const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
     const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
@@ -4894,7 +4922,7 @@ async function _sincronizarEliminaciones(){
   }
 }
 async function iniciarSesionGuardada(){
-  try{ await cargarTrabajadores(); await cargarLiquidaciones(); await _sincronizarEliminaciones(); } catch(e){ console.error("Error sync:",e); }
+  try{ await cargarTrabajadores(); await cargarLiquidaciones(); await _sincronizarEventosPendientes(); await _sincronizarEliminaciones(); } catch(e){ console.error("Error sync:",e); }
   entrarSistema();
 }
 if(cuentaAct&&negocio){ iniciarSesionGuardada(); }
