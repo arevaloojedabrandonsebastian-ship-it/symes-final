@@ -3651,10 +3651,10 @@ function mostrarCreditos(){
       const abierta=_empresaCreditoExpandida===emp;
       const filasTabla=pendientes.map(it=>`<tr>
         <td style="width:26px;"><input type="checkbox" ${_seleccionCredito.has(it.clave)?'checked':''} onchange="toggleSeleccionCredito('${it.clave}',this.checked)"></td>
-        <td>${sanitizarTexto(it.fecha)}</td>
-        <td>${sanitizarTexto(it.placa)}</td>
+        <td style="white-space:nowrap;">${sanitizarTexto(it.fecha)}</td>
+        <td style="white-space:nowrap;">${sanitizarTexto(it.placa)}</td>
         <td>${sanitizarTexto(it.descripcion)}</td>
-        <td style="text-align:right;">$${fmtMiles(it.total)||'0'}</td>
+        <td style="text-align:right;white-space:nowrap;">$${fmtMiles(it.total)||'0'}</td>
       </tr>`).join("");
       const totalSeleccionado=pendientes.filter(it=>_seleccionCredito.has(it.clave)).reduce((s,it)=>s+it.total,0);
       const panel=abierta?`
@@ -3664,7 +3664,7 @@ function mostrarCreditos(){
             <table style="width:100%;font-size:13px;">
               <thead><tr>
                 <th style="width:26px;"><input type="checkbox" onchange="toggleSeleccionarTodosCredito(this.checked)" ${pendientes.every(it=>_seleccionCredito.has(it.clave))?'checked':''}></th>
-                <th>Fecha</th><th>Placa</th><th>Descripción</th><th>Total</th>
+                <th style="white-space:nowrap;">Fecha</th><th style="white-space:nowrap;">Placa</th><th>Descripción</th><th style="white-space:nowrap;">Total</th>
               </tr></thead>
               <tbody>${filasTabla}</tbody>
             </table>
