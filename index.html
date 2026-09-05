@@ -3342,7 +3342,7 @@ function _serviciosPendientesCredito(empresa){
       }
     });
   });
-  items.sort((a,b)=>_parseFechaPlanilla(b.fecha)-_parseFechaPlanilla(a.fecha));
+  items.sort((a,b)=>_parseFechaPlanilla(a.fecha)-_parseFechaPlanilla(b.fecha)); // mas antiguo primero, mas reciente al final
   return items;
 }
 function toggleSeleccionCredito(clave, checked){
