@@ -2382,7 +2382,6 @@ function mostrarPagina(id, sinHistorial=false) {
   }
   document.querySelectorAll(".pagina").forEach(p=>p.classList.add("oculto"));
   const el=document.getElementById(id); if(el) el.classList.remove("oculto");
-  window.scrollTo(0,0);
   document.getElementById("contenidoMenu").classList.remove("sidebar-abierto");
   document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("activo",n.dataset.pagina===id));
   if (id==="paginaPlanillas") { renderTabsPlanillas(); mostrarListaPlanillas(); }
@@ -2556,7 +2555,7 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="pagoQuincenaTrabajador"){
       if(!ev.nombre||!ev.mes||!ev.q) return;
       const t=getTrabPorNombre(ev.nombre);
-      if(t){ if(!t.pagosQuincena)t.pagosQuincena={}; if(!t.pagosQuincena[ev.mes])t.pagosQuincena[ev.mes]={}; t.pagosQuincena[ev.mes][ev.q]=(ev.pagado==="unida")?"unida":!!ev.pagado; }
+      if(t){ if(!t.pagosQuincena)t.pagosQuincena={}; if(!t.pagosQuincena[ev.mes])t.pagosQuincena[ev.mes]={}; t.pagosQuincena[ev.mes][ev.q]=!!ev.pagado; }
       return;
     }
     if (ev.tipoRegistro==="valorQuincenaPerfil"){
@@ -4400,41 +4399,6 @@ function _estaPagadoQuincena(t, mes, q){
   if(q==='mes') return _estaPagadoQuincena(t,mes,'q1') && _estaPagadoQuincena(t,mes,'q2');
   return !!(t.pagosQuincena?.[mes]?.[q]);
 }
-// == UNION DE QUINCENAS (seguridad supera lo ganado) ==
-// Si en una quincena la Seguridad descontada es mayor que lo Ganado, "A pagar"
-// queda negativo: no hay plata para descontarle ahi. En vez de forzar un pago
-// negativo, esa quincena se marca 'unida' (en vez de true/false en pagosQuincena)
-// y su Ganado+Adelantos+Seguridad se suman a la siguiente quincena, que es la
-// que finalmente se paga. _arrastreEntrante() recorre hacia atras mientras
-// encuentre quincenas 'unida' encadenadas, cubriendo tambien una union que
-// cruza de la 2a quincena de un mes al 1 del mes siguiente.
-function _esQuincenaUnida(t, mes, q){
-  return t.pagosQuincena?.[mes]?.[q]==='unida';
-}
-function _quincenaAnterior(mes, q){
-  if(q==='q2') return {mes,q:'q1'};
-  const [y,m]=mes.split('-').map(Number);
-  const mp=m===1?12:m-1, yp=m===1?y-1:y;
-  return {mes:`${yp}-${String(mp).padStart(2,'0')}`, q:'q2'};
-}
-function _quincenaSiguiente(mes, q){
-  if(q==='q1') return {mes,q:'q2'};
-  const [y,m]=mes.split('-').map(Number);
-  const ms=m===12?1:m+1, ys=m===12?y+1:y;
-  return {mes:`${ys}-${String(ms).padStart(2,'0')}`, q:'q1'};
-}
-function _arrastreEntrante(t, mes, q){
-  let acum={ganado:0,adelantos:0,seguridad:0};
-  let cur={mes,q};
-  for(let i=0;i<24;i++){
-    const prev=_quincenaAnterior(cur.mes,cur.q);
-    if(!_esQuincenaUnida(t,prev.mes,prev.q)) break;
-    const base=calcularResumenQuincena(prev.mes,prev.q).trabajadores.find(x=>x.nombre===t.nombre)||{ganado:0,adelantos:0,seguridad:0};
-    acum.ganado+=base.ganado; acum.adelantos+=base.adelantos; acum.seguridad+=base.seguridad;
-    cur=prev;
-  }
-  return acum;
-}
 function _montoPendienteTrabajador(t, mes, q, resumenQ1, resumenQ2){
   const fila=(qq)=> (qq==='q1'?resumenQ1:resumenQ2).trabajadores.find(x=>x.nombre===t.nombre) || {totalPagar:0};
   if(q==='mes'){
@@ -4443,9 +4407,7 @@ function _montoPendienteTrabajador(t, mes, q, resumenQ1, resumenQ2){
     if(!_estaPagadoQuincena(t,mes,'q2')) total+=fila('q2').totalPagar;
     return Math.round(total);
   }
-  if(_estaPagadoQuincena(t,mes,q)) return 0;
-  const arr=_arrastreEntrante(t,mes,q);
-  return Math.round(fila(q).totalPagar + arr.ganado - arr.adelantos - arr.seguridad);
+  return _estaPagadoQuincena(t,mes,q) ? 0 : Math.round(fila(q).totalPagar);
 }
 async function pagarQuincenaTrabajador(idx, q){
   const t=negocio.trabajadores[idx]; if(!t) return;
@@ -4477,21 +4439,6 @@ async function revertirPagoQuincenaTrabajador(idx, q){
     guardar(); actualizarTodo();
     toast("Pago revertido","ok");
   });
-}
-async function pasarQuincenaTrabajador(idx, mes, q){
-  const t=negocio.trabajadores[idx]; if(!t) return;
-  if(q==='mes') return;
-  const nom=cap(sanitizarTexto(t.nombre));
-  confirmar("Pasar a la siguiente quincena",
-    `Se pasarán el Ganado, los Adelantos y la Seguridad de esta quincena de ${nom} a la siguiente. Esta quincena queda resuelta y no se paga por separado.`,
-    async()=>{
-      if(!t.pagosQuincena) t.pagosQuincena={};
-      if(!t.pagosQuincena[mes]) t.pagosQuincena[mes]={};
-      t.pagosQuincena[mes][q]='unida';
-      guardar(); actualizarTodo();
-      const r=await guardarEvento({tipoRegistro:"pagoQuincenaTrabajador",nombre:t.nombre,mes,q,pagado:'unida'},1,0);
-      toast(r.ok?`Quincena de ${nom} pasada a la siguiente`:"Guardada localmente",r.ok?"ok":"aviso");
-    });
 }
 
 // ══ PAGOS POR QUINCENA (perfiles / secretarias, no Admin) ══
@@ -4604,14 +4551,8 @@ function mostrarCierreMes(){
 
   const cardsTrabajadores = negocio.trabajadores.map((t,idx)=>{
     const fila=resumenVista.trabajadores.find(x=>x.nombre===t.nombre)||{ganado:0,adelantos:0,seguridad:0};
-    const unida = q!=='mes' && _esQuincenaUnida(t,mes,q);
-    const arrastre = q!=='mes' ? _arrastreEntrante(t,mes,q) : {ganado:0,adelantos:0,seguridad:0};
-    const tieneArrastre = !!(arrastre.ganado||arrastre.adelantos||arrastre.seguridad);
-    const ganadoMostrado = fila.ganado + arrastre.ganado;
-    const adelantosMostrado = fila.adelantos + arrastre.adelantos;
-    const seguridadMostrada = fila.seguridad + arrastre.seguridad;
     const pendiente=_montoPendienteTrabajador(t,mes,q,resumenQ1,resumenQ2);
-    const pagadoReal = !unida && pendiente<=0 && _estaPagadoQuincena(t,mes,q);
+    const pagado=pendiente<=0 && _estaPagadoQuincena(t,mes,q);
     const nomCierre = cap(sanitizarTexto(t.nombre));
     const ini = nomCierre.charAt(0).toUpperCase();
     const exentoSeguridad=!!t.sinSeguridad;
@@ -4619,27 +4560,22 @@ function mostrarCierreMes(){
       <div class="cierre-card-header">
         <div class="cierre-card-avatar">${ini}</div>
         <div class="cierre-card-nombre">${nomCierre}</div>
-        ${unida?'<span class="cierre-estado-badge" style="margin-left:auto;padding:4px 12px;font-size:12px;background:#eef1ff;color:var(--azul);">➡️ Unida a la siguiente</span>':(pagadoReal?'<span class="cierre-estado-badge pagado" style="margin-left:auto;padding:4px 12px;font-size:12px;">✅ Pagado</span>':'')}
+        ${pagado?'<span class="cierre-estado-badge pagado" style="margin-left:auto;padding:4px 12px;font-size:12px;">✅ Pagado</span>':''}
       </div>
       <div class="cierre-card-stats">
-        <div class="cierre-stat"><span>Ganado</span><strong>$${ganadoMostrado.toLocaleString()}</strong></div>
-        <div class="cierre-stat"><span>Adelantos</span><strong>$${adelantosMostrado.toLocaleString()}</strong></div>
+        <div class="cierre-stat"><span>Ganado</span><strong>$${fila.ganado.toLocaleString()}</strong></div>
+        <div class="cierre-stat"><span>Adelantos</span><strong>$${fila.adelantos.toLocaleString()}</strong></div>
         <div class="cierre-stat">
           <span>Seguridad</span>
-          <strong style="${seguridadMostrada>0?'color:var(--rojo)':''}">${seguridadMostrada>0?'-$'+seguridadMostrada.toLocaleString():'$0'}</strong>
+          <strong style="${fila.seguridad>0?'color:var(--rojo)':''}">${fila.seguridad>0?'-$'+fila.seguridad.toLocaleString():'$0'}</strong>
           <button class="btn-sm ${exentoSeguridad?'btn-verde':'btn-rojo'}" style="margin-top:4px;padding:3px 8px;font-size:10px;white-space:nowrap;" onclick="toggleSeguridadTrabajador(${idx})" title="${exentoSeguridad?'Reactivar el cobro de seguridad a este engrasador':'Omitir el cobro de seguridad a este engrasador'}">${exentoSeguridad?'🔓 Sin cobro':'🔒 Cobrando'}</button>
         </div>
         <div class="cierre-stat neto" style="grid-column:3;text-align:right;"><span>A pagar</span><strong style="font-size:17px;">$${pendiente.toLocaleString()}</strong></div>
       </div>
-      ${tieneArrastre&&!unida?`<p style="color:var(--gris);font-size:11px;margin:6px 0 0;">Incluye quincena anterior no cobrada (unida a esta).</p>`:''}
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        ${unida
-          ?`<button class="btn-gris btn-sm" onclick="revertirPagoQuincenaTrabajador(${idx},'${q}')">↩️ Deshacer unión</button>`
-          :pagadoReal
-            ?`<button class="btn-gris btn-sm" onclick="revertirPagoQuincenaTrabajador(${idx},'${q}')">↩️ Revertir</button>`
-            :(pendiente<0&&q!=='mes'
-              ?`<button class="btn-amarillo btn-sm" onclick="pasarQuincenaTrabajador(${idx},'${mes}','${q}')">➡️ Pasar a la siguiente quincena</button>`
-              :`<button class="btn-verde btn-sm" onclick="pagarQuincenaTrabajador(${idx},'${q}')">💸 Pagar</button>`)}
+        ${pagado
+          ?`<button class="btn-gris btn-sm" onclick="revertirPagoQuincenaTrabajador(${idx},'${q}')">↩️ Revertir</button>`
+          :`<button class="btn-verde btn-sm" onclick="pagarQuincenaTrabajador(${idx},'${q}')">💸 Pagar</button>`}
       </div>
     </div>`;
   }).join("");
@@ -4725,18 +4661,6 @@ function imprimirResumen(){
 }
 
 // ══ HISTORIAL ══
-function _htmlResultadoLiquidacion(c, pl){
-  const veh = pl?.vehiculos||null;
-  const nSint = veh ? veh.filter(v=>v.tipoEngrase==='mixto').length : null;
-  const nMixR = veh ? veh.filter(v=>v.tipoEngrase==='mixto_r').length : null;
-  const nAzul = veh ? veh.filter(v=>v.tipoEngrase==='azul').length : null;
-  return `<div style="background:#f7f9fc;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;">
-    <strong>🛢️ Grasa</strong><br>Antes: ${Number(c.grasaAntes||0).toLocaleString()} g | Quedó: ${Number(c.grasaQuedo||0).toLocaleString()} g | Gastada: ${Number(c.grasaGastada||0).toLocaleString()} g → $${Number(c.valorGrasaGastada||0).toLocaleString()}<hr style="margin:6px 0;">
-    <strong>Sintéticos${nSint!==null?' ('+nSint+')':''} · Mixtos${nMixR!==null?' ('+nMixR+')':''}</strong><br>Rebajados: $${Number(c.totalMixtosRebajados||0).toLocaleString()} → $${Number(c.porcentajeMixtos||0).toLocaleString()}<hr style="margin:6px 0;">
-    <strong>Azules${nAzul!==null?' ('+nAzul+')':''}</strong><br>Total: $${Number(c.totalAzules||0).toLocaleString()} — Menos grasa: $${Number(c.azulesMenosGrasa||0).toLocaleString()} → $${Number(c.porcentajeAzules||0).toLocaleString()}<hr style="margin:6px 0;">
-    <strong>Total: $${Number(c.totalFinal||0).toLocaleString()}</strong>
-  </div>`;
-}
 function mostrarHistorial(){
   const el=document.getElementById("historialContenido"); if(!el) return;
   sincronizarMeses();
@@ -4775,8 +4699,7 @@ function mostrarHistorial(){
       <button class="btn-sm" onclick="imprimirPlanilla('${pl.id}')">🖨️ PDF</button>
       ${pl.liquidada?`<button class="btn-amarillo btn-sm" onclick="revertirPlanillaLiquidada('${pl.id}')">↩️ Revertir</button>`:''}
     `:'';
-    const idResLiq=`liqRes_${i}`;
-    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(pl?.fecha||c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"><button class="btn-sm" onclick="document.getElementById('${idResLiq}').classList.toggle('oculto')">📊 Resultado</button>${accionesPlanilla}<button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div><div id="${idResLiq}" class="oculto">${_htmlResultadoLiquidacion(c,pl)}</div></div>`;
+    el.innerHTML+=`<div class="item"><h3>Liquidación ${bp}</h3><p><strong>Fecha:</strong> ${sanitizarTexto(pl?.fecha||c.fecha||"")}</p><p><strong>Total:</strong> $${fmtMiles(Number(c.totalFinal||0))}</p><p><strong>Pagos:</strong><br>${pagos}</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${accionesPlanilla}<button class="btn-rojo btn-sm" onclick="eliminarLiquidacion(${i})">Eliminar</button></div></div>`;
   });
   if(!count) el.innerHTML="<p style='color:var(--gris);'>Sin liquidaciones en este período.</p>";
 }
