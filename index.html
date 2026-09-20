@@ -4261,19 +4261,59 @@ function mostrarAdelantos(){
 
   el.innerHTML="";
   if(!items.length){ el.innerHTML="<p style='color:var(--gris);'>Sin adelantos en este mes.</p>"; return; }
-  items.forEach(({tipo,iT,iA,nombre,adelanto:a})=>{
-    const div=document.createElement("div"); div.className="item";
-    const h3=document.createElement("h3"); h3.textContent=cap(nombre);
-    const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
-    const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
-    const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
-    const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
-    btn.addEventListener("click",()=>tipo==="perfil"?eliminarAdelantoPerfil(nombre,iA):eliminarAdelanto(iT,iA));
-    const nodos=[h3,p1,p2,p3];
-    if(a.creadoPor){ const p4=document.createElement("p"); p4.innerHTML="<strong>Registrado por:</strong> "+sanitizarTexto(a.creadoPor); nodos.push(p4); }
-    nodos.push(btn);
-    div.append(...nodos); el.appendChild(div);
-  });
+
+  // No se borran solos al pagar la quincena — solo se ocultan del listado activo
+  // (colapsados en "ya liquidados") para poder revisarlos después si hace falta.
+  const activos=items.filter(it=>!_adelantoLiquidado(it,mes));
+  const liquidados=items.filter(it=>_adelantoLiquidado(it,mes));
+
+  if(!activos.length){
+    el.innerHTML="<p style='color:var(--gris);'>Sin adelantos pendientes en este mes.</p>";
+  } else {
+    activos.forEach(it=>el.appendChild(_nodoAdelanto(it,false)));
+  }
+
+  if(liquidados.length){
+    const cont=document.createElement("div");
+    const btnToggle=document.createElement("button");
+    btnToggle.className="btn-sm"; btnToggle.style.margin="10px 0";
+    const txtVer=`🗂️ Ver ${liquidados.length} adelanto(s) de quincena ya liquidada`;
+    const txtOcultar="🗂️ Ocultar adelantos liquidados";
+    btnToggle.textContent=txtVer;
+    const zonaLiq=document.createElement("div"); zonaLiq.className="oculto";
+    btnToggle.onclick=()=>{
+      zonaLiq.classList.toggle("oculto");
+      btnToggle.textContent=zonaLiq.classList.contains("oculto")?txtVer:txtOcultar;
+    };
+    liquidados.forEach(it=>zonaLiq.appendChild(_nodoAdelanto(it,true)));
+    cont.appendChild(btnToggle); cont.appendChild(zonaLiq);
+    el.appendChild(cont);
+  }
+}
+function _quincenaDeFecha(fecha){
+  return _getDia(fecha)>=16 ? 'q2' : 'q1';
+}
+function _adelantoLiquidado(it, mes){
+  const q=_quincenaDeFecha(it.adelanto.fecha);
+  if(it.tipo==="perfil") return _estaPagadoQuincenaPerfil(it.nombre, mes, q);
+  const t=negocio.trabajadores[it.iT];
+  return t ? _estaPagadoQuincena(t, mes, q) : false;
+}
+function _nodoAdelanto({tipo,iT,iA,nombre,adelanto:a}, liquidado){
+  const div=document.createElement("div"); div.className="item";
+  if(liquidado) div.style.opacity="0.7";
+  const h3=document.createElement("h3"); h3.textContent=cap(nombre)+(liquidado?" ✅":"");
+  const p1=document.createElement("p"); p1.innerHTML=`<strong>Valor:</strong> $${Number(a.valor).toLocaleString()}`;
+  const p2=document.createElement("p"); p2.innerHTML="<strong>Nota:</strong> "+sanitizarTexto(a.nota||"Sin nota");
+  const p3=document.createElement("p"); p3.innerHTML="<strong>Fecha:</strong> "+sanitizarTexto(a.fecha);
+  const btn=document.createElement("button"); btn.className="btn-rojo btn-sm"; btn.textContent="Eliminar";
+  btn.addEventListener("click",()=>tipo==="perfil"?eliminarAdelantoPerfil(nombre,iA):eliminarAdelanto(iT,iA));
+  const nodos=[h3,p1,p2,p3];
+  if(a.creadoPor){ const p4=document.createElement("p"); p4.innerHTML="<strong>Registrado por:</strong> "+sanitizarTexto(a.creadoPor); nodos.push(p4); }
+  if(liquidado){ const p5=document.createElement("p"); p5.style.cssText="color:var(--gris);font-size:11px;"; p5.textContent="Quincena ya liquidada"; nodos.push(p5); }
+  nodos.push(btn);
+  div.append(...nodos);
+  return div;
 }
 function eliminarAdelanto(iT,iA){
   confirmar("Eliminar adelanto","¿Seguro?",async()=>{
@@ -4435,17 +4475,44 @@ function _arrastreEntrante(t, mes, q){
   }
   return acum;
 }
+// calcularResumenQuincena no cobra Seguridad propia si Ganado<=0 en ese periodo
+// (para no cobrarle a quien no trabajo nada esa quincena). Pero si esta quincena
+// YA recibio un arrastre de la anterior (el trabajador sigue activo, solo que
+// sus planillas de este periodo aun no se han registrado), esa Seguridad propia
+// se sigue debiendo igual: no puede desaparecer solo porque todavia no hay
+// planillas cargadas. _seguridadPropiaEfectiva fuerza el monto configurado en
+// ese caso puntual, sin tocar el calculo general para el resto de casos.
+function _seguridadPropiaEfectiva(t, mes, q, seguridadCalculada, tieneArrastre){
+  if(t.sinSeguridad) return 0;
+  if(!tieneArrastre) return seguridadCalculada;
+  const config=Math.round(q==='q1'?Number(negocio.configuracion?.seguridadQ1||0):Number(negocio.configuracion?.seguridadQ2||0));
+  return Math.max(seguridadCalculada, config);
+}
 function _montoPendienteTrabajador(t, mes, q, resumenQ1, resumenQ2){
-  const fila=(qq)=> (qq==='q1'?resumenQ1:resumenQ2).trabajadores.find(x=>x.nombre===t.nombre) || {totalPagar:0};
+  const fila=(qq)=> (qq==='q1'?resumenQ1:resumenQ2).trabajadores.find(x=>x.nombre===t.nombre) || {totalPagar:0,ganado:0,adelantos:0,seguridad:0};
   if(q==='mes'){
-    let total=0;
-    if(!_estaPagadoQuincena(t,mes,'q1')) total+=fila('q1').totalPagar;
-    if(!_estaPagadoQuincena(t,mes,'q2')) total+=fila('q2').totalPagar;
-    return Math.round(total);
+    // OJO: no sumar fila('q1').totalPagar/fila('q2').totalPagar directo aca.
+    // fila() sale de calcularResumenQuincena, que NO sabe de quincenas 'unida'
+    // (arrastradas a la siguiente) — sumaba las dos quincenas "propias" pero
+    // si una estaba 'unida' quedaba excluida por _estaPagadoQuincena sin que
+    // su Ganado/Adelantos/Seguridad se trasladaran a la otra, y esa plata
+    // (y su Seguridad) desaparecia del total del mes. Reutilizando la rama
+    // q1/q2 (que si arma el arrastre via _arrastreEntrante) para cada una y
+    // sumando el resultado, la unida aporta $0 (ya esta resuelta en la otra)
+    // y la que la recibio ya trae sumado su propio Ganado/Adelantos/Seguridad
+    // MAS el de la unida.
+    return Math.round(
+      _montoPendienteTrabajador(t,mes,'q1',resumenQ1,resumenQ2) +
+      _montoPendienteTrabajador(t,mes,'q2',resumenQ1,resumenQ2)
+    );
   }
   if(_estaPagadoQuincena(t,mes,q)) return 0;
   const arr=_arrastreEntrante(t,mes,q);
-  return Math.round(fila(q).totalPagar + arr.ganado - arr.adelantos - arr.seguridad);
+  const tieneArrastre=!!(arr.ganado||arr.adelantos||arr.seguridad);
+  const base=fila(q);
+  const segPropia=_seguridadPropiaEfectiva(t,mes,q,base.seguridad||0,tieneArrastre);
+  const totalPropio=(base.ganado||0)-(base.adelantos||0)-segPropia;
+  return Math.round(totalPropio + arr.ganado - arr.adelantos - arr.seguridad);
 }
 async function pagarQuincenaTrabajador(idx, q){
   const t=negocio.trabajadores[idx]; if(!t) return;
@@ -4609,7 +4676,8 @@ function mostrarCierreMes(){
     const tieneArrastre = !!(arrastre.ganado||arrastre.adelantos||arrastre.seguridad);
     const ganadoMostrado = fila.ganado + arrastre.ganado;
     const adelantosMostrado = fila.adelantos + arrastre.adelantos;
-    const seguridadMostrada = fila.seguridad + arrastre.seguridad;
+    const seguridadPropiaEfectiva = q!=='mes' ? _seguridadPropiaEfectiva(t,mes,q,fila.seguridad,tieneArrastre) : fila.seguridad;
+    const seguridadMostrada = seguridadPropiaEfectiva + arrastre.seguridad;
     const pendiente=_montoPendienteTrabajador(t,mes,q,resumenQ1,resumenQ2);
     const pagadoReal = !unida && pendiente<=0 && _estaPagadoQuincena(t,mes,q);
     const nomCierre = cap(sanitizarTexto(t.nombre));
