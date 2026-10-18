@@ -847,7 +847,7 @@ body.oscuro .stat-box { opacity:.9; }
       <div class="tabs-planillas" id="tabsPlanillas"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button class="btn-verde" onclick="nuevaPlanilla()">＋ Nueva planilla</button>
-        <button class="btn-amarillo" onclick="liquidarQuincenal()">⚡⚡ Liquidar todas (quincenal)</button>
+        <button class="btn-amarillo" onclick="liquidarQuincenal()">⚡⚡ Liquidar quincena</button>
         <button class="btn-gris btn-sm" onclick="mostrarPagina('paginaInicio')">← Inicio</button>
       </div>
     </div>
@@ -1318,7 +1318,7 @@ body.oscuro .stat-box { opacity:.9; }
     <h2>⚡ Resultado Liquidación Quincenal</h2>
     <div id="contenidoModalQuincenal"></div>
     <div class="modal-acciones">
-      <button class="btn-verde" id="btnGuardarQuincenal">💾 Guardar todas</button>
+      <button class="btn-verde" id="btnGuardarQuincenal">💾 Guardar liquidación</button>
       <button class="btn-gris" onclick="cerrarModal('modalQuincenal')">Cerrar</button>
     </div>
   </div>
@@ -3969,48 +3969,103 @@ async function revertirPlanillaLiquidada(planillaId){
 // ══════════════════════════════════════════════════════════
 //  LIQUIDACIÓN QUINCENAL (TODAS A LA VEZ)
 // ══════════════════════════════════════════════════════════
+// Quincena a la que pertenece una planilla (por su fecha dd/mm/aaaa; si no se
+// puede leer, usa pl.mes + día). key ordenable: "2026-10-q1".
+function _quincenaPlanilla(pl){
+  let mes=pl.mes||"", dia=_getDia(pl.fecha||"");
+  const m=String(pl.fecha||"").match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if(m) mes=`${m[3]}-${String(m[2]).padStart(2,'0')}`;
+  const q=dia>=16?'q2':'q1';
+  const meses=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const [y,mm]=mes.split('-').map(Number);
+  const label=`${q==='q1'?'1ra':'2da'} quincena ${meses[(mm||1)-1]||''} ${y||''}`.trim();
+  return {mes,q,key:`${mes}-${q}`,label};
+}
+function _claveQuincenaActual(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getDate()>=16?'q2':'q1'}`;
+}
+let _candidatosQuincenal=[];
 function liquidarQuincenal() {
   const pendientes=(negocio.planillas||[]).filter(p=>!p.liquidada&&(p.vehiculos||[]).length>0);
   if(!pendientes.length){toast("No hay planillas pendientes de liquidar","aviso");return;}
-  resultadosQuincenales=pendientes.map(pl=>({planilla:pl, resultado:calcularResultadoPlanilla(pl)}));
-  // Agrupar por engrasadores
-  const resumenEngrasadores={};
-  resultadosQuincenales.forEach(({resultado:r})=>{
-    const sumar=(nom,val)=>{ if(!nom) return; if(!resumenEngrasadores[nom]) resumenEngrasadores[nom]=0; resumenEngrasadores[nom]+=val; };
-    sumar(r.trabajadorNombre1, r.pagoTrabajador1);
-    if(r.trabajadorNombre2) sumar(r.trabajadorNombre2, r.pagoTrabajador2);
-    if(r.trabajadorNombre3) sumar(r.trabajadorNombre3, r.pagoTrabajador3);
-    if(r.trabajadorNombre4) sumar(r.trabajadorNombre4, r.pagoTrabajador4);
-  });
-  const totalGen=Object.values(resumenEngrasadores).reduce((s,v)=>s+v,0);
-  const filasPlanillas=resultadosQuincenales.map(({planilla:pl,resultado:r})=>`
-    <div class="item" style="padding:10px 14px;">
-      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-        <strong>${pl.nombre||pl.fecha}</strong>
-        <span style="font-weight:700;color:var(--verde);">$${r.totalFinal.toLocaleString()}</span>
-      </div>
-      <div style="font-size:12px;color:var(--gris);margin-top:3px;">
-        ${[r.e1,r.e2,r.e3,r.e4].filter(Boolean).join(" & ")||"—"} · ${(pl.vehiculos||[]).length} servicios
-      </div>
-    </div>`).join("");
-  const filasResumen=Object.entries(resumenEngrasadores).map(([nom,val])=>`
-    <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
-      <span><strong>${cap(nom)}</strong></span>
-      <span style="font-weight:700;color:var(--verde);">$${val.toLocaleString()}</span>
+  const actual=_claveQuincenaActual();
+  _candidatosQuincenal=pendientes.map(pl=>{
+    const qz=_quincenaPlanilla(pl);
+    return {planilla:pl, resultado:calcularResultadoPlanilla(pl), qz, sel:qz.key<actual};
+  }).sort((a,b)=>a.qz.key<b.qz.key?-1:a.qz.key>b.qz.key?1:0);
+  // Si no hay nada de quincenas pasadas, no preseleccionar nada (el usuario elige)
+  const grupos={};
+  _candidatosQuincenal.forEach((c,idx)=>{ (grupos[c.qz.key]=grupos[c.qz.key]||{label:c.qz.label,items:[]}).items.push(idx); });
+  const htmlGrupos=Object.entries(grupos).map(([key,g])=>`
+    <div style="margin-bottom:10px;border:1px solid var(--borde);border-radius:12px;overflow:hidden;">
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0f6ff;font-weight:700;font-size:13px;cursor:pointer;">
+        <input type="checkbox" data-grupo="${key}" onchange="_selGrupoQuincenal('${key}',this.checked)">
+        ${sanitizarTexto(g.label)}${key===actual?' <span style="font-weight:400;color:var(--gris);">(en curso)</span>':''}
+        <span style="margin-left:auto;font-weight:400;color:var(--gris);">${g.items.length} planilla(s)</span>
+      </label>
+      ${g.items.map(idx=>{const {planilla:pl,resultado:r}=_candidatosQuincenal[idx]; return `
+      <label class="item" style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;margin:0;border-radius:0;cursor:pointer;">
+        <input type="checkbox" data-idx="${idx}" data-grupo-item="${key}" onchange="_selItemQuincenal(${idx},this.checked)" style="margin-top:3px;">
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+            <strong>${sanitizarTexto(pl.nombre||pl.fecha)}</strong>
+            <span style="font-weight:700;color:var(--verde);">$${r.totalFinal.toLocaleString()}</span>
+          </div>
+          <div style="font-size:12px;color:var(--gris);margin-top:3px;">
+            ${sanitizarTexto(pl.fecha||"")} · ${sanitizarTexto([r.e1,r.e2,r.e3,r.e4].filter(Boolean).join(" & ")||"—")} · ${(pl.vehiculos||[]).length} servicios
+          </div>
+        </div>
+      </label>`;}).join("")}
     </div>`).join("");
   document.getElementById("contenidoModalQuincenal").innerHTML=`
-    <p style="color:var(--gris);font-size:13px;margin-bottom:10px;">${pendientes.length} planilla(s) pendientes — se liquidarán todas.</p>
-    <h3 style="font-size:14px;margin-bottom:6px;">Planillas incluidas:</h3>
-    ${filasPlanillas}
-    <h3 style="font-size:14px;margin:12px 0 6px;">Resumen por engrasador:</h3>
-    <div style="border:1px solid var(--borde);border-radius:12px;overflow:hidden;">
-      ${filasResumen}
-      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-weight:700;">
-        <span>TOTAL QUINCENAL</span><span>$${totalGen.toLocaleString()}</span>
-      </div>
-    </div>`;
+    <p style="color:var(--gris);font-size:13px;margin-bottom:8px;">${pendientes.length} planilla(s) pendientes. Marca las que quieres liquidar.</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn-amarillo btn-sm" onclick="_selRapidaQuincenal('pasadas')">Hasta la quincena pasada</button>
+      <button class="btn-gris btn-sm" onclick="_selRapidaQuincenal('todas')">Todas</button>
+      <button class="btn-gris btn-sm" onclick="_selRapidaQuincenal('ninguna')">Ninguna</button>
+    </div>
+    ${htmlGrupos}
+    <h3 style="font-size:14px;margin:12px 0 6px;">Resumen por engrasador (seleccionadas):</h3>
+    <div id="resumenQuincenalSel" style="border:1px solid var(--borde);border-radius:12px;overflow:hidden;"></div>`;
   document.getElementById("btnGuardarQuincenal").onclick=guardarLiquidacionQuincenal;
+  _refrescarSelQuincenal();
   document.getElementById("modalQuincenal").classList.add("abierto");
+}
+function _selItemQuincenal(idx,v){ if(_candidatosQuincenal[idx]) _candidatosQuincenal[idx].sel=v; _refrescarSelQuincenal(); }
+function _selGrupoQuincenal(key,v){ _candidatosQuincenal.forEach(c=>{ if(c.qz.key===key) c.sel=v; }); _refrescarSelQuincenal(); }
+function _selRapidaQuincenal(modo){
+  const actual=_claveQuincenaActual();
+  _candidatosQuincenal.forEach(c=>{ c.sel= modo==='todas'?true: modo==='ninguna'?false: c.qz.key<actual; });
+  _refrescarSelQuincenal();
+}
+function _refrescarSelQuincenal(){
+  const cont=document.getElementById("contenidoModalQuincenal"); if(!cont) return;
+  cont.querySelectorAll('input[data-idx]').forEach(ch=>{ ch.checked=!!_candidatosQuincenal[+ch.dataset.idx]?.sel; });
+  cont.querySelectorAll('input[data-grupo]').forEach(ch=>{
+    const items=_candidatosQuincenal.filter(c=>c.qz.key===ch.dataset.grupo);
+    const n=items.filter(c=>c.sel).length;
+    ch.checked=n===items.length&&n>0; ch.indeterminate=n>0&&n<items.length;
+  });
+  const sel=_candidatosQuincenal.filter(c=>c.sel);
+  const resumen={};
+  sel.forEach(({resultado:r})=>{
+    [[r.trabajadorNombre1,r.pagoTrabajador1],[r.trabajadorNombre2,r.pagoTrabajador2],[r.trabajadorNombre3,r.pagoTrabajador3],[r.trabajadorNombre4,r.pagoTrabajador4]]
+      .forEach(([nom,val])=>{ if(!nom) return; resumen[nom]=(resumen[nom]||0)+Number(val||0); });
+  });
+  const totalGen=Object.values(resumen).reduce((s,v)=>s+v,0);
+  const box=document.getElementById("resumenQuincenalSel");
+  if(box) box.innerHTML=(Object.entries(resumen).map(([nom,val])=>`
+    <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
+      <span><strong>${sanitizarTexto(cap(nom))}</strong></span>
+      <span style="font-weight:700;color:var(--verde);">$${val.toLocaleString()}</span>
+    </div>`).join("")||`<div style="padding:10px 12px;color:var(--gris);font-size:13px;">Ninguna planilla seleccionada.</div>`)+`
+    <div style="display:flex;justify-content:space-between;padding:10px 12px;background:linear-gradient(135deg,var(--azul),var(--verde));color:#fff;font-weight:700;">
+      <span>TOTAL (${sel.length} planilla${sel.length===1?'':'s'})</span><span>$${totalGen.toLocaleString()}</span>
+    </div>`;
+  const btn=document.getElementById("btnGuardarQuincenal");
+  if(btn){ btn.textContent=`💾 Guardar liquidación (${sel.length})`; btn.disabled=!sel.length; }
+  resultadosQuincenales=sel.map(({planilla,resultado})=>({planilla,resultado}));
 }
 
 async function guardarLiquidacionQuincenal() {
