@@ -3078,7 +3078,8 @@ function _actualizarTotalCreditoFila(id,i){
 // liquidación de los engrasadores, solo se suma al crédito de la empresa.
 function actualizarAdicionalValorFila(id,i,raw){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl||!pl.vehiculos[i]) return;
-  const num=Number(raw); const valor=(!isNaN(num)&&num>0&&num<1000)?num*1000:num;
+  // Valor literal: sin atajo x1000 (permite montos pequeños como $800)
+  const num=Number(raw); const valor=(!isNaN(num)&&num>0)?num:0;
   pl.vehiculos[i].adicionalValorRaw=raw; pl.vehiculos[i].adicionalValor=isNaN(valor)?0:valor;
   _actualizarTotalCreditoFila(id,i);
   _programarAutoguardarPlanilla(id);
