@@ -9,7 +9,7 @@
 <meta name="author" content="Brandon Sebastian Arevalo Ojeda">
 <meta name="theme-color" content="#1f3c88">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="SYMES-FINAL/manifest.webmanifest">
+
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -3247,6 +3247,15 @@ function eliminarFilaPlanilla(id,i){
   }
 }
 let _autosaveTimersPlanilla = {};
+// Autoguardado en 2 niveles:
+//  - Local (localStorage): a los 1.2s de dejar de escribir — no se pierde nada.
+//  - Nube (evento en D1): solo si la planilla CAMBIÓ desde el último envío y tras
+//    20s sin cambios (o al ocultar/cerrar la pestaña). Antes se enviaba la planilla
+//    completa cada 1.2s → 19.000 eventos para 272 planillas (85 MB) y el Worker
+//    respondía 500 al cargar el historial.
+const _AUTOSAVE_NUBE_MS = 20000;
+let _autosaveNubeTimers = {};
+let _ultimoEnvioPlanilla = {}; // id -> JSON enviado por última vez
 function _programarAutoguardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id);
   if(!pl||pl.liquidada) return; // no autoguardar planillas ya liquidadas
@@ -3255,15 +3264,32 @@ function _programarAutoguardarPlanilla(id){
 }
 async function _autoguardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
-  recalcularTotal(id); guardar();
-  const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
-  if(!r||!r.ok) toast("⚠️ Sin conexión: los cambios de la planilla se guardaron solo en este dispositivo","aviso");
+  recalcularTotal(id); guardar(); // local inmediato
+  clearTimeout(_autosaveNubeTimers[id]);
+  _autosaveNubeTimers[id]=setTimeout(()=>_enviarPlanillaNube(id), _AUTOSAVE_NUBE_MS);
 }
+async function _enviarPlanillaNube(id, forzar=false){
+  clearTimeout(_autosaveNubeTimers[id]); delete _autosaveNubeTimers[id];
+  const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return {ok:true};
+  const json=JSON.stringify(pl);
+  if(!forzar && _ultimoEnvioPlanilla[id]===json) return {ok:true}; // sin cambios: no crear evento
+  const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+  if(r&&r.ok) _ultimoEnvioPlanilla[id]=json;
+  else toast("⚠️ Sin conexión: los cambios de la planilla se guardaron solo en este dispositivo","aviso");
+  return r||{ok:false};
+}
+// Enviar de inmediato lo pendiente si la pestaña se oculta o se cierra
+function _flushAutoguardadoNube(){
+  Object.keys(_autosaveNubeTimers).forEach(id=>_enviarPlanillaNube(id));
+}
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") _flushAutoguardadoNube(); });
+window.addEventListener("pagehide",_flushAutoguardadoNube);
 async function guardarPlanilla(id){
   const pl=negocio.planillas.find(p=>p.id===id); if(!pl) return;
   recalcularTotal(id); guardar();
   renderTabsPlanillas(); mostrarListaPlanillas(); // Actualizar UI de inmediato
-  const r=await guardarEvento({tipoRegistro:"planilla",planilla:pl},pl.total,0);
+  clearTimeout(_autosaveTimersPlanilla[id]);
+  const r=await _enviarPlanillaNube(id);
   toast(r.ok?"Planilla guardada ":"Guardada localmente (fallo nube)",r.ok?"ok":"aviso");
 }
 function eliminarPlanilla(id){
