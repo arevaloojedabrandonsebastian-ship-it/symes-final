@@ -1659,7 +1659,7 @@ function _elegirPerfil(i){
   _renderMenuInicio();
   // Si el perfil elegido ya no tiene permiso para la página en la que está, sacarlo a Inicio
   const paginaActual=document.querySelector(".pagina:not(.oculto)");
-  if(paginaActual && (paginaActual.id==="paginaCreditos"||paginaActual.id==="paginaPrecios"||paginaActual.id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()){
+  if(paginaActual && (paginaActual.id==="paginaPrecios"||paginaActual.id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()){
     mostrarPagina("paginaInicio");
   }
   toast(`Perfil activo: ${cap(sanitizarTexto(nombre))}`,"ok");
@@ -2239,7 +2239,7 @@ function prepararDatos() {
 
 function _renderMenuInicio() {
   const esAdmin = negocio.esAdmin;
-  const PAGINAS_RESTRINGIDAS = ["paginaCreditos","paginaPrecios","paginaCierreMes"];
+  const PAGINAS_RESTRINGIDAS = ["paginaPrecios","paginaCierreMes"];
   const puedeVerRestringidas = _puedeVerPaginasRestringidas();
 
   const tarjetas = [
@@ -2375,8 +2375,8 @@ let _navegandoAtras = false;
 function mostrarPagina(id, sinHistorial=false) {
   // Route guard: si no hay sesión activa, redirigir al login
   if (!negocio) { mostrarLogin(); return; }
-  // Route guard: Créditos y Precios solo para perfiles autorizados
-  if ((id==="paginaCreditos" || id==="paginaPrecios" || id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()) {
+  // Route guard: Precios y Pagos solo para perfiles autorizados (Créditos abierto a todos)
+  if ((id==="paginaPrecios" || id==="paginaCierreMes") && !_puedeVerPaginasRestringidas()) {
     toast("No tienes permiso para acceder a esta sección","error");
     id="paginaInicio";
   }
