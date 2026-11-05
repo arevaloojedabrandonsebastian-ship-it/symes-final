@@ -1651,8 +1651,46 @@ function _abrirModalPerfil(){
   cont.innerHTML=perfiles.map((p,i)=>`<button class="btn-verde" style="width:100%;text-align:left;padding:12px 16px;margin:0;" onclick="_elegirPerfil(${i})">${cap(sanitizarTexto(p))}</button>`).join("");
   document.getElementById("modalPerfil").classList.add("abierto");
 }
+// Clave del perfil Admin. Solo se guarda el hash SHA-256 (nunca la clave en texto plano).
+const _HASH_CLAVE_ADMIN="b79ea17b7c5ca8fe9cccd8cdba6e8f8ed0b3c948f9f709ed0f47d2fd47fcba82";
+let _intentosClaveAdmin=0, _bloqueoClaveAdminHasta=0;
+async function _sha256Hex(txt){
+  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 function _elegirPerfil(i){
   const nombre=(negocio.perfiles||[])[i]; if(!nombre) return;
+  if(nombre.trim().toLowerCase()==="admin"){ _pedirClaveAdmin(i); return; }
+  _activarPerfil(nombre);
+}
+function _pedirClaveAdmin(i){
+  const cont=document.getElementById("listaPerfilesModal"); if(!cont) return;
+  cont.innerHTML=`<label style="font-weight:600;">🔒 Clave del perfil Admin</label>
+    <input type="password" id="claveAdminPerfil" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="••••••"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();_validarClaveAdmin(${i});}">
+    <div style="display:flex;gap:8px;">
+      <button class="btn-verde" style="flex:1;margin:0;" onclick="_validarClaveAdmin(${i})">Entrar</button>
+      <button style="flex:1;margin:0;" onclick="_abrirModalPerfil()">← Volver</button>
+    </div>`;
+  setTimeout(()=>document.getElementById("claveAdminPerfil")?.focus(),50);
+}
+async function _validarClaveAdmin(i){
+  const inp=document.getElementById("claveAdminPerfil"); if(!inp) return;
+  if(Date.now()<_bloqueoClaveAdminHasta){
+    toast(`Demasiados intentos. Espera ${Math.ceil((_bloqueoClaveAdminHasta-Date.now())/1000)}s`,"error"); return;
+  }
+  const ok=(await _sha256Hex(inp.value.trim()))===_HASH_CLAVE_ADMIN;
+  if(!ok){
+    _intentosClaveAdmin++;
+    if(_intentosClaveAdmin>=5){ _bloqueoClaveAdminHasta=Date.now()+30000; _intentosClaveAdmin=0; }
+    inp.value=""; inp.focus();
+    toast("Clave incorrecta","error"); return;
+  }
+  _intentosClaveAdmin=0;
+  const nombre=(negocio.perfiles||[])[i]; if(!nombre) return;
+  _activarPerfil(nombre);
+}
+function _activarPerfil(nombre){
   _guardarPerfilActivo(nombre);
   cerrarModal("modalPerfil");
   _actualizarBadgePerfil();
@@ -2045,13 +2083,19 @@ async function guardarEvento(ev, total=1, ganTrab=0) {
 // solo en este equipo por una falla de conexión. Los que logran subir dejan de encolarse;
 // los que siguen fallando se re-aplican localmente para no desaparecer de la pantalla
 // mientras se recupera la conexión.
+// _estadoRecargadoDeNube: true solo si cargarLiquidaciones() acaba de limpiar y
+// reconstruir el estado local. Si la carga falló, el estado local YA contiene los
+// pendientes; re-aplicarlos los duplicaba en cada intento (adelantos inflados).
+let _estadoRecargadoDeNube = false;
 async function _sincronizarEventosPendientes() {
   const pendientes = negocio.eventosPendientes || [];
+  const reaplicar = _estadoRecargadoDeNube;
+  _estadoRecargadoDeNube = false;
   if (!pendientes.length) return;
   const siguen = [];
   for (const p of pendientes) {
     const r = await _guardarEventoRemoto(p.ev, p.total, p.ganTrab);
-    if (!r.ok) { siguen.push(p); procesarEvento(p.ev); }
+    if (!r.ok) { siguen.push(p); if (reaplicar) procesarEvento(p.ev); }
   }
   negocio.eventosPendientes = siguen;
   guardar();
@@ -2473,8 +2517,9 @@ async function cargarTrabajadores() {
 async function cargarLiquidaciones() {
   if(!negocio?.id) return;
   const r=await nubeGet(`liquidaciones?usuario_id=${negocio.id}&_=${Date.now()}`);
-  if(!r.ok){toast("No se pudieron cargar liquidaciones","error");return;}
+  if(!r.ok){_estadoRecargadoDeNube=false;toast("No se pudieron cargar liquidaciones","error");return;}
   limpiarPagosLocales();
+  _estadoRecargadoDeNube=true;
   const planillasEliminadas=new Set();
   const trabEliminadosCloud=new Set();
   _trabElimNube=new Set(); _planillaElimNube=new Set(); // reset globales
@@ -2521,7 +2566,9 @@ function procesarEvento(ev) {
     if (ev.tipoRegistro==="adelanto"){
       if(!ev.trabajadorNombre||!ev.mes) return;
       const t=getTrabPorNombre(ev.trabajadorNombre);
-      if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});}
+      if(t){if(!t.adelantos)t.adelantos={};if(!t.adelantos[ev.mes])t.adelantos[ev.mes]=[];
+        if(ev.ts && t.adelantos[ev.mes].some(a=>a.ts===ev.ts)) return; // duplicado (reintento tras timeout)
+        t.adelantos[ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});}
       return;
     }
     if (ev.tipoRegistro==="eliminarAdelanto"){
@@ -2540,6 +2587,7 @@ function procesarEvento(ev) {
       if(!negocio.adelantosPerfiles) negocio.adelantosPerfiles={};
       if(!negocio.adelantosPerfiles[ev.perfilNombre]) negocio.adelantosPerfiles[ev.perfilNombre]={};
       if(!negocio.adelantosPerfiles[ev.perfilNombre][ev.mes]) negocio.adelantosPerfiles[ev.perfilNombre][ev.mes]=[];
+      if(ev.ts && negocio.adelantosPerfiles[ev.perfilNombre][ev.mes].some(a=>a.ts===ev.ts)) return; // duplicado
       negocio.adelantosPerfiles[ev.perfilNombre][ev.mes].push({valor:Number(ev.valor||0),nota:ev.nota||"",fecha:ev.fecha||"",ts:ev.ts||null,creadoPor:ev.creadoPor||null});
       return;
     }
