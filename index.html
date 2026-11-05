@@ -1666,7 +1666,7 @@ function _elegirPerfil(i){
 function _pedirClaveAdmin(i){
   const cont=document.getElementById("listaPerfilesModal"); if(!cont) return;
   cont.innerHTML=`<label style="font-weight:600;">🔒 Clave del perfil Admin</label>
-    <input type="password" id="claveAdminPerfil" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="••••••"
+    <input type="text" id="claveAdminPerfil" name="symes-pin-admin-${Date.now()}" inputmode="numeric" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" style="-webkit-text-security:disc;text-security:disc;" maxlength="20" placeholder="••••••"
       onkeydown="if(event.key==='Enter'){event.preventDefault();_validarClaveAdmin(${i});}">
     <div style="display:flex;gap:8px;">
       <button class="btn-verde" style="flex:1;margin:0;" onclick="_validarClaveAdmin(${i})">Entrar</button>
